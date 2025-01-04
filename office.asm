@@ -9,8 +9,8 @@
 //.var maxvvd    = 166
 
 .var hvzero    = 127
-.var maxhvl    = 68
-.var maxhvr    = 176
+.var maxhvl    = 88
+.var maxhvr    = 166
 
 .var vvzero    = 127
 .var maxvvu    = 93
