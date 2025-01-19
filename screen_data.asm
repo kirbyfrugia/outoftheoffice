@@ -128,7 +128,7 @@ shift_row_left_loop_done:
   //   we might be writing a new char into it anyway. This might be
   //   worse though since most of the time there won't be a char coming
   //   onto the screen for a row and the checking could cost more anyway
-  lda #0
+  lda #32
   // y should still have the value from the end index
   sta scr_row, y
 shift_row_left_done:
@@ -136,6 +136,8 @@ shift_row_left_done:
 
 shift_screen_left:
   shift_row_left(1144, row_3_chars_start_idx, row_3_chars_end_idx, row_3_chars_buffer)
+  // TODO: do this right
+  inc ENG_first_x
   rts
 
 // // modifies XXXX

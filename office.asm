@@ -99,9 +99,10 @@ init:
 
   lda #0
   sta ENG_first_x
+  sta ENG_first_x+1
 
   // TODO: fix this
-  lda #255
+  lda #42
   sec
   sbc #scrwidth
   sta ENG_max_column0
@@ -170,7 +171,7 @@ loop:
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
-  jsr log
+  //jsr log
   jmp loop
 
 cls:
