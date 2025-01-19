@@ -9,6 +9,8 @@
 //   The data between these indices are locations in this row where
 //   there is a non-zero character on the screen.
 //   Note: an empty buffer will have equal start and end index.
+//   Note: end_idx points one ring buffer position past last character if
+//     the buffer isn't empty
 row_0_chars_start_idx:  .byte 0
 row_0_chars_end_idx:    .byte 0
 row_0_chars_buffer:     .fill 40,0
@@ -85,12 +87,17 @@ row_24_chars_start_idx: .byte 0
 row_24_chars_end_idx:   .byte 0
 row_24_chars_buffer:    .fill 40,0
 
+// X, Y, and A are all modified
 // The X register is used for the circular buffer indexing.
 // The Y register is the data stored in the buffer at the X location.
+// A is also modified.
 .macro shift_row_left(scr_row, row_start_idx, row_end_idx, row_buffer) {
   ldx row_start_idx
   cpx row_end_idx
   beq shift_row_left_done // no characters in the ring buffer
+
+  lda #1
+  sta SD_last_flag
 
   // special case the first character since it might be rolling off the screen
   // and we might need to move the ring buffer's start position. we don't
@@ -98,14 +105,14 @@ row_24_chars_buffer:    .fill 40,0
   // moving off the screen.
   ldy row_buffer, X
   bne shift_row_left_loop
-  // if here, the first character is on the far left of the screen
+  // if here, the first visible character is on the far left of the screen
   inx
-  cpx #40
-  bne nowrap
+  cpx #scrwidth
+  bne shift_row_left_nowrap
   ldx #0
   stx row_start_idx
   beq shift_row_left_loop
-nowrap:
+shift_row_left_nowrap:
   stx row_start_idx
 shift_row_left_loop:
   cpx row_end_idx
@@ -115,7 +122,7 @@ shift_row_left_loop:
   sta scr_row-1, Y // updates the screen
   dec row_buffer, x // dec the value at the current index in the ring buffer
   inx
-  cpx #40
+  cpx #scrwidth
   bne shift_row_left_loop
   ldx #0
   beq shift_row_left_loop
@@ -134,10 +141,78 @@ shift_row_left_loop_done:
 shift_row_left_done:
 }
 
+// X, Y, and A are all modified
+// The X register is used for the circular buffer indexing.
+// The Y register is the data stored in the buffer at the X location.
+// A is also modified.
+.macro shift_row_right(scr_row, row_start_idx, row_end_idx, row_buffer) {
+  ldx row_end_idx
+  cpx row_start_idx
+  beq shift_row_right_done // no characters in the ring buffer
+
+  lda #1
+  sta SD_last_flag
+
+  dex // remember, end_idx is one ring buffer index past last character
+  cpx #255 // wrapped
+  bne shift_row_right_nowrap
+  ldx #scrwidth-1
+shift_row_right_nowrap:
+  ldy row_buffer, X
+  cpy #scrwidth-1
+  bne shift_row_right_loop
+  // if here, the last character in the row is on the far right of screen
+  // so we just want to move the end index down by one.
+  stx row_end_idx
+  dex
+  cpx row_start_idx
+  beq shift_row_right_done // no longer any characters in ring buffer
+shift_row_right_loop:
+  ldy row_buffer, X // get the column index stored in the ring buffer
+  lda scr_row, Y
+  sta scr_row+1, Y // updates the screen
+  inc row_buffer, x // inc the value at the current index in the ring buffer
+  dex
+  cpx #255
+  bne shift_row_right_loop_check_last
+  ldx #scrwidth-1
+shift_row_right_loop_check_last:
+  // since end_idx is one past start_idx, we use SD_last_flag to
+  // indicate that we need to make one more pass through the loop
+  // after we end_idx gets to start_idx
+  lda SD_last_flag
+  beq shift_row_right_loop_done
+
+  cpx row_start_idx
+  bne shift_row_right_loop
+  lda #0
+  sta SD_last_flag
+  beq shift_row_right_loop
+shift_row_right_loop_done:
+  // blank out the character at the start of the ring buffer since we're
+  //   shifting the screen right
+  ldx row_start_idx
+  ldy row_buffer, X
+  dey // it was already incremented in the loop
+  lda #32
+  sta scr_row, y
+shift_row_right_done:
+}
+
 shift_screen_left:
   shift_row_left(1144, row_3_chars_start_idx, row_3_chars_end_idx, row_3_chars_buffer)
+  shift_row_left(1184, row_4_chars_start_idx, row_4_chars_end_idx, row_4_chars_buffer)
+
   // TODO: do this right
   inc ENG_first_x
+  rts
+
+shift_screen_right:
+  shift_row_right(1144, row_3_chars_start_idx, row_3_chars_end_idx, row_3_chars_buffer)
+  shift_row_right(1184, row_4_chars_start_idx, row_4_chars_end_idx, row_4_chars_buffer)
+
+  // TODO: do this right
+  dec ENG_first_x
   rts
 
 // // modifies XXXX
@@ -159,3 +234,5 @@ shift_screen_left:
 
 // draw_screen:
 //   draw_row($0400, ROW_3_CHARS_INDICES, ROW_3_CHARS_BUFFER)
+
+SD_last_flag: .byte 0

@@ -10,7 +10,7 @@
 .var zpb7 = $3c
 
 .var scrcol0   = 0
-.var scrwidth  = 38
+.var scrwidth  = 40
 .var scrrow0   = 2
 .var scrheight = 23
 

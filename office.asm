@@ -102,7 +102,7 @@ init:
   sta ENG_first_x+1
 
   // TODO: fix this
-  lda #42
+  lda #44
   sec
   sbc #scrwidth
   sta ENG_max_column0
@@ -110,16 +110,16 @@ init:
   sta ENG_max_column0+1
 
   // TODO: remove this
-  lda #1
-  ldx #2
+  lda #85
+  ldx #10
   sta 1144, x
-  lda #2
+  lda #67
   inx
   sta 1144, x
-  lda #3
+  lda #67
   inx
   sta 1144, x
-  lda #4
+  lda #73
   inx
   sta 1144, x
 
@@ -128,18 +128,50 @@ init:
   lda #4
   sta row_3_chars_end_idx
 
-  lda #2
+  lda #10
   ldx #0
   sta row_3_chars_buffer, x
-  lda #3
+  lda #11
   inx
   sta row_3_chars_buffer, x
+  lda #12
+  inx
+  sta row_3_chars_buffer, x
+  lda #13
+  inx
+  sta row_3_chars_buffer, x
+
+  // TODO: remove this
+  lda #74
+  ldx #10
+  sta 1184, x
+  lda #67
+  inx
+  sta 1184, x
+  lda #67
+  inx
+  sta 1184, x
+  lda #75
+  inx
+  sta 1184, x
+
+  lda #0
+  sta row_4_chars_start_idx
   lda #4
+  sta row_4_chars_end_idx
+
+  lda #10
+  ldx #0
+  sta row_4_chars_buffer, x
+  lda #11
   inx
-  sta row_3_chars_buffer, x
-  lda #5
+  sta row_4_chars_buffer, x
+  lda #12
   inx
-  sta row_3_chars_buffer, x
+  sta row_4_chars_buffer, x
+  lda #13
+  inx
+  sta row_4_chars_buffer, x
 
 
   // TODO: end of remove
@@ -522,6 +554,54 @@ log:
   iny
   lda tmp1
   jsr loghexit
+
+
+  // next row
+  lda #$50
+  sta zpb0
+  lda #$04
+  sta zpb1
+
+  ldx #0
+  ldy #1
+
+  lda row_3_chars_start_idx
+  jsr loghexit
+  iny
+  iny
+  lda row_3_chars_end_idx
+  jsr loghexit
+
+  iny
+  iny
+  lda row_3_chars_buffer, X
+  jsr loghexit
+  iny
+  iny
+  inx
+  lda row_3_chars_buffer, X
+  jsr loghexit
+  iny
+  iny
+  inx
+  lda row_3_chars_buffer, X
+  jsr loghexit
+  iny
+  iny
+  inx
+  lda row_3_chars_buffer, X
+  jsr loghexit
+  iny
+  iny
+  inx
+  lda row_3_chars_buffer, X
+  jsr loghexit
+  iny
+  iny
+  inx
+  lda row_3_chars_buffer, X
+  jsr loghexit
+
 
   rts
 

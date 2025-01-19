@@ -4,16 +4,14 @@
 .var ENG_scroll_offset         = $58
 .var ENG_objects_ptr           = $43 // and $44
 
-
-// draw_screen:
-//   // first find any objects that should be on the screen
-//   lda #0
-//   sta ENG_visible_obj
-
-//   ldy 
-
-  
-//   rts
+// How scrolling works:
+//   You pass in the amount of pixels to scroll.
+//   Uses the hardware register to scroll that many pixels
+//   If, during the scrolling, the scroll register maxes out,
+//     then it triggers a copy of characters one character over
+//     to the left or right depending on the direction of the scroll
+//   It will then continue scrolling pixel by pixel until it has scrolled
+//     the amount requested or reached the end or beginning of the level.
 
 // affects A,X,Y
 // inputs:
@@ -70,69 +68,12 @@ slln:
 sld:
   rts
 
-// // affects A,X,Y
-// // inputs:
-// //   ENG_scrollx - the amount to scroll
-// // outputs:
-// //   ENG_scrollx - the amount actually scrolled
-// scrolll:
-//   ldx ENG_scrollx
-//   lda #0
-//   sta ENG_scrollx
-//   cpx #0
-//   beq sld
-// sll:
-//   lda ENG_scroll_offset
-//   clc
-//   adc #1
-//   cmp #8
-//   beq slredraw
-//   sta ENG_scroll_offset
-//   dec ENG_scroll_register
-//   lda $d016
-//   and #%11110000
-//   ora ENG_scroll_register
-//   sta $d016
-//   jmp slln
-// slredraw:  
-//   lda ENG_first_x+1
-//   cmp ENG_max_column0+1
-//   bcc slredrawok
-//   lda ENG_first_x
-//   cmp ENG_max_column0
-//   bcc slredrawok
-//   bcs sld
-// slredrawok:
-//   lda #0
-//   sta ENG_scroll_offset
-//   lda #%00000111
-//   sta ENG_scroll_register
-//   lda $d016
-//   ora #%00000111
-//   sta $d016
-
-//   stx ENG_tmp_var0
-//   jsr shift_screen_left
-//   //brk
-//   //jsr mvmlt
-//   ldx ENG_tmp_var0
-// slln:
-//   inc ENG_scrollx
-//   dex
-//   bne sll
-// sld:
-//   rts
-
 // affects A,X,Y
 // inputs:
 //   ENG_scrollx - the amount to scroll
 // outputs:
 //   ENG_scrollx - the amount actually scrolled
 scrollr:
- // TODO: remove this when re-implement scrolling
-  ldx #0
-  stx ENG_scrollx
-
   ldx ENG_scrollx
   lda #0
   sta ENG_scrollx
@@ -166,8 +107,7 @@ srredrawok:
   sta $d016
 
   stx ENG_tmp_var0
-  //jsr mvmrt
-  brk
+  jsr shift_screen_right
   ldx ENG_tmp_var0
 srln:
   inc ENG_scrollx
