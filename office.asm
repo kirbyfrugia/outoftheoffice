@@ -21,7 +21,9 @@
 #import "data.asm"
 #import "const.asm"
 #import "utils.asm"
+#import "screen_data.asm"
 #import "engine.asm"
+#import "level.asm"
 
 init:
   // switch out basic
@@ -96,16 +98,69 @@ init:
   jsr initspr
 
   lda #0
-  sta ENG_column0
+  sta ENG_first_x
 
-  lda #38
+  // TODO: fix this
+  lda #255
   sec
   sbc #scrwidth
   sta ENG_max_column0
   lda #0
   sta ENG_max_column0+1
 
+  // TODO: remove this
+  lda #1
+  ldx #2
+  sta 1144, x
+  lda #2
+  inx
+  sta 1144, x
+  lda #3
+  inx
+  sta 1144, x
+  lda #4
+  inx
+  sta 1144, x
+
+  lda #0
+  sta row_3_chars_start_idx
+  lda #4
+  sta row_3_chars_end_idx
+
+  lda #2
+  ldx #0
+  sta row_3_chars_buffer, x
+  lda #3
+  inx
+  sta row_3_chars_buffer, x
+  lda #4
+  inx
+  sta row_3_chars_buffer, x
+  lda #5
+  inx
+  sta row_3_chars_buffer, x
+
+
+  // TODO: end of remove
+
+
 loop:
+  // double buffering algorithm. IDEA, not implemented!
+  // On first draw:
+  //   On offscreen, draw screen shifted by one character
+  // On game loop
+  //   If scroll register rolled over:
+  //     1. Swap screens
+  //     2. Clear new offscreen by drawing blank characters at pre-scroll location 
+  //     3. Draw characters offscreen shifted by one character
+  // Knowing what to draw
+  //   Use the column0 world value. Loop through all objects that could possibly be onscreen by checking intersecting rectangles.
+  //     To make it faster, we can keep a pointer to the lowest object in memory that might possibly be on screen.
+  // Dealing with the color buffer
+  //   When we swap screens
+  //     Update color memory where new objects exist. I think we can just ignore the fact that blank chars have a color set?
+
+
   lda $d012
   cmp #$f8
   bne loop 
@@ -291,8 +346,8 @@ loadmap:
 //   lda #scrrow0
 //   sta tmrow0
 //   lda #0
-//   sta ENG_column0
-//   sta ENG_column0+1
+//   sta ENG_first_x
+//   sta ENG_first_x+1
 
 //   lda chrtmcolc
 //   sta tmcolc
@@ -389,10 +444,10 @@ log:
 
   // iny
   // iny
-  // lda ENG_column0+1
+  // lda ENG_first_x+1
   // jsr loghexit
   // iny
-  // lda ENG_column0
+  // lda ENG_first_x
   // jsr loghexit
   iny
   lda #43
@@ -781,9 +836,9 @@ updp1hpt:
 
   // now subtract the column offset
   // multiply by 8 (shift right 3 to get column in x coords)
-  lda ENG_column0
+  lda ENG_first_x
   sta colshift
-  lda ENG_column0+1
+  lda ENG_first_x+1
   sta colshift+1
   rol colshift
   rol colshift+1
