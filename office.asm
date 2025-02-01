@@ -18,6 +18,7 @@
 
   jmp init
 
+#import "data/level1.asm"
 #import "data.asm"
 #import "const.asm"
 #import "utils.asm"
