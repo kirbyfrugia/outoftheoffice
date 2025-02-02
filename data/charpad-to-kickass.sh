@@ -24,11 +24,8 @@ sed -n '/INSERT EXAMPLE PROGRAM HERE/q;p' "$level_file" > temp_file && mv temp_f
 # Replace all semicolon characters with double forward slashes
 sed -i 's/;/\/\//g' "$level_file"
 
-# Prepend ".var " to lines starting with a capital letter
-awk '/^[A-Z]/ {printf ".var %s\n", $0; next} {print}' "$level_file" > temp_file && mv temp_file "$level_file"
-
-# Add a colon to the end of lines starting with a lower case letter
-awk '/^[a-z]/ {printf "%s:\n", $0; next} {print}' "$level_file" > temp_file && mv temp_file "$level_file"
+# Prepend ".var " to lines starting with a letter that have an equals
+awk '/^[A-Za-z].*=/{printf ".var %s\n", $0; next} {print}' "$level_file" > temp_file && mv temp_file "$level_file"
 
 mv "${base_name} - (8bpc, 80x11) Map.bin" "${base_name}-map.bin"
 mv "${base_name} - CharAttribs_L1.bin" "${base_name}-char-attribs.bin"

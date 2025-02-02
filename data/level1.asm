@@ -39,11 +39,11 @@
 
 // Data block addresses (dummy values)...
 
-addr_charset_data = $1000:::
-addr_charset_attrib_L1_data = $1000:::
-addr_chartileset_data = $1000:::
-addr_chartileset_tag_data = $1000:::
-addr_map_data = $1000:::
+.var addr_charset_data = $1000
+.var addr_charset_attrib_L1_data = $1000
+.var addr_chartileset_data = $1000
+.var addr_chartileset_tag_data = $1000
+.var addr_map_data = $1000
 
 
 
