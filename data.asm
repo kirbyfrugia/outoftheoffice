@@ -8,6 +8,5 @@ p1spr:
 .byte $0c,$c0,$00,$0c,$c0,$00,$3c,$f0
 .byte $00,$fc,$fc,$00,$00,$00,$00,$8a
 
-strlevel1: .byte 76,69,86,69,76,49,0
-strlevel2: .byte 76,69,86,69,76,50,0
-strlevel3: .byte 76,69,86,69,76,51,0
+str_level1_tiles: .text "LEVEL1TILES"
+                  .byte 0

@@ -27,7 +27,10 @@ sed -i 's/;/\/\//g' "$level_file"
 # Prepend ".var " to lines starting with a letter that have an equals
 awk '/^[A-Za-z].*=/{printf ".var %s\n", $0; next} {print}' "$level_file" > temp_file && mv temp_file "$level_file"
 
-mv "${base_name} - (8bpc, 80x11) Map.bin" "${base_name}-map.bin"
-mv "${base_name} - CharAttribs_L1.bin" "${base_name}-char-attribs.bin"
-mv "${base_name} - Chars.bin" "${base_name}-chars.bin"
-mv "${base_name} - Tiles.bin" "${base_name}-tiles.bin"
+# Convert base_name to upper case
+upper_base_name=$(echo "$base_name" | tr '[:lower:]' '[:upper:]')
+
+mv "${base_name} - (8bpc, 80x11) Map.bin" "${upper_base_name}MAP"
+mv "${base_name} - CharAttribs_L1.bin" "${upper_base_name}CHARATTRIBS"
+mv "${base_name} - Chars.bin" "${upper_base_name}CHARS"
+mv "${base_name} - Tiles.bin" "${upper_base_name}TILES"

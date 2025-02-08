@@ -23,6 +23,7 @@
 #import "const.asm"
 #import "utils.asm"
 #import "screen_data.asm"
+#import "tiles.asm"
 #import "engine.asm"
 #import "level.asm"
 
@@ -176,6 +177,9 @@ init:
 
 
   // TODO: end of remove
+  jsr make_test_tiles
+  jsr make_test_map
+  jsr draw_screen
 
 
 loop:
@@ -204,7 +208,7 @@ loop:
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
-  //jsr log
+  jsr log
   jmp loop
 
 cls:
