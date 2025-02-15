@@ -104,81 +104,92 @@ init:
   sta ENG_first_x+1
 
   // TODO: fix this
-  lda #44
+  // 256 tiles * 16 bits per tile = 4096 = $1000
+  lda #$00
   sec
   sbc #scrwidth
   sta ENG_max_column0
-  lda #0
+  lda #$10
+  sbc #$00
   sta ENG_max_column0+1
 
-  // TODO: remove this
-  lda #85
-  ldx #10
-  sta 1144, x
-  lda #67
-  inx
-  sta 1144, x
-  lda #67
-  inx
-  sta 1144, x
-  lda #73
-  inx
-  sta 1144, x
+  // // TODO: remove this
+  // lda #85
+  // ldx #10
+  // sta 1144, x
+  // lda #67
+  // inx
+  // sta 1144, x
+  // lda #67
+  // inx
+  // sta 1144, x
+  // lda #73
+  // inx
+  // sta 1144, x
 
-  lda #0
-  sta row_3_chars_start_idx
-  lda #4
-  sta row_3_chars_end_idx
+  // lda #0
+  // sta row_3_chars_start_idx
+  // lda #4
+  // sta row_3_chars_end_idx
 
-  lda #10
-  ldx #0
-  sta row_3_chars_buffer, x
-  lda #11
-  inx
-  sta row_3_chars_buffer, x
-  lda #12
-  inx
-  sta row_3_chars_buffer, x
-  lda #13
-  inx
-  sta row_3_chars_buffer, x
+  // lda #10
+  // ldx #0
+  // sta row_3_chars_buffer, x
+  // lda #11
+  // inx
+  // sta row_3_chars_buffer, x
+  // lda #12
+  // inx
+  // sta row_3_chars_buffer, x
+  // lda #13
+  // inx
+  // sta row_3_chars_buffer, x
 
-  // TODO: remove this
-  lda #74
-  ldx #10
-  sta 1184, x
-  lda #67
-  inx
-  sta 1184, x
-  lda #67
-  inx
-  sta 1184, x
-  lda #75
-  inx
-  sta 1184, x
+  // // TODO: remove this
+  // lda #74
+  // ldx #10
+  // sta 1184, x
+  // lda #67
+  // inx
+  // sta 1184, x
+  // lda #67
+  // inx
+  // sta 1184, x
+  // lda #75
+  // inx
+  // sta 1184, x
 
-  lda #0
-  sta row_4_chars_start_idx
-  lda #4
-  sta row_4_chars_end_idx
+  // lda #0
+  // sta row_4_chars_start_idx
+  // lda #4
+  // sta row_4_chars_end_idx
 
-  lda #10
-  ldx #0
-  sta row_4_chars_buffer, x
-  lda #11
-  inx
-  sta row_4_chars_buffer, x
-  lda #12
-  inx
-  sta row_4_chars_buffer, x
-  lda #13
-  inx
-  sta row_4_chars_buffer, x
+  // lda #10
+  // ldx #0
+  // sta row_4_chars_buffer, x
+  // lda #11
+  // inx
+  // sta row_4_chars_buffer, x
+  // lda #12
+  // inx
+  // sta row_4_chars_buffer, x
+  // lda #13
+  // inx
+  // sta row_4_chars_buffer, x
 
 
-  // TODO: end of remove
+  // // TODO: end of remove
+  // // lda #0
+  // // sta tile_column_start
+  // // sta scr_column_start
+  // // lda #20
+  // // sta tile_column_end
+  // // lda #40
+  // // sta scr_column_end
+
   jsr make_test_tiles
   jsr make_test_map
+  jsr init_screen
   jsr draw_screen
 
 
@@ -480,13 +491,13 @@ log:
   lda p1hva
   jsr loghexit
 
-  // iny
-  // iny
-  // lda ENG_first_x+1
-  // jsr loghexit
-  // iny
-  // lda ENG_first_x
-  // jsr loghexit
+  iny
+  iny
+  lda ENG_first_x+1
+  jsr loghexit
+  iny
+  lda ENG_first_x
+  jsr loghexit
   iny
   lda #43
   sta (zpb0),y
@@ -560,52 +571,20 @@ log:
   lda tmp1
   jsr loghexit
 
+  iny
+  iny
+  lda tile_column_start
+  jsr loghexit
+  iny
+  iny
+  lda tile_offset
+  jsr loghexit
 
   // next row
   lda #$50
   sta zpb0
   lda #$04
   sta zpb1
-
-  ldx #0
-  ldy #1
-
-  lda row_3_chars_start_idx
-  jsr loghexit
-  iny
-  iny
-  lda row_3_chars_end_idx
-  jsr loghexit
-
-  iny
-  iny
-  lda row_3_chars_buffer, X
-  jsr loghexit
-  iny
-  iny
-  inx
-  lda row_3_chars_buffer, X
-  jsr loghexit
-  iny
-  iny
-  inx
-  lda row_3_chars_buffer, X
-  jsr loghexit
-  iny
-  iny
-  inx
-  lda row_3_chars_buffer, X
-  jsr loghexit
-  iny
-  iny
-  inx
-  lda row_3_chars_buffer, X
-  jsr loghexit
-  iny
-  iny
-  inx
-  lda row_3_chars_buffer, X
-  jsr loghexit
 
 
   rts
@@ -659,7 +638,7 @@ redraw:
 //   p1hva - horiz vel,actual
 //   p1gx  - global xpos
 //   p1lx  - local xpos (relative to column at far left of screen), minus fractional portion
-//   p1sx  - screen xpos (screen tile coords)
+//   p1sx  - screen xpos (screen char coords)
 //           pre-collision it holds the position from 0..39,0..24
 //           post-collision it holds the sprite position offset by #31,#50 (minus border)
 //   p1vvi - vert vel,indexed
