@@ -93,101 +93,35 @@ init:
  
   jsr initui
   jsr initsys
- jsr loadmap
+  jsr loadmap
   jsr redraw
   jsr initspr
 
   lda #0
-  sta SCR_first_x
-  sta SCR_first_x+1
+  sta SCR_column_first_visible
+  sta SCR_column_first_visible+1
 
   // TODO: fix this
   // 256 tiles * 16 bits per tile = 4096 = $1000
-  lda #$00
-  sec
-  sbc #scrwidth
-  sta SCR_max_column0
-  lda #$10
-  sbc #$00
-  sta SCR_max_column0+1
+  // lda #$00
+  // sec
+  // sbc #scrwidth
+  // sta SCR_column_first_visible_max
+  // lda #$10
+  // sbc #$00
+  // sta SCR_column_first_visible_max+1
 
-  // // TODO: remove this
-  // lda #85
-  // ldx #10
-  // sta 1144, x
-  // lda #67
-  // inx
-  // sta 1144, x
-  // lda #67
-  // inx
-  // sta 1144, x
-  // lda #73
-  // inx
-  // sta 1144, x
-
-  // lda #0
-  // sta row_3_chars_start_idx
-  // lda #4
-  // sta row_3_chars_end_idx
-
-  // lda #10
-  // ldx #0
-  // sta row_3_chars_buffer, x
-  // lda #11
-  // inx
-  // sta row_3_chars_buffer, x
-  // lda #12
-  // inx
-  // sta row_3_chars_buffer, x
-  // lda #13
-  // inx
-  // sta row_3_chars_buffer, x
-
-  // // TODO: remove this
-  // lda #74
-  // ldx #10
-  // sta 1184, x
-  // lda #67
-  // inx
-  // sta 1184, x
-  // lda #67
-  // inx
-  // sta 1184, x
-  // lda #75
-  // inx
-  // sta 1184, x
-
-  // lda #0
-  // sta row_4_chars_start_idx
-  // lda #4
-  // sta row_4_chars_end_idx
-
-  // lda #10
-  // ldx #0
-  // sta row_4_chars_buffer, x
-  // lda #11
-  // inx
-  // sta row_4_chars_buffer, x
-  // lda #12
-  // inx
-  // sta row_4_chars_buffer, x
-  // lda #13
-  // inx
-  // sta row_4_chars_buffer, x
+  // TODO: temp, remove
+  // should be 37 less than maxp1gx
+  lda #21
+  sta SCR_column_first_visible_max
+  lda #0
+  sta SCR_column_first_visible_max+1
 
 
-  // // TODO: end of remove
-  // // lda #0
-  // // sta tile_column_start
-  // // sta scr_column_start
-  // // lda #20
-  // // sta tile_column_end
-  // // lda #40
-  // // sta scr_column_end
-
-  jsr make_test_tiles
-  jsr make_test_map
-  jsr init_screen
+  jsr SCR_make_test_tiles
+  jsr SCR_make_test_map
+  jsr SCR_init_screen
   jsr SCR_draw_screen
 
 
@@ -249,16 +183,6 @@ initsys:
   // and #%11110000
   // ora #%00001000
   // sta $d018
-
-  lda #0
-  sta SCR_scroll_offset
-  lda #%00000111
-  sta SCR_scroll_register
-
-  lda $d016
-  and #%11110000 // enable smooth scrolling
-  ora SCR_scroll_register  // set initial scroll
-  sta $d016
 
   rts
 
@@ -393,8 +317,8 @@ loadmap:
 //   lda #scrrow0
 //   sta tmrow0
 //   lda #0
-//   sta SCR_first_x
-//   sta SCR_first_x+1
+//   sta SCR_column_first_visible
+//   sta SCR_column_first_visible+1
 
 //   lda chrtmcolc
 //   sta tmcolc
@@ -407,47 +331,53 @@ loadmap:
 //   jsr updscrn
 //   jsr drawscrn
 
-  lda #36
-  sta maxp1lx
-  lda #0
-  sta maxp1lx+1
+  // TODO: this is where you set how far the player can go right, fix with real
+  // 256 tiles * 2 columns per tile - player width (just say 2 columns) = 510 = $01fe
+  // lda #$fe
+  // sta maxp1gx
+  // lda #$01
+  // sta maxp1gx+1
 
-  // multiply by 24 to go from column count to pixels
-  // and then shift 3 more to the left to remove fractional portion
-  lda maxp1lx
-  rol maxp1lx
-  rol maxp1lx+1
-  rol maxp1lx
-  rol maxp1lx+1
-  rol maxp1lx
-  rol maxp1lx+1
-  rol maxp1lx
-  rol maxp1lx+1
-  rol maxp1lx
-  rol maxp1lx+1
-  rol maxp1lx
-  rol maxp1lx+1
-  rol maxp1lx
-  rol maxp1lx+1
-  lda maxp1lx
+  lda #58
+  sta maxp1gx
+  lda #$00
+  sta maxp1gx+1
+
+  // Shift 3 times to go from column count to pixels and then
+  // shift 4 more to the left to account for the fractional portion
+  rol maxp1gx
+  rol maxp1gx+1
+  rol maxp1gx
+  rol maxp1gx+1
+  rol maxp1gx
+  rol maxp1gx+1
+  rol maxp1gx
+  rol maxp1gx+1
+  rol maxp1gx
+  rol maxp1gx+1
+  rol maxp1gx
+  rol maxp1gx+1
+  rol maxp1gx
+  rol maxp1gx+1
+  lda maxp1gx
   and #%10000000
-  sta maxp1lx
+  sta maxp1gx
 
   lda #(200-p1height-16)
 //  lda #164
-  sta maxp1ly
+  sta maxp1gy
   lda #0
-  sta maxp1ly+1
+  sta maxp1gy+1
 
-  rol maxp1ly
-  rol maxp1ly+1
-  rol maxp1ly
-  rol maxp1ly+1
-  rol maxp1ly
-  rol maxp1ly+1
-  lda maxp1ly
+  rol maxp1gy
+  rol maxp1gy+1
+  rol maxp1gy
+  rol maxp1gy+1
+  rol maxp1gy
+  rol maxp1gy+1
+  lda maxp1gy
   and #%11111000
-  sta maxp1ly
+  sta maxp1gy
 
 
   rts
@@ -491,10 +421,10 @@ log:
 
   iny
   iny
-  lda SCR_first_x+1
+  lda SCR_column_first_visible+1
   jsr loghexit
   iny
-  lda SCR_first_x
+  lda SCR_column_first_visible
   jsr loghexit
   iny
   lda #43
@@ -567,11 +497,13 @@ log:
 
   iny
   iny
-  lda SCR_tile_column_start
+  lda SCR_tile_first_visible
   jsr loghexit
   iny
-  iny
   lda SCR_tile_offset
+  jsr loghexit
+  iny
+  lda SCR_tile_last_visible
   jsr loghexit
 
   // next row
@@ -624,7 +556,7 @@ redraw:
 // Position 
 //   Player position is calculated by adding the current position to the actual velocity.
 //     Global position is a 16 bit number stored in p1gx/+1.
-// The 3 least significant bits of the actual velocity and position are fractional
+// The 4 least significant bits of the actual velocity and position are fractional
 //   and are truncated when updating the sprite's actual position on the screen.
 //   This allows smoother and smaller movement, acceleration, etc.
 // Key variables:
@@ -709,10 +641,10 @@ updp1vv:
 updp1vvup:
   // if not on the ground, ignore
   lda p1gy+1
-  cmp maxp1ly+1
+  cmp maxp1gy+1
   bne updp1vtvd
   lda p1gy
-  cmp maxp1ly
+  cmp maxp1gy
   bne updp1vtvd
   
   lda #maxvvu
@@ -777,10 +709,10 @@ updp1p:
 
   bmi updp1vpneg
   
-  cmp maxp1ly+1
+  cmp maxp1gy+1
   bcc updp1vpt
   lda p1ly
-  cmp maxp1ly
+  cmp maxp1gy
   bcc updp1vpt
  
   // moved below the bottom of the screen
@@ -789,9 +721,9 @@ updp1p:
   lda #vvzero
   sta p1vvi
 
-  lda maxp1ly
+  lda maxp1gy
   sta p1gy
-  lda maxp1ly+1
+  lda maxp1gy+1
   sta p1gy+1
   lda #(200-p1height-16)
   //lda #214
@@ -840,10 +772,10 @@ updp1hp:
 
   bmi updp1hpneg
 
-  cmp maxp1lx+1
+  cmp maxp1gx+1
   bcc updp1hpt
   lda p1lx
-  cmp maxp1lx
+  cmp maxp1gx
   bcc updp1hpt
   // if here, moved past right of level
 
@@ -852,17 +784,20 @@ updp1hp:
   lda #hvzero
   sta p1hvi
 
-  lda maxp1lx
+  lda maxp1gx
   sta p1gx
-  lda maxp1lx+1
+  sta p1lx
+  lda maxp1gx+1
   sta p1gx+1
+  sta p1lx+1
+  jmp updp1hpt
   ////lda #71
   //lda #69
-  lda #31
-  sta p1lx
-  lda #1
-  sta p1lx+1
-  jmp collide
+  // lda #31
+  // sta p1lx
+  // lda #1
+  // sta p1lx+1
+  //jmp collide
 updp1hpneg:
   // move would have moved char to left of level
   lda #0
@@ -890,14 +825,14 @@ updp1hpt:
   ror p1lx+1
   ror p1lx 
   lda p1lx+1
-  and #%00011111
+  and #%00001111
   sta p1lx+1
 
   // now subtract the column offset
   // multiply by 8 (shift right 3 to get column in x coords)
-  lda SCR_first_x
+  lda SCR_column_first_visible
   sta colshift
-  lda SCR_first_x+1
+  lda SCR_column_first_visible+1
   sta colshift+1
   rol colshift
   rol colshift+1
@@ -1061,7 +996,7 @@ collided:
   // sprite position is now calculated and stored in p1sx/p1sy, but we might
   // need to scroll which will impact the sprite position
   lda p1sx+1
-  bne updp1psprite
+  bne updp1psprite // no need to scroll if well past scroll point
   lda p1sx
   cmp #scrollmax
   bcs updp1hpsl
@@ -1084,6 +1019,8 @@ updp1hpsl:
   sec
   sbc SCR_scroll_out
   sta p1sx
+  // note: no need to update p1sx+1 because we scroll before sprite gets
+  //   var enough along for msb to be set
   bne updp1psprite
 updp1hpsr:
   // less than scrollmin, scroll right if moving left
@@ -1101,8 +1038,6 @@ updp1hpsr:
   clc
   adc SCR_scroll_out
   sta p1sx
-  lda #0
-  sta p1sx+1
 updp1psprite:
   lda p1sy
   sta $d001
@@ -1176,8 +1111,8 @@ ebp:       .byte 0
 tmp0:      .byte 0
 tmp1:      .byte 0
 
-maxp1lx:   .byte 0,0
-maxp1ly:   .byte 0,0
+maxp1gx:   .byte 0,0
+maxp1gy:   .byte 0,0
 
 colshift:  .byte 0,0
 

@@ -61,7 +61,14 @@
   tax
 }
 
-make_test_tiles:
+.macro SCR_update_scroll_register() {
+  lda $d016
+  and #%11110000
+  ora SCR_scroll_register
+  sta $d016
+}
+
+SCR_make_test_tiles:
   ldx #0
   ldy #0
 mtt_loop:
@@ -78,14 +85,14 @@ mtt_nowrap:
   inx
   bne mtt_loop
   // replace tile zero with a space
-  lda #32
-  sta SCR_tiles_ul
-  sta SCR_tiles_ur
-  sta SCR_tiles_ll
-  sta SCR_tiles_lr
+  // lda #32
+  // sta SCR_tiles_ul
+  // sta SCR_tiles_ur
+  // sta SCR_tiles_ll
+  // sta SCR_tiles_lr
   rts
 
-make_test_map:
+SCR_make_test_map:
   ldx #0
   lda #0
 mtm_loop: // fill the map with the empty tile (tile id zero)
@@ -165,8 +172,8 @@ mtm_nowrap:
 
 
 SCR_draw_screen:
-  ldx #0 // tile index
-  ldy #0 // screen column
+  ldx SCR_tile_last_visible
+  ldy #38 // screen column
 ds_loop:
   SCR_draw_tile(1144, 1184, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*0))
   SCR_draw_tile(1224, 1264, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*1))
@@ -180,21 +187,30 @@ ds_loop:
   SCR_draw_tile(1864, 1904, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9))
   SCR_draw_tile(1944, 1984, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10))
 ds_loop_end:
-  inx
-  cpx SCR_tile_column_end
-  beq ds_done
-  iny
-  iny
+  dex
+  bmi ds_done
+  dey
+  dey
   jmp ds_loop
 ds_done:
   rts
 
-init_screen:
+SCR_init_screen:
   lda #0
-  sta SCR_tile_column_start
+  sta SCR_scroll_offset
+  lda #%00000111
+  sta SCR_scroll_register
+
+  lda $d016
+  and #%11110000 // enable smooth scrolling
+  ora SCR_scroll_register  // set initial scroll
+  sta $d016
+
+  lda #0
+  sta SCR_tile_first_visible
   sta SCR_tile_offset
-  lda #20
-  sta SCR_tile_column_end
+  lda #19
+  sta SCR_tile_last_visible
   rts
 
 // How scrolling works:
@@ -224,21 +240,22 @@ SCR_scroll_left_loop:
   beq SCR_scroll_left_redraw // scroll register at max, so move chars on screen
   sta SCR_scroll_offset
   dec SCR_scroll_register
+  SCR_update_scroll_register()
   jmp SCR_scroll_left_next
 SCR_scroll_left_redraw:  
-  lda SCR_first_x+1
-  cmp SCR_max_column0+1
+  lda SCR_column_first_visible+1
+  cmp SCR_column_first_visible_max+1
   bcc SCR_scroll_left_redrawok
-  lda SCR_first_x
-  cmp SCR_max_column0
+  lda SCR_column_first_visible
+  cmp SCR_column_first_visible_max
   bcc SCR_scroll_left_redrawok
   bcs SCR_scroll_left_done
 SCR_scroll_left_redrawok:
-  inc tmp1 // for logging, TODO: remove
   lda #0
   sta SCR_scroll_offset
   lda #%00000111
   sta SCR_scroll_register
+  SCR_update_scroll_register()
   stx SCR_tmp_var0
   jsr SCR_move_screen_left
   ldx SCR_tmp_var0
@@ -247,10 +264,6 @@ SCR_scroll_left_next:
   dex
   bne SCR_scroll_left_loop
 SCR_scroll_left_done:
-  lda $d016
-  and #%11110000
-  ora SCR_scroll_register
-  sta $d016
   rts
 
 // affects A,X,Y
@@ -270,11 +283,12 @@ SCR_scroll_right_loop:
   bmi SCR_scroll_right_redraw
   sta SCR_scroll_offset
   inc SCR_scroll_register
+  SCR_update_scroll_register()
   jmp SCR_scroll_right_next
 SCR_scroll_right_redraw:  
-  lda SCR_first_x
+  lda SCR_column_first_visible
   bne SCR_scroll_right_redrawok
-  lda SCR_first_x+1
+  lda SCR_column_first_visible+1
   bne SCR_scroll_right_redrawok
   beq SCR_scroll_right_done
 SCR_scroll_right_redrawok:
@@ -282,6 +296,7 @@ SCR_scroll_right_redrawok:
   sta SCR_scroll_offset
   lda #%00000000
   sta SCR_scroll_register
+  SCR_update_scroll_register()
   stx SCR_tmp_var0
   jsr SCR_move_screen_right
   ldx SCR_tmp_var0
@@ -290,73 +305,7 @@ SCR_scroll_right_next:
   dex
   bne SCR_scroll_right_loop
 SCR_scroll_right_done:
-  lda $d016
-  and #%11110000
-  ora SCR_scroll_register
-  sta $d016
   rts
-
-// // TODO: deal with start and end of level
-// SCR_scroll_left:
-//   lda SCR_scroll_offset
-//   clc
-//   adc SCR_scroll_in
-//   cmp #8
-//   bcs SCR_scroll_left_shift
-//   sta SCR_scroll_offset
-//   jmp SCR_scroll_leftd
-// SCR_scroll_left_shift:
-//   // if here, wrapped scroll register.
-//   // The new position is the old scroll offset + amount scrolled.
-//   // Move the screen one character left and subtract a char width
-//   //   to set the scroll offset to where it ought to be.
-//   // But first check to see if shifting the screen one character
-//   //   left is even possible.
-  
-//   sec
-//   sbc #8
-//   sta SCR_scroll_offset
-//   jsr move_screen_left
-//   inc SCR_first_x
-//   bne SCR_scroll_leftd
-//   inc SCR_first_x+1
-// SCR_scroll_leftd:
-//   lda #7
-//   sec
-//   sbc SCR_scroll_offset
-//   sta SCR_scroll_register
-//   lda $d016
-//   and #%11110000
-//   ora SCR_scroll_register
-//   sta $d016
-//   rts
-
-// SCR_scroll_right:
-//   lda SCR_scroll_offset
-//   sec
-//   sbc SCR_scroll_in
-//   bmi SCR_scroll_right_shift
-//   sta SCR_scroll_offset
-//   jmp SCR_scroll_rightd
-// SCR_scroll_right_shift:
-//   sec
-//   sbc #8
-//   sta SCR_scroll_offset
-//   jsr move_screen_right
-//   inc SCR_first_x
-//   bne SCR_scroll_rightd
-//   inc SCR_first_x+1
-// SCR_scroll_rightd:
-//   lda #7
-//   sec
-//   sbc SCR_scroll_offset
-//   sta SCR_scroll_register
-//   lda $d016
-//   and #%11110000
-//   ora SCR_scroll_register
-//   sta $d016
-//   rts
-
 
 SCR_move_screen_left:
   ldx #0
@@ -462,8 +411,8 @@ msl_fill_right_side:
   bne msl_draw_right_side
   jmp msl_load_new_tile
 msl_draw_right_side:
-  inc SCR_tile_column_start
-  ldx SCR_tile_column_start
+  inc SCR_tile_first_visible
+  ldx SCR_tile_last_visible
   SCR_draw_tile_right(1144, 1184, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*0))
   SCR_draw_tile_right(1224, 1264, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*1))
   SCR_draw_tile_right(1304, 1344, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*2))
@@ -479,8 +428,8 @@ msl_draw_right_side:
   sta SCR_tile_offset
   jmp msl_loop_done
 msl_load_new_tile:
-  inc SCR_tile_column_end
-  ldx SCR_tile_column_end
+  inc SCR_tile_last_visible
+  ldx SCR_tile_last_visible
   SCR_draw_tile_left(1144, 1184, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*0))
   SCR_draw_tile_left(1224, 1264, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*1))
   SCR_draw_tile_left(1304, 1344, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*2))
@@ -495,7 +444,10 @@ msl_load_new_tile:
   lda #1
   sta SCR_tile_offset
 msl_loop_done:
-  inc SCR_first_x
+  inc SCR_column_first_visible
+  bne msl_done
+  inc SCR_column_first_visible+1
+msl_done:
   rts
 
 SCR_move_screen_right:
@@ -601,8 +553,8 @@ msr_fill_left_side:
   bne msr_draw_left_side
   jmp msr_load_new_tile
 msr_draw_left_side:
-  dec SCR_tile_column_end
-  ldx SCR_tile_column_start
+  dec SCR_tile_last_visible
+  ldx SCR_tile_first_visible
   SCR_draw_tile_left(1144, 1184, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*0))
   SCR_draw_tile_left(1224, 1264, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*1))
   SCR_draw_tile_left(1304, 1344, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*2))
@@ -618,8 +570,8 @@ msr_draw_left_side:
   sta SCR_tile_offset
   jmp msr_loop_done
 msr_load_new_tile:
-  dec SCR_tile_column_start
-  ldx SCR_tile_column_start
+  dec SCR_tile_first_visible
+  ldx SCR_tile_first_visible
   SCR_draw_tile_right(1144, 1184, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*0))
   SCR_draw_tile_right(1224, 1264, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*1))
   SCR_draw_tile_right(1304, 1344, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*2))
@@ -634,17 +586,23 @@ msr_load_new_tile:
   lda #1
   sta SCR_tile_offset
 msr_loop_done:
-  dec SCR_first_x
+  lda SCR_column_first_visible
+  sec
+  sbc #1
+  sta SCR_column_first_visible
+  lda SCR_column_first_visible+1
+  sbc #0
+  sta SCR_column_first_visible+1
+msr_done:
   rts
 
 
 
-SCR_max_column0:    .byte 0,0
-SCR_first_x:        .byte 0,0
-SCR_last_x:         .byte 0,0
-SCR_visible_obj:    .byte 0
+SCR_column_first_visible_max:    .byte 0,0
+SCR_column_first_visible:        .byte 0,0
+SCR_column_last_visible:         .byte 0,0
 
 // TODO: move this to the zero page
-SCR_tile_column_start: .byte 0
-SCR_tile_column_end: .byte 0
-SCR_tile_offset: .byte 0
+SCR_tile_first_visible:          .byte 0
+SCR_tile_last_visible:           .byte 0
+SCR_tile_offset:                 .byte 0

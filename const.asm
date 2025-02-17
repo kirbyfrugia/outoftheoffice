@@ -23,7 +23,8 @@
 .var p1spanwidth  = 3
 .var p1spanheight = 4
 // at what points in the p1 movement do we scroll the screen
-.var scrollmin    = 96
+// scrollmax must be a chunk below 255
+.var scrollmin    = 94
 .var scrollmax    = 226
 
 
