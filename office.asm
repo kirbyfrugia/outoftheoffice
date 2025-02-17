@@ -22,10 +22,9 @@
 #import "data.asm"
 #import "const.asm"
 #import "utils.asm"
-#import "screen_data.asm"
 #import "tiles.asm"
-#import "engine.asm"
 #import "level.asm"
+#import "screen.asm"
 
 init:
   // switch out basic
@@ -100,18 +99,18 @@ init:
   jsr initspr
 
   lda #0
-  sta ENG_first_x
-  sta ENG_first_x+1
+  sta SCR_first_x
+  sta SCR_first_x+1
 
   // TODO: fix this
   // 256 tiles * 16 bits per tile = 4096 = $1000
   lda #$00
   sec
   sbc #scrwidth
-  sta ENG_max_column0
+  sta SCR_max_column0
   lda #$10
   sbc #$00
-  sta ENG_max_column0+1
+  sta SCR_max_column0+1
 
   // // TODO: remove this
   // lda #85
@@ -219,7 +218,7 @@ loop:
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
-  jsr log
+  //jsr log
   jmp loop
 
 cls:
@@ -253,13 +252,13 @@ initsys:
   // sta $d018
 
   lda #0
-  sta ENG_scroll_offset
+  sta SCR_scroll_offset
   lda #%00000111
-  sta ENG_scroll_register
+  sta SCR_scroll_register
 
   lda $d016
   and #%11110000 // enable smooth scrolling
-  ora ENG_scroll_register  // set initial scroll
+  ora SCR_scroll_register  // set initial scroll
   sta $d016
 
   rts
@@ -395,8 +394,8 @@ loadmap:
 //   lda #scrrow0
 //   sta tmrow0
 //   lda #0
-//   sta ENG_first_x
-//   sta ENG_first_x+1
+//   sta SCR_first_x
+//   sta SCR_first_x+1
 
 //   lda chrtmcolc
 //   sta tmcolc
@@ -493,34 +492,30 @@ log:
 
   iny
   iny
-  lda ENG_first_x+1
+  lda SCR_first_x+1
   jsr loghexit
   iny
-  lda ENG_first_x
+  lda SCR_first_x
   jsr loghexit
   iny
   lda #43
   sta (zpb0),y
   iny
-  lda ENG_scroll_offset
+  lda SCR_scroll_offset
   jsr loghexit
 
   iny
   iny
-  lda ENG_scroll_register
+  lda SCR_scroll_register
   jsr loghexit
 
   iny
   iny
-  lda ENG_scrollx
-  jsr loghexit
-
-  iny
-  iny
-  lda $d010
+  lda SCR_scroll_in
   jsr loghexit
   iny
-  lda $d000
+  iny
+  lda SCR_scroll_out
   jsr loghexit
 
   // next row
@@ -901,9 +896,9 @@ updp1hpt:
 
   // now subtract the column offset
   // multiply by 8 (shift right 3 to get column in x coords)
-  lda ENG_first_x
+  lda SCR_first_x
   sta colshift
-  lda ENG_first_x+1
+  lda SCR_first_x+1
   sta colshift+1
   rol colshift
   rol colshift+1
@@ -1053,7 +1048,7 @@ collided:
 
   lda p1sx
   sec
-  sbc ENG_scroll_offset
+  sbc SCR_scroll_offset
   sta p1sx
   lda p1sx+1
   sbc #0
@@ -1075,7 +1070,7 @@ collided:
   bcc updp1hpsr
   bcs updp1psprite
 updp1hpsl:
-  // greater than scrollmax, scroll left if moving right
+  // greater than or equal to scrollmax, scroll left if moving right
   lda p1hva
   beq updp1psprite
   bmi updp1psprite
@@ -1083,12 +1078,12 @@ updp1hpsl:
   lda p1sx
   sec
   sbc #scrollmax
-  sta ENG_scrollx
-  jsr scrolll
+  sta SCR_scroll_in
+  jsr SCR_scroll_left
   // sprite position is new sprite position minus amount we scrolled
   lda p1sx
   sec
-  sbc ENG_scrollx
+  sbc SCR_scroll_out
   sta p1sx
   bne updp1psprite
 updp1hpsr:
@@ -1100,12 +1095,12 @@ updp1hpsr:
   lda #scrollmin
   sec
   sbc p1sx
-  sta ENG_scrollx
-  jsr scrollr
+  sta SCR_scroll_in
+  jsr SCR_scroll_right
   // sprite position is new sprite position plus amount we scrolled
   lda p1sx
   clc
-  adc ENG_scrollx
+  adc SCR_scroll_out
   sta p1sx
   lda #0
   sta p1sx+1

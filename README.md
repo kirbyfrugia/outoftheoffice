@@ -14,3 +14,8 @@
 
 # Some helpful tools
 
+# Todo
+
+* Update tile methods to simply render an initial screen via the tiles and also to load tiles at edges of screen when scrolling occurs.
+* Implement double-buffering with scrolling left and right
+* 
