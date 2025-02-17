@@ -54,9 +54,9 @@
   lda tile_row, x
   tax
   lda SCR_tiles_ur, x
-  sta scr_row_upper+1, y
+  sta scr_row_upper, y
   lda SCR_tiles_lr, x
-  sta scr_row_lower+1, y
+  sta scr_row_lower, y
   pla
   tax
 }
@@ -600,7 +600,6 @@ msr_done:
 
 SCR_column_first_visible_max:    .byte 0,0
 SCR_column_first_visible:        .byte 0,0
-SCR_column_last_visible:         .byte 0,0
 
 // TODO: move this to the zero page
 SCR_tile_first_visible:          .byte 0
