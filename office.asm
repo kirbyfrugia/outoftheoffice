@@ -22,7 +22,6 @@
 #import "data.asm"
 #import "const.asm"
 #import "utils.asm"
-#import "tiles.asm"
 #import "level.asm"
 #import "screen.asm"
 
@@ -189,7 +188,7 @@ init:
   jsr make_test_tiles
   jsr make_test_map
   jsr init_screen
-  jsr draw_screen
+  jsr SCR_draw_screen
 
 
 loop:
@@ -218,7 +217,7 @@ loop:
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
-  //jsr log
+  jsr log
   jmp loop
 
 cls:
@@ -568,11 +567,11 @@ log:
 
   iny
   iny
-  lda tile_column_start
+  lda SCR_tile_column_start
   jsr loghexit
   iny
   iny
-  lda tile_offset
+  lda SCR_tile_offset
   jsr loghexit
 
   // next row
