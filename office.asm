@@ -90,6 +90,9 @@ init:
   clc
   rol p1gy
   rol p1gy+1
+
+  lda #0
+  sta frame
  
   jsr initui
   jsr initsys
@@ -124,35 +127,57 @@ init:
   jsr SCR_init_screen
   jsr SCR_draw_screen
 
-
 loop:
-  // double buffering algorithm. IDEA, not implemented!
-  // On first draw:
-  //   On offscreen, draw screen shifted by one character
-  // On game loop
-  //   If scroll register rolled over:
-  //     1. Swap screens
-  //     2. Clear new offscreen by drawing blank characters at pre-scroll location 
-  //     3. Draw characters offscreen shifted by one character
-  // Knowing what to draw
-  //   Use the column0 world value. Loop through all objects that could possibly be onscreen by checking intersecting rectangles.
-  //     To make it faster, we can keep a pointer to the lowest object in memory that might possibly be on screen.
-  // Dealing with the color buffer
-  //   When we swap screens
-  //     Update color memory where new objects exist. I think we can just ignore the fact that blank chars have a color set?
-
-
   lda $d012
   cmp #$f8
-  bne loop 
-  
+  bne loop
+
+  // use odd/even frames since the buffer flip may be faster
+  // than the raster blank area
+  lda frame
+  eor #%00000001
+  sta frame
+  beq even_frame
+  bne odd_frame
+even_frame:
+  lda SCR_buffer_ready // ignore input if we need to redraw
+  bne loop
   lda $dc00
   jsr injs
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
-  jsr log
+  //jsr log
+  lda SCR_buffer_ready // need to redraw due to wrapping scroll register
+  bne loop
+  SCR_update_scroll_register() // only scroll if we didn't redraw
   jmp loop
+odd_frame:
+  lda SCR_buffer_ready
+  bne loop_swap_buffer
+  beq loop // scroll register didn't wrap
+loop_swap_buffer:
+  lda #0
+  sta SCR_buffer_ready
+  lda SCR_buffer_flag
+  beq loop_swap_to_back
+  lda $d018
+  and #%00001111
+  ora #%00010000 // screen location 1024, $0400
+  sta $d018
+  lda #0
+  sta SCR_buffer_flag
+  SCR_update_scroll_register()
+  jmp loop
+loop_swap_to_back:
+  lda $d018
+  and #%00001111
+  ora #%00100000 // screen location 2048, $0800
+  sta $d018
+  lda #1
+  sta SCR_buffer_flag
+  SCR_update_scroll_register()
+  jmp loop  
 
 cls:
   ldy #0
@@ -168,6 +193,10 @@ clsl:
   sta $0400+$0100,y
   sta $0400+$0200,y
   sta $0400+$0300,y
+  sta $0800,y
+  sta $0800+$0100,y
+  sta $0800+$0200,y
+  sta $0800+$0300,y
   iny
   bne clsl
   rts
@@ -204,6 +233,8 @@ copyspr:
 
   ldx #192
   stx $07f8 //spr ptr
+  // TODO: is this the best way? To copy the sprite to both memory locations?
+  stx $0bf8
   //inx
   //stx $07f8+1
   //inx
@@ -1121,3 +1152,5 @@ collrectx1: .fill 12,0
 collrectx2: .fill 12,0
 collrecty1: .fill 12,0
 collrecty2: .fill 12,0
+
+frame: .byte 0
