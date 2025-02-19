@@ -5,11 +5,6 @@
 .var SCR_scroll_offset         = $59
 .var SCR_objects_ptr           = $43 // and $44
 
-
-// //////////////////////////////////////////////////////////////////////////////
-// // warning: these areas of memory are used for file loading and saving.
-// // Do not change the order or size of any of it.
-// //////////////////////////////////////////////////////////////////////////////
 // Memory map
 //   Front buffer:
 //     $0400-$07e7 - video matrix 40x25
@@ -28,16 +23,13 @@
 //     $3000 - $3fff
 //   Game program
 //     $8000 - ?
-.var SCR_chars    = $3000
-.var SCR_
-// //////////////////////////////////////////////////////////////////////////////
-// // see warning above
-// //////////////////////////////////////////////////////////////////////////////
-.var SCR_tiles_ul = $1900
-.var SCR_tiles_ur = $1a00
-.var SCR_tiles_ll = $1b00
-.var SCR_tiles_lr = $1c00
-.var SCR_level_tiles = $1d00
+.var SCR_charset        = $1000
+.var SCR_char_attribs   = $1800
+.var SCR_tiles_ul       = $1900
+.var SCR_tiles_ur       = $1a00
+.var SCR_tiles_ll       = $1b00
+.var SCR_tiles_lr       = $1c00
+.var SCR_level_tiles    = $1d00
 .var SCR_TEST_MAP_WIDTH = 256
 
 // X holds the tile index
