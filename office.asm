@@ -5,16 +5,16 @@
 //.var maxhvr    = 166
 //
 //.var vvzero    = 127
-//.var maxvvu    = 88
-//.var maxvvd    = 166
+//.var maxvvu    = 93
+//.var maxvvd    = 161
 
 .var hvzero    = 127
-.var maxhvl    = 88
-.var maxhvr    = 166
+.var maxhvl    = 92
+.var maxhvr    = 162
 
 .var vvzero    = 127
-.var maxvvu    = 93
-.var maxvvd    = 161
+.var maxvvu    = 100
+.var maxvvd    = 154
 
   jmp init
 
@@ -142,6 +142,8 @@ loop:
 even_frame:
   lda SCR_buffer_ready // ignore input if we need to redraw
   bne loop
+  lda #%00000000
+  sta SCR_color_flag
   lda $dc00
   jsr injs
   jsr updp1hv
@@ -157,6 +159,15 @@ odd_frame:
   bne loop_swap_buffer
   beq loop // scroll register didn't wrap
 loop_swap_buffer:
+  lda SCR_color_flag
+  beq swap_buffer
+  cmp #%00000001
+  beq swap_color_left
+  jsr SCR_move_color_right
+  jmp swap_buffer
+swap_color_left:
+  jsr SCR_move_color_left
+swap_buffer:
   lda #0
   sta SCR_buffer_ready
   lda SCR_buffer_flag
@@ -203,9 +214,9 @@ clsl:
 
 initsys:
   // turn on multiclr char mode
-  lda $d016
-  ora #%00010000
-  sta $d016
+  // lda $d016
+  // ora #%00010000
+  // sta $d016
 
   // // use our in-memory charset
   // lda $d018
@@ -213,15 +224,19 @@ initsys:
   // ora #%00001000
   // sta $d018
 
+  lda #15
+  sta $d021
+
+  lda #0
+  sta $d020
+
   rts
 
 initspr:
   ldx #63
 copyspr:
-  lda p1spr,X
-  sta $3000,X
-  //sta $3040,X
-  //sta $3080,X
+  lda p1spr, x
+  sta $0c00, x
   dex
   bpl copyspr
 
@@ -231,14 +246,12 @@ copyspr:
   lda #sprmc1
   sta $d026
 
-  ldx #192
-  stx $07f8 //spr ptr
-  // TODO: is this the best way? To copy the sprite to both memory locations?
-  stx $0bf8
-  //inx
-  //stx $07f8+1
-  //inx
-  //stx $07f8+2
+  // sprite pointers
+  // location = (bank * 16384)+(sprptr*64)
+  //          = (0*16384)+(48*64)=$0c00
+  ldx #48 
+  stx $07f8 // front buffer
+  stx $0bf8 // back buffer
 
   lda #%00000001
   sta $d01c

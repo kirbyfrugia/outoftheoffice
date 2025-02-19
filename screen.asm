@@ -5,11 +5,39 @@
 .var SCR_scroll_offset         = $59
 .var SCR_objects_ptr           = $43 // and $44
 
-.var SCR_tiles_ul = $4000
-.var SCR_tiles_ur = $4100
-.var SCR_tiles_ll = $4200
-.var SCR_tiles_lr = $4300
-.var SCR_level_tiles = $4400
+
+// //////////////////////////////////////////////////////////////////////////////
+// // warning: these areas of memory are used for file loading and saving.
+// // Do not change the order or size of any of it.
+// //////////////////////////////////////////////////////////////////////////////
+// Memory map
+//   Front buffer:
+//     $0400-$07e7 - video matrix 40x25
+//     $07f8-$07ff - sprite data pointers
+//   Back buffer:
+//     $0800-$0be7 - video matrix 40x25
+//     $0bf8-$0bff - sprite data pointers
+//   Sprite data
+//     $0c00-$0dff - sprite data
+//   Character Set
+//     $1000-$17ff - character set
+//     $1800-$18ff - character attribs
+//     $1900-$1cff - tile set
+//     $1d00-$26ff - level (max 256 tiles x 10 rows = 2560 bytes)
+//   Scratch space
+//     $3000 - $3fff
+//   Game program
+//     $8000 - ?
+.var SCR_chars    = $3000
+.var SCR_
+// //////////////////////////////////////////////////////////////////////////////
+// // see warning above
+// //////////////////////////////////////////////////////////////////////////////
+.var SCR_tiles_ul = $1900
+.var SCR_tiles_ur = $1a00
+.var SCR_tiles_ll = $1b00
+.var SCR_tiles_lr = $1c00
+.var SCR_level_tiles = $1d00
 .var SCR_TEST_MAP_WIDTH = 256
 
 // X holds the tile index
@@ -106,7 +134,6 @@ mtm_loop: // fill the map with the empty tile (tile id zero)
   sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*7), x
   sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*8), x
   sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9), x
-  sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10), x
   bne mtm_nowrap
 mtm_nowrap:
   inx
@@ -115,25 +142,25 @@ mtm_nowrap:
   lda #1
   sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*0), x
   lda #2
-  sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10), x
+  sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9), x
   
   ldx #10
   lda #3
   sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*0), x
   lda #4
-  sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10), x
+  sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9), x
 
   ldx #18
   lda #5
   sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*0), x
   lda #6
-  sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10), x
+  sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9), x
 
   ldx #19
   lda #7
   sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*0), x
   lda #8
-  sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10), x
+  sta SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9), x
   rts
 
 // load_tiles:
@@ -185,7 +212,25 @@ ds_loop:
   SCR_draw_tile(1704, 1744, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*7))
   SCR_draw_tile(1784, 1824, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*8))
   SCR_draw_tile(1864, 1904, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9))
-  SCR_draw_tile(1944, 1984, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10))
+  lda #102
+  sta 1944, y
+  sta 1945, y
+  sta 2968, y
+  sta 2969, y
+  lda #102
+  sta 1984, y
+  sta 1985, y
+  sta 3008, y
+  sta 3009, y
+  lda #11
+  sta 56216, y
+  sta 56217, y
+  sta 56256, y
+  sta 56257, y
+  sta 57240, y
+  sta 57241, y
+  sta 57280, y
+  sta 57281, y
 ds_loop_end:
   dex
   bmi ds_done
@@ -243,7 +288,6 @@ SCR_scroll_left_loop:
   beq SCR_scroll_left_redraw // scroll register at max, so move chars on screen
   sta SCR_scroll_offset
   dec SCR_scroll_register
-  //SCR_update_scroll_register()
   jmp SCR_scroll_left_next
 SCR_scroll_left_redraw:  
   lda SCR_column_first_visible+1
@@ -258,7 +302,6 @@ SCR_scroll_left_redrawok:
   sta SCR_scroll_offset
   lda #%00000111
   sta SCR_scroll_register
-  //SCR_update_scroll_register()
   stx SCR_tmp_var0
   jsr SCR_move_screen_left
   ldx SCR_tmp_var0
@@ -286,7 +329,6 @@ SCR_scroll_right_loop:
   bmi SCR_scroll_right_redraw
   sta SCR_scroll_offset
   inc SCR_scroll_register
-  //SCR_update_scroll_register()
   jmp SCR_scroll_right_next
 SCR_scroll_right_redraw:  
   lda SCR_column_first_visible
@@ -299,7 +341,6 @@ SCR_scroll_right_redrawok:
   sta SCR_scroll_offset
   lda #%00000000
   sta SCR_scroll_register
-  //SCR_update_scroll_register()
   stx SCR_tmp_var0
   jsr SCR_move_screen_right
   ldx SCR_tmp_var0
@@ -310,9 +351,9 @@ SCR_scroll_right_next:
 SCR_scroll_right_done:
   rts
 
-SCR_move_screen_left:
+SCR_move_color_left:
   ldx #0
-msl_loop_color:
+mcl_loop:
   lda 55417, x
   sta 55416, x
   lda 55457, x
@@ -353,16 +394,17 @@ msl_loop_color:
   sta 56136, x
   lda 56177, x
   sta 56176, x
-  lda 56217, x
-  sta 56216, x
-  lda 56257, x
-  sta 56256, x
 
   inx
   cpx #39
-  beq msl_chars
-  jmp msl_loop_color
-msl_chars:
+  beq mcl_loop_done
+  jmp mcl_loop
+mcl_loop_done:
+  rts
+
+SCR_move_screen_left:
+  lda #%00000001
+  sta SCR_color_flag
   ldx #0
   lda SCR_buffer_flag
   beq msl_char_loop_f2b_loop
@@ -408,10 +450,6 @@ msl_char_loop_f2b_loop:
   sta 2888, x
   lda 1905, x
   sta 2928, x
-  lda 1945, x
-  sta 2968, x
-  lda 1985, x
-  sta 3008, x
 
   inx
   cpx #39
@@ -436,7 +474,6 @@ msl_draw_right_side_back:
   SCR_draw_tile_right(2728, 2768, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*7))
   SCR_draw_tile_right(2808, 2848, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*8))
   SCR_draw_tile_right(2888, 2928, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9))
-  SCR_draw_tile_right(2968, 3008, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10))
   lda #0
   sta SCR_tile_offset
   jmp msl_loop_done
@@ -453,7 +490,6 @@ msl_load_new_tile_back:
   SCR_draw_tile_left(2728, 2768, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*7))
   SCR_draw_tile_left(2808, 2848, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*8))
   SCR_draw_tile_left(2888, 2928, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9))
-  SCR_draw_tile_left(2968, 3008, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10))
   lda #1
   sta SCR_tile_offset
   jmp msl_loop_done
@@ -498,10 +534,6 @@ msl_char_loop_b2f_loop:
   sta 1864, x
   lda 2929, x
   sta 1904, x
-  lda 2969, x
-  sta 1944, x
-  lda 3009, x
-  sta 1984, x
 
   inx
   cpx #39
@@ -526,7 +558,6 @@ msl_draw_right_side_front:
   SCR_draw_tile_right(1704, 1744, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*7))
   SCR_draw_tile_right(1784, 1824, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*8))
   SCR_draw_tile_right(1864, 1904, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9))
-  SCR_draw_tile_right(1944, 1984, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10))
   lda #0
   sta SCR_tile_offset
   jmp msl_loop_done
@@ -543,7 +574,6 @@ msl_load_new_tile_front:
   SCR_draw_tile_left(1704, 1744, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*7))
   SCR_draw_tile_left(1784, 1824, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*8))
   SCR_draw_tile_left(1864, 1904, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9))
-  SCR_draw_tile_left(1944, 1984, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10))
   lda #1
   sta SCR_tile_offset
 msl_loop_done:
@@ -555,9 +585,9 @@ msl_done:
   sta SCR_buffer_ready
   rts
 
-SCR_move_screen_right:
+SCR_move_color_right:
   ldx #38
-msr_loop_color:
+mcr_loop:
   lda 55416, x
   sta 55417, x
   lda 55456, x
@@ -598,14 +628,15 @@ msr_loop_color:
   sta 56137, x
   lda 56176, x
   sta 56177, x
-  lda 56216, x
-  sta 56217, x
-  lda 56256, x
-  sta 56257, x
   dex
-  bmi msr_chars
-  jmp msr_loop_color
-msr_chars:
+  bmi mcr_loop_done
+  jmp mcr_loop
+mcr_loop_done:
+  rts
+
+SCR_move_screen_right:
+  lda #%00000010
+  sta SCR_color_flag
   ldx #38
   lda SCR_buffer_flag
   beq msr_char_loop_f2b_loop
@@ -651,10 +682,6 @@ msr_char_loop_f2b_loop:
   sta 2889, x
   lda 1904, x
   sta 2929, x
-  lda 1944, x
-  sta 2969, x
-  lda 1984, x
-  sta 3009, x
   dex
   bmi msr_fill_left_side_back
   jmp msr_char_loop_f2b_loop
@@ -677,7 +704,6 @@ msr_draw_left_side_back:
   SCR_draw_tile_left(2728, 2768, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*7))
   SCR_draw_tile_left(2808, 2848, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*8))
   SCR_draw_tile_left(2888, 2928, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9))
-  SCR_draw_tile_left(2968, 3008, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10))
   lda #0
   sta SCR_tile_offset
   jmp msr_loop_done
@@ -694,7 +720,6 @@ msr_load_new_tile_back:
   SCR_draw_tile_right(2728, 2768, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*7))
   SCR_draw_tile_right(2808, 2848, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*8))
   SCR_draw_tile_right(2888, 2928, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9))
-  SCR_draw_tile_right(2968, 3008, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10))
   lda #1
   sta SCR_tile_offset
   jmp msr_loop_done
@@ -739,10 +764,6 @@ msr_char_loop_b2f_loop:
   sta 1865, x
   lda 2928, x
   sta 1905, x
-  lda 2968, x
-  sta 1945, x
-  lda 3008, x
-  sta 1985, x
   dex
   bmi msr_fill_left_side_front
   jmp msr_char_loop_b2f_loop
@@ -765,7 +786,6 @@ msr_draw_left_side_front:
   SCR_draw_tile_left(1704, 1744, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*7))
   SCR_draw_tile_left(1784, 1824, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*8))
   SCR_draw_tile_left(1864, 1904, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9))
-  SCR_draw_tile_left(1944, 1984, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10))
   lda #0
   sta SCR_tile_offset
   jmp msr_loop_done
@@ -782,7 +802,6 @@ msr_load_new_tile_front:
   SCR_draw_tile_right(1704, 1744, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*7))
   SCR_draw_tile_right(1784, 1824, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*8))
   SCR_draw_tile_right(1864, 1904, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*9))
-  SCR_draw_tile_right(1944, 1984, SCR_level_tiles+(SCR_TEST_MAP_WIDTH*10))
   lda #1
   sta SCR_tile_offset
 msr_loop_done:
@@ -808,4 +827,5 @@ SCR_tile_first_visible:          .byte 0
 SCR_tile_last_visible:           .byte 0
 SCR_tile_offset:                 .byte 0
 SCR_buffer_flag:                 .byte 0
-SCR_buffer_ready:         .byte 0
+SCR_buffer_ready:                .byte 0
+SCR_color_flag:                  .byte 0
