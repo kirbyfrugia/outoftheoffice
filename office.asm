@@ -391,6 +391,9 @@ log_line1:
 
   iny
   iny
+  lda p1sx+1
+  jsr loghexit
+  iny
   lda p1sx
   jsr loghexit
 
@@ -757,6 +760,7 @@ updp1vpt:
   sta p1ly+1
 
 updp1hp:
+  // Update global position of character in level
   lda p1gx
   clc
   adc p1hva
@@ -775,13 +779,16 @@ updp1hp:
   lda p1lx
   cmp maxp1gx
   bcc updp1hpt
+
   // if here, moved past right of level
 
+  // stop character horizontal movement
   lda #0
   sta p1hva
   lda #hvzero
   sta p1hvi
 
+  // update player position to furthest right position possible
   lda maxp1gx
   sta p1gx
   sta p1lx
@@ -789,31 +796,22 @@ updp1hp:
   sta p1gx+1
   sta p1lx+1
   jmp updp1hpt
-  ////lda #71
-  //lda #69
-  // lda #31
-  // sta p1lx
-  // lda #1
-  // sta p1lx+1
-  //jmp collide
 updp1hpneg:
   // move would have moved char to left of level
+  // update position to far left of level and stop horiz movement
   lda #0
   sta p1gx
   sta p1gx+1
+  sta p1lx
+  sta p1lx+1
   sta p1hva
 
   lda #hvzero
   sta p1hvi
-
-  //lda #31
-  lda #0
-  sta p1lx
-  lda #0
-  sta p1lx+1
   jmp collide
 updp1hpt:
-  // get rid of the fractional portion
+  // now update local position (where char is relative to left of screen)
+  // first get rid of the fractional portion
   ror p1lx+1
   ror p1lx 
   ror p1lx+1
@@ -826,8 +824,8 @@ updp1hpt:
   and #%00001111
   sta p1lx+1
 
-  // now subtract the column offset
-  // multiply by 8 (shift right 3 to get column in x coords)
+  // multiply by 8 (shift left 3) to get the first column visible
+  // in pixel coordinates rather than character coordinates
   lda SCR_column_first_visible
   sta colshift
   lda SCR_column_first_visible+1
@@ -842,6 +840,9 @@ updp1hpt:
   and #%11111000
   sta colshift 
 
+  // now subtract the first column visible from the global
+  // position to get the local position relative to left side
+  // of screen
   lda p1lx
   sec
   sbc colshift
@@ -851,6 +852,9 @@ updp1hpt:
   sta p1lx+1
 
 collide:
+  // now p1lx contains the position of the character relative to the left side of screen
+  // in pixel coordinates.
+
   // now we're in pixel coordinates, check for collisions with any tiles
   // first convert pixel coordinates to screen xy coordinates (x: 0..39, y: 0..24)
 //  lda $d000
@@ -866,6 +870,7 @@ collide:
   lda p1lx+1
   sta p1sx+1
 
+  // rotate 3 to get back to character coordinates
   ror p1sx+1
   ror p1sx
   ror p1sx+1
