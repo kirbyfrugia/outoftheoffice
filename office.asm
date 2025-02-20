@@ -1,5 +1,11 @@
-  *=$8000 "Office"
+#import "data/level1.asm"
 
+.disk [filename="office.d64", name="OFFICE", id="O1" ] {
+  [name="OFFICE", type="prg", segments="Office"],
+  [name="LEVEL1", type="prg", segments="level1"]
+}
+
+.segment Office [outPrg="office.prg", start=$8000]
 //.var hvzero    = 127
 //.var maxhvl    = 88
 //.var maxhvr    = 166
@@ -18,7 +24,6 @@
 
   jmp init
 
-#import "data/level1.asm"
 #import "data.asm"
 #import "const.asm"
 #import "utils.asm"
@@ -96,8 +101,9 @@ init:
  
   jsr initui
   jsr initsys
+  jsr SCR_loadmap
   jsr loadmap
-  jsr redraw
+  // jsr redraw
   jsr initspr
 
   lda #0
@@ -122,14 +128,15 @@ init:
   sta SCR_column_first_visible_max+1
 
 
-  jsr SCR_make_test_tiles
-  jsr SCR_make_test_map
+  //jsr SCR_make_test_tiles
+  //jsr SCR_make_test_map
   jsr SCR_init_screen
   jsr SCR_draw_screen
 
 loop:
   lda $d012
-  cmp #$f8
+  //cmp #$fa
+  cmp #13 // https://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt
   bne loop
 
   // use odd/even frames since the buffer flip may be faster
@@ -156,17 +163,9 @@ even_frame:
   jmp loop
 odd_frame:
   lda SCR_buffer_ready
-  bne loop_swap_buffer
+  bne swap_buffer
+  // TODO: we have time here to do other stuff...
   beq loop // scroll register didn't wrap
-loop_swap_buffer:
-  lda SCR_color_flag
-  beq swap_buffer
-  cmp #%00000001
-  beq swap_color_left
-  jsr SCR_move_color_right
-  jmp swap_buffer
-swap_color_left:
-  jsr SCR_move_color_left
 swap_buffer:
   lda #0
   sta SCR_buffer_ready
@@ -179,7 +178,7 @@ swap_buffer:
   lda #0
   sta SCR_buffer_flag
   SCR_update_scroll_register()
-  jmp loop
+  jmp move_color
 loop_swap_to_back:
   lda $d018
   and #%00001111
@@ -188,7 +187,16 @@ loop_swap_to_back:
   lda #1
   sta SCR_buffer_flag
   SCR_update_scroll_register()
-  jmp loop  
+move_color:
+  lda SCR_color_flag
+  beq swap_buffer
+  cmp #%00000001
+  beq swap_color_left
+  jsr SCR_move_color_right
+  jmp loop
+swap_color_left:
+  jsr SCR_move_color_left
+  jmp loop
 
 cls:
   ldy #0
@@ -218,11 +226,11 @@ initsys:
   // ora #%00010000
   // sta $d016
 
-  // // use our in-memory charset
-  // lda $d018
-  // and #%11110000
-  // ora #%00001000
-  // sta $d018
+  // use our in-memory charset
+  lda $d018
+  and #%11110000
+  ora #%00001000 // $2000-27ff
+  sta $d018
 
   lda #15
   sta $d021
@@ -287,94 +295,6 @@ initui:
 
 
 loadmap:
-//   ldx #9
-//   stx fdev
-
-//   ldy #0
-// lml:
-//   lda strlevel3,y
-//   beq lmld
-//   sta fname,y
-//   iny
-//   bne lml
-// lmld:
-//   sty fnamelen
-
-//   // load main data
-//   lda #<filedatas
-//   sta zpb0
-//   lda #>filedatas
-//   sta zpb1 
-//   jsr fload
-//   lda fstatus
-//   beq loadok
-//   jmp loaderr
-// loadok:
-
-//   // load the char map
-//   // set file name, append a "C" to the end of the name
-//   ldx fnamelen
-//   lda #67 // C
-//   sta fname,x
-
-//   lda #<chrtmdatas
-//   sta zpb0
-//   lda #>chrtmdatas
-//   sta zpb1 
-//   inc fnamelen
-//   jsr fload
-//   dec fnamelen
-//   lda #0
-//   ldx fnamelen
-//   sta fname,x
-//   lda fstatus
-//   bne loaderr
-
-//   // load the metadata map
-//   // set file name, append a "M" to the end of the name
-//   ldx fnamelen
-//   lda #77 // M
-//   sta fname,x
-
-//   lda #<mdtmdatas
-//   sta zpb0
-//   lda #>mdtmdatas
-//   sta zpb1 
-//   inc fnamelen
-//   jsr fload
-//   dec fnamelen
-//   lda #0
-//   ldx fnamelen
-//   sta fname,x
-//   lda fstatus
-//   bne loaderr
-
-//   lda bgclr
-//   sta $d021
-//   lda bgclr1
-//   sta $d022
-//   lda bgclr2
-//   sta $d023
-
-//   lda #25
-//   sta tmrowc
-//   lda #scrrow0
-//   sta tmrow0
-//   lda #0
-//   sta SCR_column_first_visible
-//   sta SCR_column_first_visible+1
-
-//   lda chrtmcolc
-//   sta tmcolc
-//   lda chrtmcolc+1
-//   sta tmcolc+1
-//   jmp loadd
-// loaderr:
-//   jsr emptyscrn
-// loadd:
-//   jsr updscrn
-//   jsr drawscrn
-
   // TODO: this is where you set how far the player can go right, fix with real
   // 256 tiles * 2 columns per tile - player width (just say 2 columns) = 510 = $01fe
   // lda #$fe
@@ -422,7 +342,6 @@ loadmap:
   lda maxp1gy
   and #%11111000
   sta maxp1gy
-
 
   rts
 
@@ -559,31 +478,31 @@ log:
 
   rts
 
-// in its own subroutine just
-// so we can time it
-redraw:
-  jsr gettime
-  lda time
-  sta ptime
-  lda time+1
-  sta ptime+1
-  lda time+2
-  sta ptime+2
+// // in its own subroutine just
+// // so we can time it
+// redraw:
+//   jsr gettime
+//   lda time
+//   sta ptime
+//   lda time+1
+//   sta ptime+1
+//   lda time+2
+//   sta ptime+2
 
-  //jsr drawscrn
-  jsr gettime
+//   //jsr drawscrn
+//   jsr gettime
 
-  lda time
-  sec
-  sbc ptime
-  sta etime
-  lda time+1
-  sbc ptime+1
-  sta etime+1
-  lda time+2
-  sbc ptime+2
-  sta etime+2
-  rts
+//   lda time
+//   sec
+//   sbc ptime
+//   sta etime
+//   lda time+1
+//   sbc ptime+1
+//   sta etime+1
+//   lda time+2
+//   sbc ptime+2
+//   sta etime+2
+//   rts
 
 
 // How player velocity and positioning works.
@@ -707,9 +626,6 @@ updp1vtvd:
   bcc updp1vaccel
   cmp #(vvzero+2)
   bcs updp1vdecel2
-  lda p1vvi
-  sec
-  sbc #1
   dec p1vvi
   bne updp1vvd
 updp1vdecel2:
@@ -1167,3 +1083,4 @@ collrecty1: .fill 12,0
 collrecty2: .fill 12,0
 
 frame: .byte 0
+

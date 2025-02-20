@@ -14,22 +14,26 @@
 //     $0bf8-$0bff - sprite data pointers
 //   Sprite data
 //     $0c00-$0dff - sprite data
-//   Character Set
-//     $1000-$17ff - character set
-//     $1800-$18ff - character attribs
-//     $1900-$1cff - tile set
-//     $1d00-$26ff - level (max 256 tiles x 10 rows = 2560 bytes)
+//   Level data
+//     $1ffe-$1fff - just used to store the prg load location, ignored
+//     $2000-$27ff - character set
+//     $2800-$28ff - character attribs
+//     $2900-$2cff - tile set
+//     $2d00-$36ff - level (max 256 tiles x 10 rows = 2560 bytes)
 //   Scratch space
-//     $3000 - $3fff
+//     $4000 - $4fff
 //   Game program
 //     $8000 - ?
-.var SCR_charset        = $1000
-.var SCR_char_attribs   = $1800
-.var SCR_tiles_ul       = $1900
-.var SCR_tiles_ur       = $1a00
-.var SCR_tiles_ll       = $1b00
-.var SCR_tiles_lr       = $1c00
-.var SCR_level_tiles    = $1d00
+.var SCR_charset_prg    = $1ffe
+.var SCR_charset        = $2000
+.var SCR_char_attribs   = $2800
+.var SCR_raw_tiles      = $2900
+.var SCR_tiles_ul       = $2900
+.var SCR_tiles_ur       = $2a00
+.var SCR_tiles_ll       = $2b00
+.var SCR_tiles_lr       = $2c00
+.var SCR_level_tiles    = $2d00
+.var SCR_scratch        = $4000
 .var SCR_TEST_MAP_WIDTH = 256
 
 // X holds the tile index
@@ -87,6 +91,119 @@
   ora SCR_scroll_register
   sta $d016
 }
+
+
+SCR_loadmap:
+  // TODO: don't hard-code the device number
+  ldx #8
+  stx fdev
+
+  ldy #0
+lm_fname_loop:
+  lda str_level1,y
+  beq lm_fname_loop_done
+  sta fname,y
+  iny
+  bne lm_fname_loop
+lm_fname_loop_done:
+  sty fnamelen
+
+  // load main data
+  lda #<SCR_charset_prg
+  sta zpb0
+  lda #>SCR_charset_prg
+  sta zpb1 
+  jsr fload
+  lda fstatus
+  beq loadok
+  jmp loaderr
+loadok:
+  jmp loadd
+loaderr:
+  // TODO: something better
+loadd:
+
+  // now switch up tile format
+
+  // copy to scratch space
+  lda #<SCR_raw_tiles
+  sta $fb
+  lda #>SCR_raw_tiles
+  sta $fc
+
+  lda #<SCR_scratch
+  sta $fd
+  lda #>SCR_scratch
+  sta $fe
+
+  lda #$00
+  sta $bb
+  lda #$04
+  sta $bc
+  jsr copy
+  ldx #0
+  ldy #0
+lm_copy_tile_1:
+  lda SCR_scratch, y
+  sta SCR_tiles_ul, x
+  iny
+  lda SCR_scratch, y
+  sta SCR_tiles_ur, x
+  iny
+  lda SCR_scratch, y
+  sta SCR_tiles_ll, x
+  iny
+  lda SCR_scratch, y
+  sta SCR_tiles_lr, x
+  inx
+  iny
+  bne lm_copy_tile_1
+lm_copy_tile_2:
+  lda SCR_scratch+$0100, y
+  sta SCR_tiles_ul, x
+  iny
+  lda SCR_scratch+$0100, y
+  sta SCR_tiles_ur, x
+  iny
+  lda SCR_scratch+$0100, y
+  sta SCR_tiles_ll, x
+  iny
+  lda SCR_scratch+$0100, y
+  sta SCR_tiles_lr, x
+  inx
+  iny
+  bne lm_copy_tile_2
+lm_copy_tile_3:
+  lda SCR_scratch+$0200, y
+  sta SCR_tiles_ul, x
+  iny
+  lda SCR_scratch+$0200, y
+  sta SCR_tiles_ur, x
+  iny
+  lda SCR_scratch+$0200, y
+  sta SCR_tiles_ll, x
+  iny
+  lda SCR_scratch+$0200, y
+  sta SCR_tiles_lr, x
+  inx
+  iny
+  bne lm_copy_tile_3
+lm_copy_tile_4:
+  lda SCR_scratch+$0300, y
+  sta SCR_tiles_ul, x
+  iny
+  lda SCR_scratch+$0300, y
+  sta SCR_tiles_ur, x
+  iny
+  lda SCR_scratch+$0300, y
+  sta SCR_tiles_ll, x
+  iny
+  lda SCR_scratch+$0300, y
+  sta SCR_tiles_lr, x
+  inx
+  iny
+  bne lm_copy_tile_4
+  rts
 
 SCR_make_test_tiles:
   ldx #0

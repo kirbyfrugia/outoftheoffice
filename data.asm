@@ -10,3 +10,6 @@ p1spr:
 
 str_level1_tiles: .text "LEVEL1TILES"
                   .byte 0
+
+str_level1: .text "LEVEL1"
+            .byte 0
