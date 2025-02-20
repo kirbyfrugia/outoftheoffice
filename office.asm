@@ -101,35 +101,31 @@ init:
  
   jsr initui
   jsr initsys
-  jsr SCR_loadmap
-  jsr loadmap
-  // jsr redraw
-  jsr initspr
 
+  lda #level1_MAP_WID
+  sta SCR_tile_level_width
+  jsr SCR_loadmap
   lda #0
   sta SCR_column_first_visible
   sta SCR_column_first_visible+1
 
-  // TODO: fix this
-  // 256 tiles * 16 bits per tile = 4096 = $1000
-  // lda #$00
-  // sec
-  // sbc #scrwidth
-  // sta SCR_column_first_visible_max
-  // lda #$10
-  // sbc #$00
-  // sta SCR_column_first_visible_max+1
-
-  // TODO: temp, remove
-  // should be 37 less than maxp1gx
-  lda #21
+  lda #level1_MAP_WID
+  clc
+  rol
   sta SCR_column_first_visible_max
-  lda #0
+  rol SCR_column_first_visible_max+1
+
+  lda SCR_column_first_visible_max
+  sec
+  sbc #scrwidth
+  sta SCR_column_first_visible_max
+  lda SCR_column_first_visible_max+1
+  sbc #0
   sta SCR_column_first_visible_max+1
+  jsr loadmap
 
+  jsr initspr
 
-  //jsr SCR_make_test_tiles
-  //jsr SCR_make_test_map
   jsr SCR_init_screen
   jsr SCR_draw_screen
 
@@ -156,7 +152,7 @@ even_frame:
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
-  //jsr log
+  jsr log
   lda SCR_buffer_ready // need to redraw due to wrapping scroll register
   bne loop
   SCR_update_scroll_register() // only scroll if we didn't redraw
@@ -302,10 +298,26 @@ loadmap:
   // lda #$01
   // sta maxp1gx+1
 
-  lda #58
+  lda SCR_column_first_visible_max
+  clc
+  adc #scrwidth
   sta maxp1gx
-  lda #$00
+  lda SCR_column_first_visible_max+1
+  adc #0
   sta maxp1gx+1
+
+  lda maxp1gx
+  sec
+  sbc #2 // player width
+  sta maxp1gx
+  lda maxp1gx+1
+  sbc #0
+  sta maxp1gx+1
+
+  // lda #58
+  // sta maxp1gx
+  // lda #$00
+  // sta maxp1gx+1
 
   // Shift 3 times to go from column count to pixels and then
   // shift 4 more to the left to account for the fractional portion
@@ -348,11 +360,19 @@ loadmap:
 
 // todo dont assemble for release
 log:
+  lda SCR_buffer_flag
+  bne log_back_line1
   lda #$00
   sta zpb0
   lda #$04
   sta zpb1
-
+  bne log_line1
+log_back_line1:
+  lda #$00
+  sta zpb0
+  lda #$08
+  sta zpb1
+log_line1:
   ldy #1
 
   lda p1gx+1
@@ -410,11 +430,21 @@ log:
   lda SCR_scroll_out
   jsr loghexit
 
+  
   // next row
+  lda SCR_buffer_flag
+  bne log_back_line2
   lda #$28
   sta zpb0
   lda #$04
   sta zpb1
+  bne log_line2
+log_back_line2:
+  lda #$28
+  sta zpb0
+  lda #$08
+  sta zpb1
+log_line2:
 
   ldy #1
 
@@ -470,11 +500,19 @@ log:
   jsr loghexit
 
   // next row
+  lda SCR_buffer_flag
+  bne log_back_line3
   lda #$50
   sta zpb0
   lda #$04
   sta zpb1
-
+  bne log_line3
+log_back_line3:
+  lda #$50
+  sta zpb0
+  lda #$08
+  sta zpb1
+log_line3:
 
   rts
 
