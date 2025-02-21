@@ -1,7 +1,9 @@
 #import "data/level1.asm"
+#import "data/sprites.asm"
 
 .disk [filename="office.d64", name="OFFICE", id="O1" ] {
   [name="OFFICE", type="prg", segments="Office"],
+  [name="SPRITES", type="prg", segments="sprites"],
   [name="LEVEL1", type="prg", segments="level1"]
 }
 
@@ -27,7 +29,6 @@
 #import "data.asm"
 #import "const.asm"
 #import "utils.asm"
-#import "level.asm"
 #import "screen.asm"
 
 init:
@@ -101,6 +102,8 @@ init:
  
   jsr initui
   jsr initsys
+
+  jsr SCR_load_sprite_sheet
 
   lda #level1_MAP_WID
   sta SCR_tile_level_width
@@ -238,11 +241,11 @@ initsys:
 
 initspr:
   ldx #63
-copyspr:
-  lda p1spr, x
-  sta $0c00, x
+copy_player_sprite:
+  lda sprite_image_0, x
+  sta SCR_sprite_data, x
   dex
-  bpl copyspr
+  bpl copy_player_sprite
 
   // set sprite multi colors
   lda #sprmc0
@@ -517,6 +520,18 @@ log_back_line3:
   sta zpb1
 log_line3:
 
+  ldy #1
+  lda collision_tile_first_x
+  jsr loghexit
+  iny
+  iny
+  lda collision_tile_first_y
+  jsr loghexit
+
+  iny
+  iny
+  lda tmp1
+  jsr loghexit
   rts
 
 // // in its own subroutine just
@@ -856,15 +871,7 @@ collide:
   // in pixel coordinates.
 
   // now we're in pixel coordinates, check for collisions with any tiles
-  // first convert pixel coordinates to screen xy coordinates (x: 0..39, y: 0..24)
-//  lda $d000
-//  sec
-//  sbc #31
-//  sta p1sx
-//  lda $d010
-//  and #%00000001
-//  sbc #0
-//  sta p1sx+1
+  // first convert pixel coordinates to character coordinates (x: 0..39, y: 0..24)
   lda p1lx
   sta p1sx
   lda p1lx+1
@@ -877,24 +884,38 @@ collide:
   ror p1sx
   ror p1sx+1
   ror p1sx
-  //lda p1sx
-  //and #%00111111
-  //sta p1sx
+  lda p1sx
+  and #%00111111
+  sta p1sx
 
-//  lda $d001
-//  sec
-//  sbc #50
-//  ror
-//  ror
-//  ror
-//  and #%00011111
-//  sta p1sy
+  lda p1sx
+  clc
+  ror // divide by 2 to get the first collision tile (char idx to tile idx)
+  clc
+  adc SCR_tile_first_visible
+  sta collision_tile_first_x
+
   lda p1ly
   ror
   ror
   ror
   and #%00011111
   sta p1sy
+  sec
+  sbc #3 // remove first 3 screen rows (not used for tiles)
+  clc
+  ror // divide by 2 to get the first collision tile
+  sta collision_tile_first_y
+
+  ldy collision_tile_first_y
+  lda SCR_rowptrs_lo, y
+  sta SCR_TILE_ROW_CURR
+  lda SCR_rowptrs_hi, y
+  sta SCR_TILE_ROW_CURR+1
+ 
+  ldy collision_tile_first_x
+  lda (SCR_TILE_ROW_CURR), y
+  sta tmp1
 
   lda p1hva
   bmi collidel
@@ -1126,4 +1147,7 @@ collrecty1: .fill 12,0
 collrecty2: .fill 12,0
 
 frame: .byte 0
+
+collision_tile_first_x: .byte 0
+collision_tile_first_y: .byte 0
 

@@ -7,7 +7,7 @@
 
 // Memory map
 //   Addresses of tile rows:
-//     $0020-$0033 - indices of tile rows
+//     $0020-$0035 - indices of tile rows
 //   Front buffer:
 //     $0400-$07e7 - video matrix 40x25
 //     $07f8-$07ff - sprite data pointers
@@ -23,30 +23,37 @@
 //     $2900-$2cff - tile set
 //     $2d00-$36ff - level (max 256 tiles x 10 rows = 2560 bytes)
 //   Scratch space
-//     $4000 - $4fff
+//     $4000-$4fff
+//   Sprite sheet
+//     $5000-$77ff - sprite sheet, 160 sprites
+//     $7800-795f  - sprite attrib data, 160 bytes
 //   Game program
-//     $8000 - ?
-.var SCR_TILE_ROW_BASE  = $20
-.var SCR_TILE_ROW_0     = $20
-.var SCR_TILE_ROW_1     = $22
-.var SCR_TILE_ROW_2     = $24
-.var SCR_TILE_ROW_3     = $26
-.var SCR_TILE_ROW_4     = $28
-.var SCR_TILE_ROW_5     = $2a
-.var SCR_TILE_ROW_6     = $2c
-.var SCR_TILE_ROW_7     = $2e
-.var SCR_TILE_ROW_8     = $30
-.var SCR_TILE_ROW_9     = $32
-.var SCR_charset_prg    = $1ffe
-.var SCR_charset        = $2000
-.var SCR_char_attribs   = $2800
-.var SCR_raw_tiles      = $2900
-.var SCR_tiles_ul       = $2900
-.var SCR_tiles_ur       = $2a00
-.var SCR_tiles_ll       = $2b00
-.var SCR_tiles_lr       = $2c00
-.var SCR_level_tiles    = $2d00
-.var SCR_scratch        = $4000
+//     $8000-?
+.var SCR_TILE_ROW_BASE    = $20
+.var SCR_TILE_ROW_0       = $20
+.var SCR_TILE_ROW_1       = $22
+.var SCR_TILE_ROW_2       = $24
+.var SCR_TILE_ROW_3       = $26
+.var SCR_TILE_ROW_4       = $28
+.var SCR_TILE_ROW_5       = $2a
+.var SCR_TILE_ROW_6       = $2c
+.var SCR_TILE_ROW_7       = $2e
+.var SCR_TILE_ROW_8       = $30
+.var SCR_TILE_ROW_9       = $32
+.var SCR_TILE_ROW_CURR    = $34
+.var SCR_sprite_data      = $0c00
+.var SCR_charset_prg      = $1ffe
+.var SCR_charset          = $2000
+.var SCR_char_attribs     = $2800
+.var SCR_raw_tiles        = $2900
+.var SCR_tiles_ul         = $2900
+.var SCR_tiles_ur         = $2a00
+.var SCR_tiles_ll         = $2b00
+.var SCR_tiles_lr         = $2c00
+.var SCR_level_tiles      = $2d00
+.var SCR_scratch          = $4000
+.var SCR_sprite_sheet_prg = $4ffe
+.var SCR_sprite_sheet     = $5000
 
 // X holds the tile index
 // Y holds the screen column
@@ -106,82 +113,112 @@
 
 
 SCR_update_tile_addr:
+  ldx #0
   lda #<SCR_level_tiles
   sta $20
+  sta SCR_rowptrs_lo, x
   lda #>SCR_level_tiles
   sta $21
+  sta SCR_rowptrs_hi, x
 
+  inx
   lda $20
   clc
   adc SCR_tile_level_width
   sta $22
+  sta SCR_rowptrs_lo, x
   lda $21
   adc #0
   sta $23
+  sta SCR_rowptrs_hi, x
 
+  inx
   lda $22
   clc
   adc SCR_tile_level_width
   sta $24
+  sta SCR_rowptrs_lo, x
   lda $23
   adc #0
   sta $25
+  sta SCR_rowptrs_hi, x
 
+  inx
   lda $24
   clc
   adc SCR_tile_level_width
   sta $26
+  sta SCR_rowptrs_lo, x
   lda $25
   adc #0
   sta $27
+  sta SCR_rowptrs_hi, x
 
+  inx
   lda $26
   clc
   adc SCR_tile_level_width
   sta $28
+  sta SCR_rowptrs_lo, x
   lda $27
   adc #0
   sta $29
+  sta SCR_rowptrs_hi, x
 
+  inx
   lda $28
   clc
   adc SCR_tile_level_width
   sta $2a
+  sta SCR_rowptrs_lo, x
   lda $29
   adc #0
   sta $2b
+  sta SCR_rowptrs_hi, x
 
+  inx
   lda $2a
   clc
   adc SCR_tile_level_width
   sta $2c
+  sta SCR_rowptrs_lo, x
   lda $2b
   adc #0
   sta $2d
+  sta SCR_rowptrs_hi, x
 
+  inx
   lda $2c
   clc
   adc SCR_tile_level_width
   sta $2e
+  sta SCR_rowptrs_lo, x
   lda $2d
   adc #0
   sta $2f
+  sta SCR_rowptrs_hi, x
 
+  inx
   lda $2e
   clc
   adc SCR_tile_level_width
   sta $30
+  sta SCR_rowptrs_lo, x
   lda $2f
   adc #0
   sta $31
+  sta SCR_rowptrs_hi, x
 
+  inx
   lda $30
   clc
   adc SCR_tile_level_width
   sta $32
+  sta SCR_rowptrs_lo, x
   lda $31
   adc #0
   sta $33
+  sta SCR_rowptrs_hi, x
 
   rts
 
@@ -207,13 +244,13 @@ lm_fname_loop_done:
   sta zpb1 
   jsr fload
   lda fstatus
-  beq loadok
-  jmp loaderr
-loadok:
-  jmp loadd
-loaderr:
+  beq lm_loadok
+  jmp lm_loaderr
+lm_loadok:
+  jmp lm_loadd
+lm_loaderr:
   // TODO: something better
-loadd:
+lm_loadd:
 
   // now switch up tile format
 
@@ -297,6 +334,37 @@ lm_copy_tile_4:
   bne lm_copy_tile_4
 
   jsr SCR_update_tile_addr
+  rts
+
+SCR_load_sprite_sheet:
+  // TODO: don't hard-code the device number
+  ldx #8
+  stx fdev
+
+  ldy #0
+lss_fname_loop:
+  lda str_sprites,y
+  beq lss_fname_loop_done
+  sta fname,y
+  iny
+  bne lss_fname_loop
+lss_fname_loop_done:
+  sty fnamelen
+
+  // load main data
+  lda #<SCR_sprite_sheet_prg
+  sta zpb0
+  lda #>SCR_sprite_sheet_prg
+  sta zpb1 
+  jsr fload
+  lda fstatus
+  beq lss_loadok
+  jmp lss_loaderr
+lss_loadok:
+  jmp lss_loadd
+lss_loaderr:
+  // TODO: something better
+lss_loadd:
   rts
 
 SCR_draw_screen:
@@ -935,3 +1003,8 @@ SCR_buffer_flag:                 .byte 0
 SCR_buffer_ready:                .byte 0
 SCR_color_flag:                  .byte 0
 SCR_tile_level_width:            .byte 0
+
+SCR_rowptrs_lo:
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+SCR_rowptrs_hi:
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
