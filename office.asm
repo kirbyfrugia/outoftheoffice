@@ -109,22 +109,22 @@ init:
   sta SCR_tile_level_width
   jsr SCR_loadmap
   lda #0
-  sta SCR_column_first_visible
-  sta SCR_column_first_visible+1
+  sta SCR_first_visible_column
+  sta SCR_first_visible_column+1
 
   lda #level1_MAP_WID
   clc
   rol
-  sta SCR_column_first_visible_max
-  rol SCR_column_first_visible_max+1
+  sta SCR_first_visible_column_max
+  rol SCR_first_visible_column_max+1
 
-  lda SCR_column_first_visible_max
+  lda SCR_first_visible_column_max
   sec
   sbc #scrwidth
-  sta SCR_column_first_visible_max
-  lda SCR_column_first_visible_max+1
+  sta SCR_first_visible_column_max
+  lda SCR_first_visible_column_max+1
   sbc #0
-  sta SCR_column_first_visible_max+1
+  sta SCR_first_visible_column_max+1
   jsr loadmap
 
   jsr initspr
@@ -301,11 +301,11 @@ loadmap:
   // lda #$01
   // sta maxp1gx+1
 
-  lda SCR_column_first_visible_max
+  lda SCR_first_visible_column_max
   clc
   adc #scrwidth
   sta maxp1gx
-  lda SCR_column_first_visible_max+1
+  lda SCR_first_visible_column_max+1
   adc #0
   sta maxp1gx+1
 
@@ -410,10 +410,10 @@ log_line1:
 
   iny
   iny
-  lda SCR_column_first_visible+1
+  lda SCR_first_visible_column+1
   jsr loghexit
   iny
-  lda SCR_column_first_visible
+  lda SCR_first_visible_column
   jsr loghexit
   iny
   lda #43
@@ -496,13 +496,13 @@ log_line2:
 
   iny
   iny
-  lda SCR_tile_first_visible
+  lda SCR_first_visible_tile
   jsr loghexit
   iny
   lda SCR_tile_offset
   jsr loghexit
   iny
-  lda SCR_tile_last_visible
+  lda SCR_last_visible_tile
   jsr loghexit
 
   // next row
@@ -530,7 +530,28 @@ log_line3:
 
   iny
   iny
-  lda tmp1
+  lda collision_column
+  jsr loghexit
+  iny
+  iny
+  lda collision_row
+  jsr loghexit
+
+  iny
+  iny
+  lda pixels_x
+  jsr loghexit
+  iny
+  iny
+  lda pixels_y
+  jsr loghexit
+
+  iny
+  iny
+  lda SCR_first_visible_column_pixels+1
+  jsr loghexit
+  iny
+  lda SCR_first_visible_column_pixels
   jsr loghexit
   rts
 
@@ -581,11 +602,9 @@ log_line3:
 // Key variables:
 //   p1hvi - horiz vel,indexed
 //   p1hva - horiz vel,actual
-//   p1gx  - global xpos
-//   p1lx  - local xpos (relative to column at far left of screen), minus fractional portion
-//   p1sx  - screen xpos (screen char coords)
-//           pre-collision it holds the position from 0..39,0..24
-//           post-collision it holds the sprite position offset by #31,#50 (minus border)
+//   p1gx  - global xpos, including fractional portion
+//   p1lx  - local xpos (relative to column at far left of screen), minus fractional portion, pixel coordinates
+//   p1sx  - sprite xpos, pixel coordinates
 //   p1vvi - vert vel,indexed
 //   p1vva - vert vel,actual
 //   p1gy  - global ypos
@@ -839,68 +858,55 @@ updp1hpt:
   and #%00001111
   sta p1lx+1
 
-  // multiply by 8 (shift left 3) to get the first column visible
-  // in pixel coordinates rather than character coordinates
-  lda SCR_column_first_visible
-  sta colshift
-  lda SCR_column_first_visible+1
-  sta colshift+1
-  rol colshift
-  rol colshift+1
-  rol colshift
-  rol colshift+1
-  rol colshift
-  rol colshift+1
-  lda colshift
-  and #%11111000
-  sta colshift 
-
-  // now subtract the first column visible from the global
-  // position to get the local position relative to left side
-  // of screen
+  // now subtract the first column visible from the global position to get the local 
+  // position relative to left side of screen, in pixel coordinates
   lda p1lx
   sec
-  sbc colshift
+  sbc SCR_first_visible_column_pixels
   sta p1lx
+  sta collision_column
   lda p1lx+1
-  sbc colshift+1
+  sbc SCR_first_visible_column_pixels+1
   sta p1lx+1
 
 collide:
-  // now p1lx contains the position of the character relative to the left side of screen
-  // in pixel coordinates.
-
   // now we're in pixel coordinates, check for collisions with any tiles
-  // first convert pixel coordinates to character coordinates (x: 0..39, y: 0..24)
   lda p1lx
-  sta p1sx
-  lda p1lx+1
-  sta p1sx+1
+  sta collision_column
+  and #%00000111 // get pixel portion (remainder to right of column)
+  sta pixels_x
 
-  // rotate 3 to get back to character coordinates
-  ror p1sx+1
-  ror p1sx
-  ror p1sx+1
-  ror p1sx
-  ror p1sx+1
-  ror p1sx
-  lda p1sx
-  and #%00111111
-  sta p1sx
-
-  lda p1sx
-  clc
-  ror // divide by 2 to get the first collision tile (char idx to tile idx)
-  clc
-  adc SCR_tile_first_visible
-  sta collision_tile_first_x
-
-  lda p1ly
+  // algorithm to use for collisions:
+  //   Player is in pixel coordinates. and #%11111000 to get the pixel
+  //     coordinates in which the far left side of the player is intersecting.
+  //   loop over 3 columns.
+  //     check for intersecting rectangles between the column and the player
+  //     add #8 to the screen location
+  
+  // rotate 3 to convert to character coordinates
+  lda collision_column
   ror
   ror
   ror
   and #%00011111
-  sta p1sy
+  sta collision_column
+  clc
+  ror // divide by 2 to get the first collision tile (char idx to tile idx)
+  clc
+  adc SCR_first_visible_tile
+  sta collision_tile_first_x
+
+  lda p1ly
+  sta collision_row
+  and #%00000111 // get pixel portion
+  sta pixels_y
+
+  lda collision_row
+  ror
+  ror
+  ror
+  and #%00011111
+  sta collision_row
   sec
   sbc #3 // remove first 3 screen rows (not used for tiles)
   clc
@@ -1138,8 +1144,6 @@ tmp1:      .byte 0
 maxp1gx:   .byte 0,0
 maxp1gy:   .byte 0,0
 
-colshift:  .byte 0,0
-
 collisions: .byte 0
 collrectx1: .fill 12,0
 collrectx2: .fill 12,0
@@ -1148,6 +1152,10 @@ collrecty2: .fill 12,0
 
 frame: .byte 0
 
+collision_column: .byte 0
+collision_row: .byte 0
 collision_tile_first_x: .byte 0
 collision_tile_first_y: .byte 0
 
+pixels_x: .byte 0
+pixels_y: .byte 0

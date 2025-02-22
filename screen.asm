@@ -368,7 +368,7 @@ lss_loadd:
   rts
 
 SCR_draw_screen:
-  ldy SCR_tile_last_visible
+  ldy SCR_last_visible_tile
   ldx #38 // screen column
 ds_loop:
   SCR_draw_tile(1144, 1184, SCR_TILE_ROW_0)
@@ -425,10 +425,14 @@ SCR_init_screen:
   sta $d016
 
   lda #0
-  sta SCR_tile_first_visible
+  sta SCR_first_visible_tile
   sta SCR_tile_offset
+  sta SCR_first_visible_column
+  sta SCR_first_visible_column+1
+  sta SCR_first_visible_column_pixels
+  sta SCR_first_visible_column_pixels+1
   lda #19
-  sta SCR_tile_last_visible
+  sta SCR_last_visible_tile
   rts
 
 // How scrolling works:
@@ -460,11 +464,11 @@ SCR_scroll_left_loop:
   dec SCR_scroll_register
   jmp SCR_scroll_left_next
 SCR_scroll_left_redraw:  
-  lda SCR_column_first_visible+1
-  cmp SCR_column_first_visible_max+1
+  lda SCR_first_visible_column+1
+  cmp SCR_first_visible_column_max+1
   bcc SCR_scroll_left_redrawok
-  lda SCR_column_first_visible
-  cmp SCR_column_first_visible_max
+  lda SCR_first_visible_column
+  cmp SCR_first_visible_column_max
   bcc SCR_scroll_left_redrawok
   bcs SCR_scroll_left_done
 SCR_scroll_left_redrawok:
@@ -501,9 +505,9 @@ SCR_scroll_right_loop:
   inc SCR_scroll_register
   jmp SCR_scroll_right_next
 SCR_scroll_right_redraw:  
-  lda SCR_column_first_visible
+  lda SCR_first_visible_column
   bne SCR_scroll_right_redrawok
-  lda SCR_column_first_visible+1
+  lda SCR_first_visible_column+1
   bne SCR_scroll_right_redrawok
   beq SCR_scroll_right_done
 SCR_scroll_right_redrawok:
@@ -632,8 +636,8 @@ msl_fill_right_side_back:
   bne msl_draw_right_side_back
   jmp msl_load_new_tile_back
 msl_draw_right_side_back:
-  inc SCR_tile_first_visible
-  ldy SCR_tile_last_visible
+  inc SCR_first_visible_tile
+  ldy SCR_last_visible_tile
   SCR_draw_tile_right(2168, 2208, SCR_TILE_ROW_0)
   SCR_draw_tile_right(2248, 2288, SCR_TILE_ROW_1)
   SCR_draw_tile_right(2328, 2368, SCR_TILE_ROW_2)
@@ -649,8 +653,8 @@ msl_draw_right_side_back:
   sta SCR_tile_offset
   jmp msl_loop_done
 msl_load_new_tile_back:
-  inc SCR_tile_last_visible
-  ldy SCR_tile_last_visible
+  inc SCR_last_visible_tile
+  ldy SCR_last_visible_tile
   SCR_draw_tile_left(2168, 2208, SCR_TILE_ROW_0)
   SCR_draw_tile_left(2248, 2288, SCR_TILE_ROW_1)
   SCR_draw_tile_left(2328, 2368, SCR_TILE_ROW_2)
@@ -718,8 +722,8 @@ msl_fill_right_side_front:
   bne msl_draw_right_side_front
   jmp msl_load_new_tile_front
 msl_draw_right_side_front:
-  inc SCR_tile_first_visible
-  ldy SCR_tile_last_visible
+  inc SCR_first_visible_tile
+  ldy SCR_last_visible_tile
   SCR_draw_tile_right(1144, 1184, SCR_TILE_ROW_0)
   SCR_draw_tile_right(1224, 1264, SCR_TILE_ROW_1)
   SCR_draw_tile_right(1304, 1344, SCR_TILE_ROW_2)
@@ -734,8 +738,8 @@ msl_draw_right_side_front:
   sta SCR_tile_offset
   jmp msl_loop_done
 msl_load_new_tile_front:
-  inc SCR_tile_last_visible
-  ldy SCR_tile_last_visible
+  inc SCR_last_visible_tile
+  ldy SCR_last_visible_tile
   SCR_draw_tile_left(1144, 1184, SCR_TILE_ROW_0)
   SCR_draw_tile_left(1224, 1264, SCR_TILE_ROW_1)
   SCR_draw_tile_left(1304, 1344, SCR_TILE_ROW_2)
@@ -749,10 +753,18 @@ msl_load_new_tile_front:
   lda #1
   sta SCR_tile_offset
 msl_loop_done:
-  inc SCR_column_first_visible
+  inc SCR_first_visible_column
   bne msl_done
-  inc SCR_column_first_visible+1
+  inc SCR_first_visible_column+1
 msl_done:
+  lda SCR_first_visible_column_pixels
+  clc
+  adc #8
+  sta SCR_first_visible_column_pixels
+  lda SCR_first_visible_column_pixels+1
+  adc #0
+  sta SCR_first_visible_column_pixels+1
+
   lda #1
   sta SCR_buffer_ready
   rts
@@ -864,8 +876,8 @@ msr_fill_left_side_back:
   bne msr_draw_left_side_back
   jmp msr_load_new_tile_back
 msr_draw_left_side_back:
-  dec SCR_tile_last_visible
-  ldy SCR_tile_first_visible
+  dec SCR_last_visible_tile
+  ldy SCR_first_visible_tile
   SCR_draw_tile_left(2168, 2208, SCR_TILE_ROW_0)
   SCR_draw_tile_left(2248, 2288, SCR_TILE_ROW_1)
   SCR_draw_tile_left(2328, 2368, SCR_TILE_ROW_2)
@@ -880,8 +892,8 @@ msr_draw_left_side_back:
   sta SCR_tile_offset
   jmp msr_loop_done
 msr_load_new_tile_back:
-  dec SCR_tile_first_visible
-  ldy SCR_tile_first_visible
+  dec SCR_first_visible_tile
+  ldy SCR_first_visible_tile
   SCR_draw_tile_right(2168, 2208, SCR_TILE_ROW_0)
   SCR_draw_tile_right(2248, 2288, SCR_TILE_ROW_1)
   SCR_draw_tile_right(2328, 2368, SCR_TILE_ROW_2)
@@ -946,8 +958,8 @@ msr_fill_left_side_front:
   bne msr_draw_left_side_front
   jmp msr_load_new_tile_front
 msr_draw_left_side_front:
-  dec SCR_tile_last_visible
-  ldy SCR_tile_first_visible
+  dec SCR_last_visible_tile
+  ldy SCR_first_visible_tile
   SCR_draw_tile_left(1144, 1184, SCR_TILE_ROW_0)
   SCR_draw_tile_left(1224, 1264, SCR_TILE_ROW_1)
   SCR_draw_tile_left(1304, 1344, SCR_TILE_ROW_2)
@@ -962,8 +974,8 @@ msr_draw_left_side_front:
   sta SCR_tile_offset
   jmp msr_loop_done
 msr_load_new_tile_front:
-  dec SCR_tile_first_visible
-  ldy SCR_tile_first_visible
+  dec SCR_first_visible_tile
+  ldy SCR_first_visible_tile
   SCR_draw_tile_right(1144, 1184, SCR_TILE_ROW_0)
   SCR_draw_tile_right(1224, 1264, SCR_TILE_ROW_1)
   SCR_draw_tile_right(1304, 1344, SCR_TILE_ROW_2)
@@ -978,13 +990,21 @@ msr_load_new_tile_front:
   lda #1
   sta SCR_tile_offset
 msr_loop_done:
-  lda SCR_column_first_visible
+  lda SCR_first_visible_column
   sec
   sbc #1
-  sta SCR_column_first_visible
-  lda SCR_column_first_visible+1
+  sta SCR_first_visible_column
+  lda SCR_first_visible_column+1
   sbc #0
-  sta SCR_column_first_visible+1
+  sta SCR_first_visible_column+1
+
+  lda SCR_first_visible_column_pixels
+  sec
+  sbc #8
+  sta SCR_first_visible_column_pixels
+  lda SCR_first_visible_column_pixels+1
+  sbc #0
+  sta SCR_first_visible_column_pixels+1
 msr_done:
   lda #1
   sta SCR_buffer_ready
@@ -992,12 +1012,13 @@ msr_done:
 
 
 
-SCR_column_first_visible_max:    .byte 0,0
-SCR_column_first_visible:        .byte 0,0
+SCR_first_visible_column_max:    .byte 0,0
+SCR_first_visible_column:        .byte 0,0
+SCR_first_visible_column_pixels: .byte 0,0
 
 // TODO: move this to the zero page
-SCR_tile_first_visible:          .byte 0
-SCR_tile_last_visible:           .byte 0
+SCR_first_visible_tile:          .byte 0
+SCR_last_visible_tile:           .byte 0
 SCR_tile_offset:                 .byte 0
 SCR_buffer_flag:                 .byte 0
 SCR_buffer_ready:                .byte 0
