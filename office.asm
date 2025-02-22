@@ -482,20 +482,6 @@ log_line2:
 
   iny
   iny
-  lda collisions
-  jsr loghexit
-
-  iny
-  iny
-  lda tmp0
-  jsr loghexit
-  iny
-  iny
-  lda tmp1
-  jsr loghexit
-
-  iny
-  iny
   lda SCR_first_visible_tile
   jsr loghexit
   iny
@@ -519,40 +505,55 @@ log_back_line3:
   lda #$08
   sta zpb1
 log_line3:
-
   ldy #1
-  lda collision_tile_first_x
+  lda collision_rect_x1+1
   jsr loghexit
   iny
+  lda collision_rect_x1
+  jsr loghexit
   iny
-  lda collision_tile_first_y
+  lda #44
+  sta (zpb0),y
+  iny
+  lda collision_rect_y1
+  jsr loghexit
+
+  iny
+  iny
+  lda collision_rect_x2+1
+  jsr loghexit
+  iny
+  lda collision_rect_x2
+  jsr loghexit
+  iny
+  lda #44
+  sta (zpb0),y
+  iny
+  lda collision_rect_y2
   jsr loghexit
 
   iny
   iny
-  lda collision_column
+  lda collision_tile_x
   jsr loghexit
   iny
   iny
-  lda collision_row
+  lda collision_tile_y
   jsr loghexit
 
   iny
+  iny
+  lda pixels_x+1
+  jsr loghexit
   iny
   lda pixels_x
   jsr loghexit
-  iny
-  iny
-  lda pixels_y
-  jsr loghexit
 
   iny
   iny
-  lda SCR_first_visible_column_pixels+1
+  lda tmp1
   jsr loghexit
-  iny
-  lda SCR_first_visible_column_pixels
-  jsr loghexit
+
   rts
 
 // // in its own subroutine just
@@ -864,64 +865,159 @@ updp1hpt:
   sec
   sbc SCR_first_visible_column_pixels
   sta p1lx
-  sta collision_column
+  //sta collision_column
   lda p1lx+1
   sbc SCR_first_visible_column_pixels+1
   sta p1lx+1
+  sta collision_rect_x1+1
 
 collide:
+  // update the coordinates of the right side of the player
+  lda p1lx
+  clc
+  adc #p1width
+  sta p1lx2
+  lda p1lx2+1
+  adc #0
+  sta p1lx2+1
+
+  // update the coordinates of the bottom side of the player
+  lda p1ly
+  clc
+  adc #p1height
+  sta p1ly2
+
   // now we're in pixel coordinates, check for collisions with any tiles
   lda p1lx
-  sta collision_column
-  and #%00000111 // get pixel portion (remainder to right of column)
-  sta pixels_x
-
-  // algorithm to use for collisions:
-  //   Player is in pixel coordinates. and #%11111000 to get the pixel
-  //     coordinates in which the far left side of the player is intersecting.
-  //   loop over 3 columns.
-  //     check for intersecting rectangles between the column and the player
-  //     add #8 to the screen location
-  
-  // rotate 3 to convert to character coordinates
-  lda collision_column
+  clc
+  adc #8 // let's check the char to the right. TODO fix this
+  and #%11111000 // truncate to nearest screen char 
+  sta collision_rect_x1
+  sta collision_tile_x
+  clc
+  adc #8
+  sta collision_rect_x2
+  lda collision_rect_x1+1
+  adc #0
+  sta collision_rect_x1+1
+  // rotate right 3 to get to char coords
   ror
+  ror collision_tile_x
   ror
+  ror collision_tile_x
   ror
+  ror collision_tile_x
+  // divide by 2 to get tile
+  ror collision_tile_x
+  lda collision_tile_x
   and #%00011111
-  sta collision_column
-  clc
-  ror // divide by 2 to get the first collision tile (char idx to tile idx)
-  clc
-  adc SCR_first_visible_tile
-  sta collision_tile_first_x
+  sta collision_tile_x
 
   lda p1ly
-  sta collision_row
-  and #%00000111 // get pixel portion
-  sta pixels_y
-
-  lda collision_row
-  ror
-  ror
-  ror
-  and #%00011111
-  sta collision_row
-  sec
-  sbc #3 // remove first 3 screen rows (not used for tiles)
+  and #%11111000 // truncate to nearest char coord
+  sta collision_rect_y1
   clc
-  ror // divide by 2 to get the first collision tile
-  sta collision_tile_first_y
+  adc #8
+  sta collision_rect_y2
 
-  ldy collision_tile_first_y
+  lda collision_rect_y1
+  sec
+  sbc #3 // subtract 3 to ignore first 3 rows
+  // rotate right 3 to get get to char coords
+  ror
+  ror
+  ror
+  // and one more time to divide by 2 to get the tile
+  ror
+  and #%00001111
+  sta collision_tile_y
+
+// TODO: actually check the chars in the tile...
+  ldy collision_tile_y
   lda SCR_rowptrs_lo, y
   sta SCR_TILE_ROW_CURR
   lda SCR_rowptrs_hi, y
   sta SCR_TILE_ROW_CURR+1
  
-  ldy collision_tile_first_x
+  ldy collision_tile_x
   lda (SCR_TILE_ROW_CURR), y
   sta tmp1
+  beq nocollision
+
+  lda p1lx2
+  sec
+  sbc collision_rect_x2
+  sta pixels_x
+  lda p1lx2+1
+  sbc collision_rect_x2+1
+  sta pixels_x+1
+
+  lda pixels_x
+  bmi nocollision
+
+  lda p1lx
+  sec
+  sbc pixels_x
+  sta p1lx
+  lda p1lx+1
+  sbc #0
+  sta p1lx+1
+
+  rol pixels_x
+  rol pixels_x
+  rol pixels_x
+  lda p1gx
+  sec
+  sbc pixels_x
+  sta p1gx
+  lda p1gx+1
+  sbc #0
+  sta p1gx+1
+
+nocollision:
+
+  // lda p1lx
+  // sta collision_column
+  // and #%00000111 // get pixel portion (remainder to right of column)
+  // sta pixels_x
+
+  // // algorithm to use for collisions:
+  // //   Player is in pixel coordinates. and #%11111000 to get the pixel
+  // //     coordinates in which the far left side of the player is intersecting.
+  // //   loop over 3 columns.
+  // //     check for intersecting rectangles between the column and the player
+  // //     add #8 to the screen location
+
+  // // rotate 3 to convert to character coordinates
+  // lda collision_column
+  // ror
+  // ror
+  // ror
+  // and #%00011111
+  // sta collision_column
+  // clc
+  // ror // divide by 2 to get the first collision tile (char idx to tile idx)
+  // clc
+  // adc SCR_first_visible_tile
+  // sta collision_tile_x
+
+  // lda p1ly
+  // sta collision_row
+  // and #%00000111 // get pixel portion
+  // sta pixels_y
+
+  // lda collision_row
+  // ror
+  // ror
+  // ror
+  // and #%00011111
+  // sta collision_row
+  // sec
+  // sbc #3 // remove first 3 screen rows (not used for tiles)
+  // clc
+  // ror // divide by 2 to get the first collision tile
+  // sta collision_tile_y
+
 
   lda p1hva
   bmi collidel
@@ -1122,11 +1218,13 @@ p1hvi:       .byte 0
 p1hva:       .byte 0,0
 p1gx:        .byte 0,0
 p1lx:        .byte 0,0
+p1lx2:       .byte 0,0
 p1sx:        .byte 0,0
 p1vvi:       .byte 0
 p1vva:       .byte 0,0
 p1gy:        .byte 0,0
 p1ly:        .byte 0,0 // 2 bytes due to a quirk in calculation
+p1ly2:       .byte 0,0
 p1sy:        .byte 0
 p1hvt:       .byte 0
 p1vvt:       .byte 0
@@ -1144,18 +1242,15 @@ tmp1:      .byte 0
 maxp1gx:   .byte 0,0
 maxp1gy:   .byte 0,0
 
-collisions: .byte 0
-collrectx1: .fill 12,0
-collrectx2: .fill 12,0
-collrecty1: .fill 12,0
-collrecty2: .fill 12,0
-
 frame: .byte 0
 
-collision_column: .byte 0
-collision_row: .byte 0
-collision_tile_first_x: .byte 0
-collision_tile_first_y: .byte 0
+collision_rect_x1: .byte 0,0
+collision_rect_y1: .byte 0
+collision_rect_x2: .byte 0,0
+collision_rect_y2: .byte 0
 
-pixels_x: .byte 0
+collision_tile_x: .byte 0
+collision_tile_y: .byte 0
+
+pixels_x: .byte 0,0
 pixels_y: .byte 0
