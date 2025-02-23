@@ -206,7 +206,7 @@ clsl:
   sta $d800+$0200,y
   sta $d800+$0300,y
 //  lda #252
-  lda #32
+  lda #0
   sta $0400,y
   sta $0400+$0100,y
   sta $0400+$0200,y
@@ -506,39 +506,33 @@ log_back_line3:
   sta zpb1
 log_line3:
   ldy #1
-  lda collision_rect_x1+1
-  jsr loghexit
-  iny
-  lda collision_rect_x1
-  jsr loghexit
-  iny
-  lda #44
-  sta (zpb0),y
-  iny
-  lda collision_rect_y1
-  jsr loghexit
-
-  iny
-  iny
-  lda collision_rect_x2+1
-  jsr loghexit
-  iny
-  lda collision_rect_x2
-  jsr loghexit
-  iny
-  lda #44
-  sta (zpb0),y
-  iny
-  lda collision_rect_y2
-  jsr loghexit
-
-  iny
-  iny
   lda collision_tile_x
   jsr loghexit
   iny
   iny
   lda collision_tile_y
+  jsr loghexit
+
+  iny
+  iny
+  lda p1cx
+  jsr loghexit
+  iny
+  lda #44
+  sta (zpb0),y
+  iny
+  lda p1cy
+  jsr loghexit
+
+  iny
+  iny
+  lda p1cx2
+  jsr loghexit
+  iny
+  lda #44
+  sta (zpb0),y
+  iny
+  lda p1cy2
   jsr loghexit
 
   iny
@@ -728,6 +722,8 @@ updp1vvd:
   sta p1vva+1
   rts
 
+collide_moving_right:
+  rts 
 
 
 updp1p:
@@ -765,7 +761,7 @@ updp1p:
   //lda #214
   //lda #230
   sta p1ly
-  bne updp1hp
+  bne updp1vpt_coll
 updp1vpneg:
   // move would have moved char above level
   lda #0
@@ -779,7 +775,7 @@ updp1vpneg:
   //lda #50
   lda #scrrow0
   sta p1ly
-  bne updp1hp
+  bne updp1vpt_coll
 updp1vpt:
   // valid move wrt level vertical bounds
   // drop fractional part of position
@@ -793,6 +789,37 @@ updp1vpt:
   lda p1ly+1
   and #%00011111
   sta p1ly+1
+updp1vpt_coll:
+  // now we're in global, pixel coordinates, get information needed
+  // for collision detection
+  
+  // first let's get the pixel coordinates of the character,
+  // truncated down to the nearest tile, also in pixel coords
+  lda p1ly
+  and #%11110000 // truncate to nearest tile pixel coord
+  sta zpb0
+  // now let's subtract the tile pixel coords to get the y
+  // value of the player relative to the tile, assumes the
+  // player moves less than 8 pixels in a given frame
+  lda p1ly
+  sec
+  sbc zpb0
+  sta p1cy
+  clc
+  adc #p1height
+  sta p1cy2
+
+  // now let's get the actual tile
+  // rotate 3 then divide by 2 to go from pixel to screen to tile
+  lda zpb0
+  sec
+  sbc #24 // account for upper 3 rows that aren't part of map
+  ror
+  ror
+  ror
+  ror
+  and #%00001111
+  sta collision_tile_y
 
 updp1hp:
   // Update global position of character in level
@@ -843,7 +870,7 @@ updp1hpneg:
 
   lda #hvzero
   sta p1hvi
-  jmp collide
+  jmp collide_prep
 updp1hpt:
   // now update local position (where char is relative to left of screen)
   // first get rid of the fractional portion
@@ -859,165 +886,49 @@ updp1hpt:
   and #%00001111
   sta p1lx+1
 
+collide_prep:
+  // now we're in global, pixel coordinates, get information needed
+  // for collision detection
+  
+  // first let's get the pixel coordinates of the character,
+  // truncated down to the nearest tile, also in pixel coords
+  lda p1lx
+  and #%11110000 // truncate to nearest tile pixel coord
+  sta zpb0
+  // now let's subtract the tile pixel coords to get the x
+  // value of the player relative to the tile, assumes the
+  // player moves less than 8 pixels in a given frame
+  lda p1lx
+  sec
+  sbc zpb0
+  sta p1cx
+  clc
+  adc #p1width
+  sta p1cx2
+
+  // now let's get the actual tile
+  // rotate 3, then divide by 2 to go from pixel to screen to tile
+  lda zpb0
+  sta collision_tile_x
+  lda p1lx+1
+  ror
+  ror collision_tile_x
+  ror
+  ror collision_tile_x
+  ror
+  ror collision_tile_x
+  ror
+  ror collision_tile_x
+
   // now subtract the first column visible from the global position to get the local 
   // position relative to left side of screen, in pixel coordinates
   lda p1lx
   sec
   sbc SCR_first_visible_column_pixels
   sta p1lx
-  //sta collision_column
   lda p1lx+1
   sbc SCR_first_visible_column_pixels+1
   sta p1lx+1
-  sta collision_rect_x1+1
-
-collide:
-  // update the coordinates of the right side of the player
-  lda p1lx
-  clc
-  adc #p1width
-  sta p1lx2
-  lda p1lx2+1
-  adc #0
-  sta p1lx2+1
-
-  // update the coordinates of the bottom side of the player
-  lda p1ly
-  clc
-  adc #p1height
-  sta p1ly2
-
-  // now we're in pixel coordinates, check for collisions with any tiles
-  lda p1lx
-  clc
-  adc #8 // let's check the char to the right. TODO fix this
-  and #%11111000 // truncate to nearest screen char 
-  sta collision_rect_x1
-  sta collision_tile_x
-  clc
-  adc #8
-  sta collision_rect_x2
-  lda collision_rect_x1+1
-  adc #0
-  sta collision_rect_x1+1
-  // rotate right 3 to get to char coords
-  ror
-  ror collision_tile_x
-  ror
-  ror collision_tile_x
-  ror
-  ror collision_tile_x
-  // divide by 2 to get tile
-  ror collision_tile_x
-  lda collision_tile_x
-  and #%00011111
-  sta collision_tile_x
-
-  lda p1ly
-  and #%11111000 // truncate to nearest char coord
-  sta collision_rect_y1
-  clc
-  adc #8
-  sta collision_rect_y2
-
-  lda collision_rect_y1
-  sec
-  sbc #3 // subtract 3 to ignore first 3 rows
-  // rotate right 3 to get get to char coords
-  ror
-  ror
-  ror
-  // and one more time to divide by 2 to get the tile
-  ror
-  and #%00001111
-  sta collision_tile_y
-
-// TODO: actually check the chars in the tile...
-  ldy collision_tile_y
-  lda SCR_rowptrs_lo, y
-  sta SCR_TILE_ROW_CURR
-  lda SCR_rowptrs_hi, y
-  sta SCR_TILE_ROW_CURR+1
- 
-  ldy collision_tile_x
-  lda (SCR_TILE_ROW_CURR), y
-  sta tmp1
-  beq nocollision
-
-  lda p1lx2
-  sec
-  sbc collision_rect_x2
-  sta pixels_x
-  lda p1lx2+1
-  sbc collision_rect_x2+1
-  sta pixels_x+1
-
-  lda pixels_x
-  bmi nocollision
-
-  lda p1lx
-  sec
-  sbc pixels_x
-  sta p1lx
-  lda p1lx+1
-  sbc #0
-  sta p1lx+1
-
-  rol pixels_x
-  rol pixels_x
-  rol pixels_x
-  lda p1gx
-  sec
-  sbc pixels_x
-  sta p1gx
-  lda p1gx+1
-  sbc #0
-  sta p1gx+1
-
-nocollision:
-
-  // lda p1lx
-  // sta collision_column
-  // and #%00000111 // get pixel portion (remainder to right of column)
-  // sta pixels_x
-
-  // // algorithm to use for collisions:
-  // //   Player is in pixel coordinates. and #%11111000 to get the pixel
-  // //     coordinates in which the far left side of the player is intersecting.
-  // //   loop over 3 columns.
-  // //     check for intersecting rectangles between the column and the player
-  // //     add #8 to the screen location
-
-  // // rotate 3 to convert to character coordinates
-  // lda collision_column
-  // ror
-  // ror
-  // ror
-  // and #%00011111
-  // sta collision_column
-  // clc
-  // ror // divide by 2 to get the first collision tile (char idx to tile idx)
-  // clc
-  // adc SCR_first_visible_tile
-  // sta collision_tile_x
-
-  // lda p1ly
-  // sta collision_row
-  // and #%00000111 // get pixel portion
-  // sta pixels_y
-
-  // lda collision_row
-  // ror
-  // ror
-  // ror
-  // and #%00011111
-  // sta collision_row
-  // sec
-  // sbc #3 // remove first 3 screen rows (not used for tiles)
-  // clc
-  // ror // divide by 2 to get the first collision tile
-  // sta collision_tile_y
-
 
   lda p1hva
   bmi collidel
@@ -1220,12 +1131,16 @@ p1gx:        .byte 0,0
 p1lx:        .byte 0,0
 p1lx2:       .byte 0,0
 p1sx:        .byte 0,0
+p1cx:        .byte 0
+p1cx2:       .byte 0
 p1vvi:       .byte 0
 p1vva:       .byte 0,0
 p1gy:        .byte 0,0
 p1ly:        .byte 0,0 // 2 bytes due to a quirk in calculation
 p1ly2:       .byte 0,0
 p1sy:        .byte 0
+p1cy:        .byte 0
+p1cy2:       .byte 0
 p1hvt:       .byte 0
 p1vvt:       .byte 0
 
@@ -1244,13 +1159,10 @@ maxp1gy:   .byte 0,0
 
 frame: .byte 0
 
-collision_rect_x1: .byte 0,0
-collision_rect_y1: .byte 0
-collision_rect_x2: .byte 0,0
-collision_rect_y2: .byte 0
+collision_tile_x:      .byte 0,0 // two bytes, 2nd needed during calc
+collision_tile_y:      .byte 0
+collision_tile:        .byte 0
+collision_tile_offset: .byte 0
 
-collision_tile_x: .byte 0
-collision_tile_y: .byte 0
-
-pixels_x: .byte 0,0
+pixels_x: .byte 0
 pixels_y: .byte 0

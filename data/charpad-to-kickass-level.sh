@@ -24,7 +24,7 @@ echo ".segment $base_name [start=\$1000]" | cat - "$level_file" > temp_file && m
 # sed -n '/INSERT EXAMPLE PROGRAM HERE/q;p' "$level_file" > temp_file && mv temp_file "$level_file"
 
 # Delete all lines from ; CharTileSet Tag Data... to ; Map Data...
-awk '/; CharTileSet Tag Data.../{flag=1} /; Map Data.../{flag=0} !flag' "$level_file" > temp_file && mv temp_file "$level_file"
+# awk '/; CharTileSet Tag Data.../{flag=1} /; Map Data.../{flag=0} !flag' "$level_file" > temp_file && mv temp_file "$level_file"
 
 # Replace all semicolon characters with double forward slashes
 sed -i 's/;/\/\//g' "$level_file"

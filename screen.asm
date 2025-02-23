@@ -18,42 +18,52 @@
 //     $0c00-$0dff - sprite data
 //   Level data
 //     $1ffe-$1fff - just used to store the prg load location, ignored
-//     $2000-$27ff - character set
-//     $2800-$28ff - character attribs
-//     $2900-$2cff - tile set
-//     $2d00-$36ff - level (max 256 tiles x 10 rows = 2560 bytes)
+//     $2000-$27ff - character set, 2048 bytes
+//     $2800-$28ff - character set attribs, (material - collision info), 256 bytes
+//     $2900-$2cff - char tileset data (raw tiles), 1024 bytes
+//     $2d00-$2dff - char tileset attrib data (1 color per tile), 256 bytes
+//     $2e00-$2eff - char tileset tag data (tile collisions), 256 bytes
+//     $2f00-$38ff - map, max 2560 bytes
 //   Scratch space
 //     $4000-$4fff
 //   Sprite sheet
+//     $4ffe-$4fff - just used to store the prg load location, ignored
 //     $5000-$77ff - sprite sheet, 160 sprites
-//     $7800-795f  - sprite attrib data, 160 bytes
+//     $7800-795f  - sprite attrib data, 160 bytesp
+//   More level data, tile metadata
+//     note: this uses a lot of memory, but it makes accessing the tiles faster/easier
+//     
+//     $c000-c9ff  - tile metadata, left-hand of tile
+//     $ca00-d3ff  - tile metadata, right-hand of tile
 //   Game program
 //     $8000-?
-.var SCR_TILE_ROW_BASE    = $20
-.var SCR_TILE_ROW_0       = $20
-.var SCR_TILE_ROW_1       = $22
-.var SCR_TILE_ROW_2       = $24
-.var SCR_TILE_ROW_3       = $26
-.var SCR_TILE_ROW_4       = $28
-.var SCR_TILE_ROW_5       = $2a
-.var SCR_TILE_ROW_6       = $2c
-.var SCR_TILE_ROW_7       = $2e
-.var SCR_TILE_ROW_8       = $30
-.var SCR_TILE_ROW_9       = $32
-.var SCR_TILE_ROW_CURR    = $34
-.var SCR_sprite_data      = $0c00
-.var SCR_charset_prg      = $1ffe
-.var SCR_charset          = $2000
-.var SCR_char_attribs     = $2800
-.var SCR_raw_tiles        = $2900
-.var SCR_tiles_ul         = $2900
-.var SCR_tiles_ur         = $2a00
-.var SCR_tiles_ll         = $2b00
-.var SCR_tiles_lr         = $2c00
-.var SCR_level_tiles      = $2d00
-.var SCR_scratch          = $4000
-.var SCR_sprite_sheet_prg = $4ffe
-.var SCR_sprite_sheet     = $5000
+.var SCR_TILE_ROW_BASE       = $20
+.var SCR_TILE_ROW_0          = $20
+.var SCR_TILE_ROW_1          = $22
+.var SCR_TILE_ROW_2          = $24
+.var SCR_TILE_ROW_3          = $26
+.var SCR_TILE_ROW_4          = $28
+.var SCR_TILE_ROW_5          = $2a
+.var SCR_TILE_ROW_6          = $2c
+.var SCR_TILE_ROW_7          = $2e
+.var SCR_TILE_ROW_8          = $30
+.var SCR_TILE_ROW_9          = $32
+.var SCR_TILE_ROW_CURR       = $34
+.var SCR_sprite_data         = $0c00
+.var SCR_charset_prg         = $1ffe
+.var SCR_charset             = $2000
+.var SCR_char_attribs        = $2800
+.var SCR_raw_tiles           = $2900
+.var SCR_tiles_ul            = $2900
+.var SCR_tiles_ur            = $2a00
+.var SCR_tiles_ll            = $2b00
+.var SCR_tiles_lr            = $2c00
+.var SCR_char_tileset_attrib = $2d00
+.var SCR_char_tileset_tag    = $2e00
+.var SCR_level_tiles         = $2f00
+.var SCR_scratch             = $4000
+.var SCR_sprite_sheet_prg    = $4ffe
+.var SCR_sprite_sheet        = $5000
 
 // X holds the tile index
 // Y holds the screen column
@@ -382,12 +392,12 @@ ds_loop:
   SCR_draw_tile(1784, 1824, SCR_TILE_ROW_8)
   SCR_draw_tile(1864, 1904, SCR_TILE_ROW_9)
   // bottom two rows
-  lda #102
+  lda #66
   sta 1944, x
   sta 1945, x
   sta 2968, x
   sta 2969, x
-  lda #102
+  lda #66
   sta 1984, x
   sta 1985, x
   sta 3008, x
