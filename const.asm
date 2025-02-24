@@ -11,7 +11,7 @@
 
 .var scrcol0   = 0
 .var scrwidth  = 40
-.var scrrow0   = 3
+.var scrrow0   = 0
 .var scrheight = 22
 
 .var sprmc0    = $01

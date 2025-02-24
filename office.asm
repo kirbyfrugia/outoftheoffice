@@ -279,7 +279,7 @@ copy_player_sprite:
   lda #%00000000
   sta $d010 //spr msb
 
-  lda #218
+  lda #194
   sta $d001 //spr0y
   //lda #58
   //sta $d003 //spr1y
@@ -342,7 +342,7 @@ loadmap:
   and #%10000000
   sta maxp1gx
 
-  lda #(200-p1height-16)
+  lda #(200-p1height-40)
 //  lda #164
   sta maxp1gy
   lda #0
@@ -365,15 +365,15 @@ loadmap:
 log:
   lda SCR_buffer_flag
   bne log_back_line1
-  lda #$00
+  lda #$70
   sta zpb0
-  lda #$04
+  lda #$07
   sta zpb1
   bne log_line1
 log_back_line1:
-  lda #$00
+  lda #$70
   sta zpb0
-  lda #$08
+  lda #$0b
   sta zpb1
 log_line1:
   ldy #1
@@ -440,15 +440,15 @@ log_line1:
   // next row
   lda SCR_buffer_flag
   bne log_back_line2
-  lda #$28
+  lda #$98
   sta zpb0
-  lda #$04
+  lda #$07
   sta zpb1
   bne log_line2
 log_back_line2:
-  lda #$28
+  lda #$98
   sta zpb0
-  lda #$08
+  lda #$0b
   sta zpb1
 log_line2:
 
@@ -494,15 +494,15 @@ log_line2:
   // next row
   lda SCR_buffer_flag
   bne log_back_line3
-  lda #$50
+  lda #$c0
   sta zpb0
-  lda #$04
+  lda #$07
   sta zpb1
   bne log_line3
 log_back_line3:
-  lda #$50
+  lda #$c0
   sta zpb0
-  lda #$08
+  lda #$0b
   sta zpb1
 log_line3:
   ldy #1
@@ -537,10 +537,10 @@ log_line3:
 
   iny
   iny
-  lda pixels_x+1
+  lda collide_pixels_x+1
   jsr loghexit
   iny
-  lda pixels_x
+  lda collide_pixels_x
   jsr loghexit
 
   iny
@@ -722,7 +722,126 @@ updp1vvd:
   sta p1vva+1
   rts
 
-collide_moving_right:
+// TODO: deal with far right of map
+// TODO: make sure the individual chars have collidable flag set
+collide_left_side:
+  // which columns to test:
+  //   If p1cx2 >= 24, test right tile, right char
+  //   If p1cx2 >= 16, test right tile, left char
+  //   if P1cx
+
+
+
+  lda collision_tile_x
+  clc
+  adc #1
+  sta zpb0
+  lda collision_tile_y
+  sta zpb1
+  lda #24
+  sta zpb2 // left side to test against
+  lda #255
+  sta zpb3 // collide_pixels_x temp
+cls_urt_urc: // upper right tile, upper right char
+  ldy zpb1
+  lda SCR_rowptrs_lo, y
+  sta SCR_TILE_ROW_CURR
+  lda SCR_rowptrs_hi, y
+  sta SCR_TILE_ROW_CURR+1
+
+  ldy zpb0
+  lda (SCR_TILE_ROW_CURR), y
+  sta collision_tile
+
+  tay
+  lda SCR_char_tileset_tag, y 
+  beq cls_lrt_urc // non-collidable tile
+
+  lda p1cx2
+  sec
+  sbc zpb2
+  bmi cls_urt_ulc // player to left of this char
+  sta zpb3
+  // collided with upper right, so no other collisions matter
+  jmp cls_collision_detect_done
+cls_urt_lrc:
+  jmp cls_collision_detect_done
+cls_urt_ulc:
+  lda zpb2
+  sec
+  sbc #8
+  sta zpb2
+
+  lda p1cx2
+  sec
+  sbc zpb2
+  bmi cls_ult_urc // player to the left of this char
+  sta zpb3
+  jmp cls_collision_detect_done
+cls_urt_llc:
+  jmp cls_collision_detect_done
+cls_lrt_urc:
+  jmp cls_collision_detect_done
+cls_lrt_lrc:
+  jmp cls_collision_detect_done
+cls_lrt_ulc:
+  jmp cls_collision_detect_done
+cls_lrt_llc:
+  jmp cls_collision_detect_done
+cls_ult_urc:
+  lda collision_tile_x
+  sta zpb0
+
+  ldy zpb1
+  lda SCR_rowptrs_lo, y
+  sta SCR_TILE_ROW_CURR
+  lda SCR_rowptrs_hi, y
+  sta SCR_TILE_ROW_CURR+1
+
+  ldy zpb0
+  lda (SCR_TILE_ROW_CURR), y
+  sta collision_tile
+
+  tay
+  lda SCR_char_tileset_tag, y 
+  beq cls_llt_urc // non-collidable tile
+
+  lda zpb2
+  sec
+  sbc #8
+  sta zpb2
+
+  lda p1cx2
+  sec
+  sbc zpb2
+  bmi cls_ult_ulc // player to the left of this char
+  sta zpb3
+  jmp cls_collision_detect_done
+cls_ult_lrc:
+  jmp cls_collision_detect_done
+cls_ult_ulc:
+  jmp cls_collision_detect_done
+cls_ult_llc:
+  jmp cls_collision_detect_done
+cls_llt_urc:
+  jmp cls_collision_detect_done
+cls_llt_lrc:
+  jmp cls_collision_detect_done
+cls_llt_ulc:
+  jmp cls_collision_detect_done
+cls_llt_llc:
+  jmp cls_collision_detect_done
+
+cls_collision_detect_done:
+  lda zpb3
+  cmp #255
+  beq cls_no_collision
+  sta collide_pixels_x
+  beq cls_done
+cls_no_collision:
+  lda #0
+  sta collide_pixels_x
+cls_done:
   rts 
 
 
@@ -757,7 +876,7 @@ updp1p:
   sta p1gy
   lda maxp1gy+1
   sta p1gy+1
-  lda #(200-p1height-16)
+  lda #(200-p1height-40)
   //lda #214
   //lda #230
   sta p1ly
@@ -792,34 +911,45 @@ updp1vpt:
 updp1vpt_coll:
   // now we're in global, pixel coordinates, get information needed
   // for collision detection
-  
-  // first let's get the pixel coordinates of the character,
-  // truncated down to the nearest tile, also in pixel coords
+
   lda p1ly
-  and #%11110000 // truncate to nearest tile pixel coord
-  sta zpb0
-  // now let's subtract the tile pixel coords to get the y
-  // value of the player relative to the tile, assumes the
-  // player moves less than 8 pixels in a given frame
-  lda p1ly
-  sec
-  sbc zpb0
-  sta p1cy
   clc
   adc #p1height
-  sta p1cy2
+  sta p1ly2
+  and #%11111000 // truncate to nearest screen char location
+  sta collide_max_char_y
 
-  // now let's get the actual tile
-  // rotate 3 then divide by 2 to go from pixel to screen to tile
-  lda zpb0
-  sec
-  sbc #24 // account for upper 3 rows that aren't part of map
-  ror
-  ror
-  ror
-  ror
-  and #%00001111
-  sta collision_tile_y
+  lda p1ly
+  and #%11111000 // truncate to nearest screen char location
+  sta collide_min_char_y
+  
+  // // first let's get the pixel coordinates of the character,
+  // // truncated down to the nearest tile, also in pixel coords
+  // lda p1ly
+  // and #%11110000 // truncate to nearest tile pixel coord
+  // sta zpb0
+  // // now let's subtract the tile pixel coords to get the y
+  // // value of the player relative to the tile, assumes the
+  // // player moves less than 8 pixels in a given frame
+  // lda p1ly
+  // sec
+  // sbc zpb0
+  // sta p1cy
+  // clc
+  // adc #p1height
+  // sta p1cy2
+
+  // // now let's get the actual tile
+  // // rotate 3 then divide by 2 to go from pixel to screen to tile
+  // lda zpb0
+  // sec
+  // sbc #24 // account for upper 3 rows that aren't part of map
+  // ror
+  // ror
+  // ror
+  // ror
+  // and #%00001111
+  // sta collision_tile_y
 
 updp1hp:
   // Update global position of character in level
@@ -889,36 +1019,67 @@ updp1hpt:
 collide_prep:
   // now we're in global, pixel coordinates, get information needed
   // for collision detection
-  
-  // first let's get the pixel coordinates of the character,
-  // truncated down to the nearest tile, also in pixel coords
+
+  // set the far right location of the character
   lda p1lx
-  and #%11110000 // truncate to nearest tile pixel coord
-  sta zpb0
-  // now let's subtract the tile pixel coords to get the x
-  // value of the player relative to the tile, assumes the
-  // player moves less than 8 pixels in a given frame
-  lda p1lx
-  sec
-  sbc zpb0
-  sta p1cx
   clc
   adc #p1width
-  sta p1cx2
-
-  // now let's get the actual tile
-  // rotate 3, then divide by 2 to go from pixel to screen to tile
-  lda zpb0
-  sta collision_tile_x
+  sta p1lx2
   lda p1lx+1
-  ror
-  ror collision_tile_x
-  ror
-  ror collision_tile_x
-  ror
-  ror collision_tile_x
-  ror
-  ror collision_tile_x
+  adc #0
+  sta p1lx2+1
+
+  // // get the far left location in screen char coords
+  // lda p1lx
+  // and #%11111000            // truncate to nearest screen char location
+  // sta collide_min_char_x    // far left screen char of player
+
+  // // now get the far right of the character in pixel 
+
+  // clc
+  // adc #p1width
+  // sta p1lx2                 // far right pixel of player, lo byte
+  // and #%11111000            // truncate to nearest screen char location
+  // sta collide_max_char_x2   // far right screen char of player, lo byte
+  // lda p1lx+1
+  // sta collide_min_char_x+1  // far left screen char of player, hi byte
+  // adc #0
+  // sta p1lx2+1               // far right pixel of player, hi byte
+  // sta collide_max_char_x2+1 // far right screen char of player, lo byte
+
+  // lda p1lx
+  // and #%11111000            // truncate to nearest screen char location
+  // sta collide_min_char_x    // far left screen char of player, lo byte
+  
+  // // // first let's get the pixel coordinates of the character,
+  // // // truncated down to the nearest tile, also in pixel coords
+  // // lda p1lx
+  // // and #%11110000 // truncate to nearest tile pixel coord
+  // // sta zpb0
+  // // // now let's subtract the tile pixel coords to get the x
+  // // // value of the player relative to the tile, assumes the
+  // // // player moves less than 8 pixels in a given frame
+  // // lda p1lx
+  // // sec
+  // // sbc zpb0
+  // // sta p1cx
+  // // clc
+  // // adc #p1width
+  // // sta p1cx2
+
+  // // // now let's get the actual tile
+  // // // rotate 3, then divide by 2 to go from pixel to screen to tile
+  // // lda zpb0
+  // // sta collision_tile_x
+  // // lda p1lx+1
+  // // ror
+  // // ror collision_tile_x
+  // // ror
+  // // ror collision_tile_x
+  // // ror
+  // // ror collision_tile_x
+  // // ror
+  // // ror collision_tile_x
 
   // now subtract the first column visible from the global position to get the local 
   // position relative to left side of screen, in pixel coordinates
@@ -938,17 +1099,20 @@ collide_prep:
   bmi collideru
   beq colliderz
   // moving right and down
+  //jsr collide_left_side
   lda #$ff
   sta tmp0
   jmp collided
 
 collideru:
+  //jsr collide_left_side
   // moving right and up
   lda #$fa
   sta tmp0
   jmp collided
 
 colliderz:
+  //jsr collide_left_side
   // moving right, vertical zero
   lda #$f0
   sta tmp0
@@ -1162,7 +1326,19 @@ frame: .byte 0
 collision_tile_x:      .byte 0,0 // two bytes, 2nd needed during calc
 collision_tile_y:      .byte 0
 collision_tile:        .byte 0
-collision_tile_offset: .byte 0
+collide_x:             .byte 0
+collide_y:             .byte 0
 
-pixels_x: .byte 0
-pixels_y: .byte 0
+collide_pixels_x: .byte 0
+collide_pixels_y: .byte 0
+
+collide_min_char_x: .byte 0,0
+collide_min_char_y: .byte 0
+collide_max_char_x: .byte 0,0
+collide_max_char_y: .byte 0
+
+collision_metadata:
+collision_metadata_row0: .byte 0,0,0
+collision_metadata_row1: .byte 0,0,0
+collision_metadata_row2: .byte 0,0,0
+collision_metadata_row3: .byte 0,0,0

@@ -381,36 +381,36 @@ SCR_draw_screen:
   ldy SCR_last_visible_tile
   ldx #38 // screen column
 ds_loop:
-  SCR_draw_tile(1144, 1184, SCR_TILE_ROW_0)
-  SCR_draw_tile(1224, 1264, SCR_TILE_ROW_1)
-  SCR_draw_tile(1304, 1344, SCR_TILE_ROW_2)
-  SCR_draw_tile(1384, 1424, SCR_TILE_ROW_3) 
-  SCR_draw_tile(1464, 1504, SCR_TILE_ROW_4)
-  SCR_draw_tile(1544, 1584, SCR_TILE_ROW_5)
-  SCR_draw_tile(1624, 1664, SCR_TILE_ROW_6)
-  SCR_draw_tile(1704, 1744, SCR_TILE_ROW_7)
-  SCR_draw_tile(1784, 1824, SCR_TILE_ROW_8)
-  SCR_draw_tile(1864, 1904, SCR_TILE_ROW_9)
+  SCR_draw_tile(1024, 1064, SCR_TILE_ROW_0)
+  SCR_draw_tile(1104, 1144, SCR_TILE_ROW_1)
+  SCR_draw_tile(1184, 1224, SCR_TILE_ROW_2)
+  SCR_draw_tile(1264, 1304, SCR_TILE_ROW_3)
+  SCR_draw_tile(1344, 1384, SCR_TILE_ROW_4)
+  SCR_draw_tile(1424, 1464, SCR_TILE_ROW_5)
+  SCR_draw_tile(1504, 1544, SCR_TILE_ROW_6) 
+  SCR_draw_tile(1584, 1624, SCR_TILE_ROW_7)
+  SCR_draw_tile(1664, 1704, SCR_TILE_ROW_8)
+  SCR_draw_tile(1744, 1784, SCR_TILE_ROW_9)
   // bottom two rows
   lda #66
-  sta 1944, x
-  sta 1945, x
-  sta 2968, x
-  sta 2969, x
+  sta 1824, x
+  sta 1825, x
+  sta 2848, x
+  sta 2849, x
   lda #66
-  sta 1984, x
-  sta 1985, x
-  sta 3008, x
-  sta 3009, x
+  sta 1864, x
+  sta 1865, x
+  sta 2888, x
+  sta 2889, x
   lda #11
-  sta 56216, x
-  sta 56217, x
-  sta 56256, x
-  sta 56257, x
-  sta 57240, x
-  sta 57241, x
-  sta 57280, x
-  sta 57281, x
+  sta 56096, x
+  sta 56097, x
+  sta 56136, x
+  sta 56137, x
+  sta 57120, x
+  sta 57121, x
+  sta 57160, x
+  sta 57161, x
 ds_loop_end:
   dey
   bmi ds_done
@@ -538,6 +538,12 @@ SCR_scroll_right_done:
 SCR_move_color_left:
   ldx #0
 mcl_loop:
+  lda 55297, x
+  sta 55296, x
+  lda 55337, x
+  sta 55336, x
+  lda 55377, x
+  sta 55376, x
   lda 55417, x
   sta 55416, x
   lda 55457, x
@@ -572,12 +578,6 @@ mcl_loop:
   sta 56016, x
   lda 56057, x
   sta 56056, x
-  lda 56097, x
-  sta 56096, x
-  lda 56137, x
-  sta 56136, x
-  lda 56177, x
-  sta 56176, x
 
   inx
   cpx #39
@@ -594,6 +594,12 @@ SCR_move_screen_left:
   beq msl_char_loop_f2b_loop
   jmp msl_char_loop_b2f_loop
 msl_char_loop_f2b_loop:
+  lda 1025, x
+  sta 2048, x
+  lda 1065, x
+  sta 2088, x
+  lda 1105, x
+  sta 2128, x
   lda 1145, x
   sta 2168, x
   lda 1185, x
@@ -628,12 +634,6 @@ msl_char_loop_f2b_loop:
   sta 2768, x
   lda 1785, x
   sta 2808, x
-  lda 1825, x
-  sta 2848, x
-  lda 1865, x
-  sta 2888, x
-  lda 1905, x
-  sta 2928, x
 
   inx
   cpx #39
@@ -648,16 +648,16 @@ msl_fill_right_side_back:
 msl_draw_right_side_back:
   inc SCR_first_visible_tile
   ldy SCR_last_visible_tile
-  SCR_draw_tile_right(2168, 2208, SCR_TILE_ROW_0)
-  SCR_draw_tile_right(2248, 2288, SCR_TILE_ROW_1)
-  SCR_draw_tile_right(2328, 2368, SCR_TILE_ROW_2)
-  SCR_draw_tile_right(2408, 2448, SCR_TILE_ROW_3)
-  SCR_draw_tile_right(2488, 2528, SCR_TILE_ROW_4)
-  SCR_draw_tile_right(2568, 2608, SCR_TILE_ROW_5)
-  SCR_draw_tile_right(2648, 2688, SCR_TILE_ROW_6)
-  SCR_draw_tile_right(2728, 2768, SCR_TILE_ROW_7)
-  SCR_draw_tile_right(2808, 2848, SCR_TILE_ROW_8)
-  SCR_draw_tile_right(2888, 2928, SCR_TILE_ROW_9)
+  SCR_draw_tile_right(2048, 2088, SCR_TILE_ROW_0)
+  SCR_draw_tile_right(2128, 2168, SCR_TILE_ROW_1)
+  SCR_draw_tile_right(2208, 2248, SCR_TILE_ROW_2)
+  SCR_draw_tile_right(2288, 2328, SCR_TILE_ROW_3)
+  SCR_draw_tile_right(2368, 2408, SCR_TILE_ROW_4)
+  SCR_draw_tile_right(2448, 2488, SCR_TILE_ROW_5)
+  SCR_draw_tile_right(2528, 2568, SCR_TILE_ROW_6)
+  SCR_draw_tile_right(2608, 2648, SCR_TILE_ROW_7)
+  SCR_draw_tile_right(2688, 2728, SCR_TILE_ROW_8)
+  SCR_draw_tile_right(2768, 2808, SCR_TILE_ROW_9)
 
   lda #0
   sta SCR_tile_offset
@@ -665,21 +665,27 @@ msl_draw_right_side_back:
 msl_load_new_tile_back:
   inc SCR_last_visible_tile
   ldy SCR_last_visible_tile
-  SCR_draw_tile_left(2168, 2208, SCR_TILE_ROW_0)
-  SCR_draw_tile_left(2248, 2288, SCR_TILE_ROW_1)
-  SCR_draw_tile_left(2328, 2368, SCR_TILE_ROW_2)
-  SCR_draw_tile_left(2408, 2448, SCR_TILE_ROW_3)
-  SCR_draw_tile_left(2488, 2528, SCR_TILE_ROW_4)
-  SCR_draw_tile_left(2568, 2608, SCR_TILE_ROW_5)
-  SCR_draw_tile_left(2648, 2688, SCR_TILE_ROW_6)
-  SCR_draw_tile_left(2728, 2768, SCR_TILE_ROW_7)
-  SCR_draw_tile_left(2808, 2848, SCR_TILE_ROW_8)
-  SCR_draw_tile_left(2888, 2928, SCR_TILE_ROW_9)
+  SCR_draw_tile_left(2048, 2088, SCR_TILE_ROW_0)
+  SCR_draw_tile_left(2128, 2168, SCR_TILE_ROW_1)
+  SCR_draw_tile_left(2208, 2248, SCR_TILE_ROW_2)
+  SCR_draw_tile_left(2288, 2328, SCR_TILE_ROW_3)
+  SCR_draw_tile_left(2368, 2408, SCR_TILE_ROW_4)
+  SCR_draw_tile_left(2448, 2488, SCR_TILE_ROW_5)
+  SCR_draw_tile_left(2528, 2568, SCR_TILE_ROW_6)
+  SCR_draw_tile_left(2608, 2648, SCR_TILE_ROW_7)
+  SCR_draw_tile_left(2688, 2728, SCR_TILE_ROW_8)
+  SCR_draw_tile_left(2768, 2808, SCR_TILE_ROW_9)
 
   lda #1
   sta SCR_tile_offset
   jmp msl_loop_done
 msl_char_loop_b2f_loop:
+  lda 2049, x
+  sta 1024, x
+  lda 2089, x
+  sta 1064, x
+  lda 2129, x
+  sta 1104, x
   lda 2169, x
   sta 1144, x
   lda 2209, x
@@ -714,12 +720,6 @@ msl_char_loop_b2f_loop:
   sta 1744, x
   lda 2809, x
   sta 1784, x
-  lda 2849, x
-  sta 1824, x
-  lda 2889, x
-  sta 1864, x
-  lda 2929, x
-  sta 1904, x
 
   inx
   cpx #39
@@ -734,32 +734,32 @@ msl_fill_right_side_front:
 msl_draw_right_side_front:
   inc SCR_first_visible_tile
   ldy SCR_last_visible_tile
-  SCR_draw_tile_right(1144, 1184, SCR_TILE_ROW_0)
-  SCR_draw_tile_right(1224, 1264, SCR_TILE_ROW_1)
-  SCR_draw_tile_right(1304, 1344, SCR_TILE_ROW_2)
-  SCR_draw_tile_right(1384, 1424, SCR_TILE_ROW_3) 
-  SCR_draw_tile_right(1464, 1504, SCR_TILE_ROW_4)
-  SCR_draw_tile_right(1544, 1584, SCR_TILE_ROW_5)
-  SCR_draw_tile_right(1624, 1664, SCR_TILE_ROW_6)
-  SCR_draw_tile_right(1704, 1744, SCR_TILE_ROW_7)
-  SCR_draw_tile_right(1784, 1824, SCR_TILE_ROW_8)
-  SCR_draw_tile_right(1864, 1904, SCR_TILE_ROW_9)
+  SCR_draw_tile_right(1024, 1064, SCR_TILE_ROW_0)
+  SCR_draw_tile_right(1104, 1144, SCR_TILE_ROW_1)
+  SCR_draw_tile_right(1184, 1224, SCR_TILE_ROW_2)
+  SCR_draw_tile_right(1264, 1304, SCR_TILE_ROW_3)
+  SCR_draw_tile_right(1344, 1384, SCR_TILE_ROW_4)
+  SCR_draw_tile_right(1424, 1464, SCR_TILE_ROW_5)
+  SCR_draw_tile_right(1504, 1544, SCR_TILE_ROW_6) 
+  SCR_draw_tile_right(1584, 1624, SCR_TILE_ROW_7)
+  SCR_draw_tile_right(1664, 1704, SCR_TILE_ROW_8)
+  SCR_draw_tile_right(1744, 1784, SCR_TILE_ROW_9)
   lda #0
   sta SCR_tile_offset
   jmp msl_loop_done
 msl_load_new_tile_front:
   inc SCR_last_visible_tile
   ldy SCR_last_visible_tile
-  SCR_draw_tile_left(1144, 1184, SCR_TILE_ROW_0)
-  SCR_draw_tile_left(1224, 1264, SCR_TILE_ROW_1)
-  SCR_draw_tile_left(1304, 1344, SCR_TILE_ROW_2)
-  SCR_draw_tile_left(1384, 1424, SCR_TILE_ROW_3) 
-  SCR_draw_tile_left(1464, 1504, SCR_TILE_ROW_4)
-  SCR_draw_tile_left(1544, 1584, SCR_TILE_ROW_5)
-  SCR_draw_tile_left(1624, 1664, SCR_TILE_ROW_6)
-  SCR_draw_tile_left(1704, 1744, SCR_TILE_ROW_7)
-  SCR_draw_tile_left(1784, 1824, SCR_TILE_ROW_8)
-  SCR_draw_tile_left(1864, 1904, SCR_TILE_ROW_9)
+  SCR_draw_tile_left(1024, 1064, SCR_TILE_ROW_0)
+  SCR_draw_tile_left(1104, 1144, SCR_TILE_ROW_1)
+  SCR_draw_tile_left(1184, 1224, SCR_TILE_ROW_2)
+  SCR_draw_tile_left(1264, 1304, SCR_TILE_ROW_3)
+  SCR_draw_tile_left(1344, 1384, SCR_TILE_ROW_4)
+  SCR_draw_tile_left(1424, 1464, SCR_TILE_ROW_5)
+  SCR_draw_tile_left(1504, 1544, SCR_TILE_ROW_6) 
+  SCR_draw_tile_left(1584, 1624, SCR_TILE_ROW_7)
+  SCR_draw_tile_left(1664, 1704, SCR_TILE_ROW_8)
+  SCR_draw_tile_left(1744, 1784, SCR_TILE_ROW_9)
   lda #1
   sta SCR_tile_offset
 msl_loop_done:
@@ -782,6 +782,12 @@ msl_done:
 SCR_move_color_right:
   ldx #38
 mcr_loop:
+  lda 55296, x
+  sta 55297, x
+  lda 55336, x
+  sta 55337, x
+  lda 55376, x
+  sta 55377, x
   lda 55416, x
   sta 55417, x
   lda 55456, x
@@ -816,12 +822,6 @@ mcr_loop:
   sta 56017, x
   lda 56056, x
   sta 56057, x
-  lda 56096, x
-  sta 56097, x
-  lda 56136, x
-  sta 56137, x
-  lda 56176, x
-  sta 56177, x
   dex
   bmi mcr_loop_done
   jmp mcr_loop
@@ -836,6 +836,12 @@ SCR_move_screen_right:
   beq msr_char_loop_f2b_loop
   jmp msr_char_loop_b2f_loop
 msr_char_loop_f2b_loop:
+  lda 1024, x
+  sta 2049, x
+  lda 1064, x
+  sta 2089, x
+  lda 1104, x
+  sta 2129, x
   lda 1144, x
   sta 2169, x
   lda 1184, x
@@ -870,12 +876,6 @@ msr_char_loop_f2b_loop:
   sta 2769, x
   lda 1784, x
   sta 2809, x
-  lda 1824, x
-  sta 2849, x
-  lda 1864, x
-  sta 2889, x
-  lda 1904, x
-  sta 2929, x
   dex
   bmi msr_fill_left_side_back
   jmp msr_char_loop_f2b_loop
@@ -888,36 +888,43 @@ msr_fill_left_side_back:
 msr_draw_left_side_back:
   dec SCR_last_visible_tile
   ldy SCR_first_visible_tile
-  SCR_draw_tile_left(2168, 2208, SCR_TILE_ROW_0)
-  SCR_draw_tile_left(2248, 2288, SCR_TILE_ROW_1)
-  SCR_draw_tile_left(2328, 2368, SCR_TILE_ROW_2)
-  SCR_draw_tile_left(2408, 2448, SCR_TILE_ROW_3)
-  SCR_draw_tile_left(2488, 2528, SCR_TILE_ROW_4)
-  SCR_draw_tile_left(2568, 2608, SCR_TILE_ROW_5)
-  SCR_draw_tile_left(2648, 2688, SCR_TILE_ROW_6)
-  SCR_draw_tile_left(2728, 2768, SCR_TILE_ROW_7)
-  SCR_draw_tile_left(2808, 2848, SCR_TILE_ROW_8)
-  SCR_draw_tile_left(2888, 2928, SCR_TILE_ROW_9)
+  SCR_draw_tile_left(2048, 2088, SCR_TILE_ROW_0)
+  SCR_draw_tile_left(2128, 2168, SCR_TILE_ROW_1)
+  SCR_draw_tile_left(2208, 2248, SCR_TILE_ROW_2)
+  SCR_draw_tile_left(2288, 2328, SCR_TILE_ROW_3)
+  SCR_draw_tile_left(2368, 2408, SCR_TILE_ROW_4)
+  SCR_draw_tile_left(2448, 2488, SCR_TILE_ROW_5)
+  SCR_draw_tile_left(2528, 2568, SCR_TILE_ROW_6)
+  SCR_draw_tile_left(2608, 2648, SCR_TILE_ROW_7)
+  SCR_draw_tile_left(2688, 2728, SCR_TILE_ROW_8)
+  SCR_draw_tile_left(2768, 2808, SCR_TILE_ROW_9)
   lda #0
   sta SCR_tile_offset
   jmp msr_loop_done
 msr_load_new_tile_back:
   dec SCR_first_visible_tile
   ldy SCR_first_visible_tile
-  SCR_draw_tile_right(2168, 2208, SCR_TILE_ROW_0)
-  SCR_draw_tile_right(2248, 2288, SCR_TILE_ROW_1)
-  SCR_draw_tile_right(2328, 2368, SCR_TILE_ROW_2)
-  SCR_draw_tile_right(2408, 2448, SCR_TILE_ROW_3)
-  SCR_draw_tile_right(2488, 2528, SCR_TILE_ROW_4)
-  SCR_draw_tile_right(2568, 2608, SCR_TILE_ROW_5)
-  SCR_draw_tile_right(2648, 2688, SCR_TILE_ROW_6)
-  SCR_draw_tile_right(2728, 2768, SCR_TILE_ROW_7)
-  SCR_draw_tile_right(2808, 2848, SCR_TILE_ROW_8)
-  SCR_draw_tile_right(2888, 2928, SCR_TILE_ROW_9)
+  SCR_draw_tile_right(2048, 2088, SCR_TILE_ROW_0)
+  SCR_draw_tile_right(2128, 2168, SCR_TILE_ROW_1)
+  SCR_draw_tile_right(2208, 2248, SCR_TILE_ROW_2)
+  SCR_draw_tile_right(2288, 2328, SCR_TILE_ROW_3)
+  SCR_draw_tile_right(2368, 2408, SCR_TILE_ROW_4)
+  SCR_draw_tile_right(2448, 2488, SCR_TILE_ROW_5)
+  SCR_draw_tile_right(2528, 2568, SCR_TILE_ROW_6)
+  SCR_draw_tile_right(2608, 2648, SCR_TILE_ROW_7)
+  SCR_draw_tile_right(2688, 2728, SCR_TILE_ROW_8)
+  SCR_draw_tile_right(2768, 2808, SCR_TILE_ROW_9)
+
   lda #1
   sta SCR_tile_offset
   jmp msr_loop_done
 msr_char_loop_b2f_loop:
+  lda 2048, x
+  sta 1025, x
+  lda 2088, x
+  sta 1065, x
+  lda 2128, x
+  sta 1105, x
   lda 2168, x
   sta 1145, x
   lda 2208, x
@@ -952,12 +959,6 @@ msr_char_loop_b2f_loop:
   sta 1745, x
   lda 2808, x
   sta 1785, x
-  lda 2848, x
-  sta 1825, x
-  lda 2888, x
-  sta 1865, x
-  lda 2928, x
-  sta 1905, x
   dex
   bmi msr_fill_left_side_front
   jmp msr_char_loop_b2f_loop
@@ -970,33 +971,32 @@ msr_fill_left_side_front:
 msr_draw_left_side_front:
   dec SCR_last_visible_tile
   ldy SCR_first_visible_tile
-  SCR_draw_tile_left(1144, 1184, SCR_TILE_ROW_0)
-  SCR_draw_tile_left(1224, 1264, SCR_TILE_ROW_1)
-  SCR_draw_tile_left(1304, 1344, SCR_TILE_ROW_2)
-  SCR_draw_tile_left(1384, 1424, SCR_TILE_ROW_3)
-  SCR_draw_tile_left(1464, 1504, SCR_TILE_ROW_4)
-  SCR_draw_tile_left(1544, 1584, SCR_TILE_ROW_5)
-  SCR_draw_tile_left(1624, 1664, SCR_TILE_ROW_6)
-  SCR_draw_tile_left(1704, 1744, SCR_TILE_ROW_7)
-  SCR_draw_tile_left(1784, 1824, SCR_TILE_ROW_8)
-  SCR_draw_tile_left(1864, 1904, SCR_TILE_ROW_9)
+  SCR_draw_tile_left(1024, 1064, SCR_TILE_ROW_0)
+  SCR_draw_tile_left(1104, 1144, SCR_TILE_ROW_1)
+  SCR_draw_tile_left(1184, 1224, SCR_TILE_ROW_2)
+  SCR_draw_tile_left(1264, 1304, SCR_TILE_ROW_3)
+  SCR_draw_tile_left(1344, 1384, SCR_TILE_ROW_4)
+  SCR_draw_tile_left(1424, 1464, SCR_TILE_ROW_5)
+  SCR_draw_tile_left(1504, 1544, SCR_TILE_ROW_6) 
+  SCR_draw_tile_left(1584, 1624, SCR_TILE_ROW_7)
+  SCR_draw_tile_left(1664, 1704, SCR_TILE_ROW_8)
+  SCR_draw_tile_left(1744, 1784, SCR_TILE_ROW_9)
   lda #0
   sta SCR_tile_offset
   jmp msr_loop_done
 msr_load_new_tile_front:
   dec SCR_first_visible_tile
   ldy SCR_first_visible_tile
-  SCR_draw_tile_right(1144, 1184, SCR_TILE_ROW_0)
-  SCR_draw_tile_right(1224, 1264, SCR_TILE_ROW_1)
-  SCR_draw_tile_right(1304, 1344, SCR_TILE_ROW_2)
-  SCR_draw_tile_right(1384, 1424, SCR_TILE_ROW_3)
-  SCR_draw_tile_right(1464, 1504, SCR_TILE_ROW_4)
-  SCR_draw_tile_right(1544, 1584, SCR_TILE_ROW_5)
-  SCR_draw_tile_right(1624, 1664, SCR_TILE_ROW_6)
-  SCR_draw_tile_right(1704, 1744, SCR_TILE_ROW_7)
-  SCR_draw_tile_right(1784, 1824, SCR_TILE_ROW_8)
-  SCR_draw_tile_right(1864, 1904, SCR_TILE_ROW_9)
-
+  SCR_draw_tile_right(1024, 1064, SCR_TILE_ROW_0)
+  SCR_draw_tile_right(1104, 1144, SCR_TILE_ROW_1)
+  SCR_draw_tile_right(1184, 1224, SCR_TILE_ROW_2)
+  SCR_draw_tile_right(1264, 1304, SCR_TILE_ROW_3)
+  SCR_draw_tile_right(1344, 1384, SCR_TILE_ROW_4)
+  SCR_draw_tile_right(1424, 1464, SCR_TILE_ROW_5)
+  SCR_draw_tile_right(1504, 1544, SCR_TILE_ROW_6) 
+  SCR_draw_tile_right(1584, 1624, SCR_TILE_ROW_7)
+  SCR_draw_tile_right(1664, 1704, SCR_TILE_ROW_8)
+  SCR_draw_tile_right(1744, 1784, SCR_TILE_ROW_9)
   lda #1
   sta SCR_tile_offset
 msr_loop_done:
