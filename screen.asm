@@ -49,6 +49,8 @@
 .var SCR_TILE_ROW_8          = $30
 .var SCR_TILE_ROW_9          = $32
 .var SCR_TILE_ROW_CURR       = $34
+.var SCR_TILE_ROW            = $36 // temp var, careful
+.var SCR_TILE_COL            = $37 // temp var, careful
 .var SCR_sprite_data         = $0c00
 .var SCR_charset_prg         = $1ffe
 .var SCR_charset             = $2000

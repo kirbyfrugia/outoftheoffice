@@ -155,7 +155,7 @@ even_frame:
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
-  // jsr log
+  jsr log
   lda SCR_buffer_ready // need to redraw due to wrapping scroll register
   bne loop
   SCR_update_scroll_register() // only scroll if we didn't redraw
@@ -505,48 +505,40 @@ log_back_line3:
   lda #$0b
   sta zpb1
 log_line3:
+
   ldy #1
-  lda collision_tile_x
+  lda collision_tile_temp_row
   jsr loghexit
   iny
-  iny
-  lda collision_tile_y
-  jsr loghexit
-
-  iny
-  iny
-  lda p1cx
-  jsr loghexit
-  iny
-  lda #44
-  sta (zpb0),y
-  iny
-  lda p1cy
+  lda collision_tile_temp_col
   jsr loghexit
 
   iny
-  iny
-  lda p1cx2
+  lda collision_row_even
   jsr loghexit
   iny
-  lda #44
-  sta (zpb0),y
-  iny
-  lda p1cy2
+  lda collision_column_even
   jsr loghexit
 
-  iny
-  iny
-  lda collide_pixels_x+1
+  ldy #10
+  ldx #0
+log_line_3_loop:
+  lda collision_metadata_row0, x
   jsr loghexit
   iny
-  lda collide_pixels_x
+  lda collision_metadata_row1, x
   jsr loghexit
-
+  iny
+  lda collision_metadata_row2, x
+  jsr loghexit
+  iny
+  lda collision_metadata_row3, x
+  jsr loghexit
   iny
   iny
-  lda tmp1
-  jsr loghexit
+  inx
+  cpx #3
+  bne log_line_3_loop
 
   rts
 
@@ -722,127 +714,151 @@ updp1vvd:
   sta p1vva+1
   rts
 
-// TODO: deal with far right of map
-// TODO: make sure the individual chars have collidable flag set
-collide_left_side:
-  // which columns to test:
-  //   If p1cx2 >= 24, test right tile, right char
-  //   If p1cx2 >= 16, test right tile, left char
-  //   if P1cx
-
-
-
-  lda collision_tile_x
-  clc
-  adc #1
-  sta zpb0
-  lda collision_tile_y
-  sta zpb1
-  lda #24
-  sta zpb2 // left side to test against
-  lda #255
-  sta zpb3 // collide_pixels_x temp
-cls_urt_urc: // upper right tile, upper right char
-  ldy zpb1
+// loads the tile at the given row and column
+// and stores the tile id to X
+.macro get_tile(tile_row, tile_column) {
+  tya
+  pha
+  ldy tile_row
+  cpy #10
+  bcs get_tile_empty // past bottom of screen
   lda SCR_rowptrs_lo, y
   sta SCR_TILE_ROW_CURR
   lda SCR_rowptrs_hi, y
   sta SCR_TILE_ROW_CURR+1
 
-  ldy zpb0
+  ldy tile_column
   lda (SCR_TILE_ROW_CURR), y
-  sta collision_tile
-
+  tax
+  jmp get_tile_done
+get_tile_empty:
+  ldx #0
+get_tile_done:
+  pla
   tay
-  lda SCR_char_tileset_tag, y 
-  beq cls_lrt_urc // non-collidable tile
+}
 
-  lda p1cx2
-  sec
-  sbc zpb2
-  bmi cls_urt_ulc // player to left of this char
-  sta zpb3
-  // collided with upper right, so no other collisions matter
-  jmp cls_collision_detect_done
-cls_urt_lrc:
-  jmp cls_collision_detect_done
-cls_urt_ulc:
-  lda zpb2
-  sec
-  sbc #8
-  sta zpb2
+// // TODO: deal with far right of map
+// // TODO: make sure the individual chars have collidable flag set
+// collide_left_side:
+//   // which columns to test:
+//   //   If p1cx2 >= 24, test right tile, right char
+//   //   If p1cx2 >= 16, test right tile, left char
+//   //   if P1cx
 
-  lda p1cx2
-  sec
-  sbc zpb2
-  bmi cls_ult_urc // player to the left of this char
-  sta zpb3
-  jmp cls_collision_detect_done
-cls_urt_llc:
-  jmp cls_collision_detect_done
-cls_lrt_urc:
-  jmp cls_collision_detect_done
-cls_lrt_lrc:
-  jmp cls_collision_detect_done
-cls_lrt_ulc:
-  jmp cls_collision_detect_done
-cls_lrt_llc:
-  jmp cls_collision_detect_done
-cls_ult_urc:
-  lda collision_tile_x
-  sta zpb0
 
-  ldy zpb1
-  lda SCR_rowptrs_lo, y
-  sta SCR_TILE_ROW_CURR
-  lda SCR_rowptrs_hi, y
-  sta SCR_TILE_ROW_CURR+1
 
-  ldy zpb0
-  lda (SCR_TILE_ROW_CURR), y
-  sta collision_tile
+//   lda collision_tile_x
+//   clc
+//   adc #1
+//   sta zpb0
+//   lda collision_tile_y
+//   sta zpb1
+//   lda #24
+//   sta zpb2 // left side to test against
+//   lda #255
+//   sta zpb3 // collide_pixels_x temp
+// cls_urt_urc: // upper right tile, upper right char
+//   ldy zpb1
+//   lda SCR_rowptrs_lo, y
+//   sta SCR_TILE_ROW_CURR
+//   lda SCR_rowptrs_hi, y
+//   sta SCR_TILE_ROW_CURR+1
 
-  tay
-  lda SCR_char_tileset_tag, y 
-  beq cls_llt_urc // non-collidable tile
+//   ldy zpb0
+//   lda (SCR_TILE_ROW_CURR), y
+//   sta collision_tile
 
-  lda zpb2
-  sec
-  sbc #8
-  sta zpb2
+//   tay
+//   lda SCR_char_tileset_tag, y 
+//   beq cls_lrt_urc // non-collidable tile
 
-  lda p1cx2
-  sec
-  sbc zpb2
-  bmi cls_ult_ulc // player to the left of this char
-  sta zpb3
-  jmp cls_collision_detect_done
-cls_ult_lrc:
-  jmp cls_collision_detect_done
-cls_ult_ulc:
-  jmp cls_collision_detect_done
-cls_ult_llc:
-  jmp cls_collision_detect_done
-cls_llt_urc:
-  jmp cls_collision_detect_done
-cls_llt_lrc:
-  jmp cls_collision_detect_done
-cls_llt_ulc:
-  jmp cls_collision_detect_done
-cls_llt_llc:
-  jmp cls_collision_detect_done
+//   lda p1cx2
+//   sec
+//   sbc zpb2
+//   bmi cls_urt_ulc // player to left of this char
+//   sta zpb3
+//   // collided with upper right, so no other collisions matter
+//   jmp cls_collision_detect_done
+// cls_urt_lrc:
+//   jmp cls_collision_detect_done
+// cls_urt_ulc:
+//   lda zpb2
+//   sec
+//   sbc #8
+//   sta zpb2
 
-cls_collision_detect_done:
-  lda zpb3
-  cmp #255
-  beq cls_no_collision
-  sta collide_pixels_x
-  beq cls_done
-cls_no_collision:
-  lda #0
-  sta collide_pixels_x
-cls_done:
-  rts 
+//   lda p1cx2
+//   sec
+//   sbc zpb2
+//   bmi cls_ult_urc // player to the left of this char
+//   sta zpb3
+//   jmp cls_collision_detect_done
+// cls_urt_llc:
+//   jmp cls_collision_detect_done
+// cls_lrt_urc:
+//   jmp cls_collision_detect_done
+// cls_lrt_lrc:
+//   jmp cls_collision_detect_done
+// cls_lrt_ulc:
+//   jmp cls_collision_detect_done
+// cls_lrt_llc:
+//   jmp cls_collision_detect_done
+// cls_ult_urc:
+//   lda collision_tile_x
+//   sta zpb0
+
+//   ldy zpb1
+//   lda SCR_rowptrs_lo, y
+//   sta SCR_TILE_ROW_CURR
+//   lda SCR_rowptrs_hi, y
+//   sta SCR_TILE_ROW_CURR+1
+
+//   ldy zpb0
+//   lda (SCR_TILE_ROW_CURR), y
+//   sta collision_tile
+
+//   tay
+//   lda SCR_char_tileset_tag, y 
+//   beq cls_llt_urc // non-collidable tile
+
+//   lda zpb2
+//   sec
+//   sbc #8
+//   sta zpb2
+
+//   lda p1cx2
+//   sec
+//   sbc zpb2
+//   bmi cls_ult_ulc // player to the left of this char
+//   sta zpb3
+//   jmp cls_collision_detect_done
+// cls_ult_lrc:
+//   jmp cls_collision_detect_done
+// cls_ult_ulc:
+//   jmp cls_collision_detect_done
+// cls_ult_llc:
+//   jmp cls_collision_detect_done
+// cls_llt_urc:
+//   jmp cls_collision_detect_done
+// cls_llt_lrc:
+//   jmp cls_collision_detect_done
+// cls_llt_ulc:
+//   jmp cls_collision_detect_done
+// cls_llt_llc:
+//   jmp cls_collision_detect_done
+
+// cls_collision_detect_done:
+//   lda zpb3
+//   cmp #255
+//   beq cls_no_collision
+//   sta collide_pixels_x
+//   beq cls_done
+// cls_no_collision:
+//   lda #0
+//   sta collide_pixels_x
+// cls_done:
+//   rts 
 
 
 updp1p:
@@ -912,17 +928,33 @@ updp1vpt_coll:
   // now we're in global, pixel coordinates, get information needed
   // for collision detection
 
-  lda p1ly
-  clc
-  adc #p1height
-  sta p1ly2
-  and #%11111000 // truncate to nearest screen char location
-  sta collide_max_char_y
+  // lda p1ly
+  // clc
+  // adc #p1height
+  // sta p1ly2
+  // and #%11111000 // truncate to nearest screen char location
+  // sta collide_max_char_y
+
+  // lda p1ly
+  // and #%11111000 // truncate to nearest screen char location
+  // sta collide_min_char_y
+
 
   lda p1ly
-  and #%11111000 // truncate to nearest screen char location
-  sta collide_min_char_y
-  
+  // rotate right 3 to go from pixels to screen chars 
+  ror
+  ror
+  ror
+  sta collision_row_even
+  // divide by 2 to get tile
+  ror
+  and #%00001111
+  sta SCR_TILE_ROW
+
+  lda collision_row_even
+  and #%00000001
+  sta collision_row_even
+
   // // first let's get the pixel coordinates of the character,
   // // truncated down to the nearest tile, also in pixel coords
   // lda p1ly
@@ -1029,6 +1061,250 @@ collide_prep:
   adc #0
   sta p1lx2+1
 
+  lda p1lx
+  sta SCR_TILE_COL
+  lda p1lx+1
+  // rotate right 3 to go from pixels to screen chars 
+  ror
+  ror SCR_TILE_COL
+  ror
+  ror SCR_TILE_COL
+  ror
+  ror SCR_TILE_COL
+  ldx SCR_TILE_COL
+  stx collision_column_even
+  // divide by 2 to get tile
+  ror
+  ror SCR_TILE_COL
+
+  lda collision_column_even
+  and #%00000001
+  sta collision_column_even
+
+  // TODO: delete
+  lda SCR_TILE_ROW
+  sta collision_tile_temp_row
+  lda SCR_TILE_COL
+  sta collision_tile_temp_col
+
+  // TODO: we need to get the metadata for the actual char for each of
+  //   the lookups, not just the tile metadata. Do something like this:
+  //   lda tile_metadata
+  //   and #%11110010 <- remove metadata for other columns
+
+  // now SCR_TILE_COL contains the first x tile
+  lda collision_column_even
+  beq column_even
+  jmp column_odd
+column_even:
+  // if here, we have an even column
+  lda collision_row_even
+  beq column_even_row_even
+  jmp column_even_row_odd
+column_even_row_even:
+  // if here, even column, even row
+  // upper left collision char is in upper left of tile
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  ldy #0
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row0, y
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row1, y
+  iny
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row0, y
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row1, y
+  
+  inc SCR_TILE_COL
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  iny
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row0, y
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row1, y
+
+  inc SCR_TILE_ROW
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row2, y
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row3, y
+
+  dec SCR_TILE_COL
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  ldy #0
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row2, y
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row3, y
+  iny
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row2, y
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row3, y
+  jmp collision_prep_done
+column_odd:
+  lda collision_row_even
+  beq column_odd_row_even
+  jmp column_odd_row_odd
+column_odd_row_even:
+  // if here, odd column, even row
+  // upper left collision char is in upper right of tile
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  ldy #0
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row0, y
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row1, y
+
+  inc SCR_TILE_COL
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  iny
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row0, y
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row1, y
+  iny
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row0, y
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row1, y
+
+  inc SCR_TILE_ROW
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row2, y
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row3, y
+  dey
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row2, y
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row3, y
+
+  dec SCR_TILE_COL
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  dey
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row2, y
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row3, y
+  jmp collision_prep_done
+column_odd_row_odd:
+  // if here, odd column, odd row
+  // upper left collision char is in lower right of tile
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  ldy #0
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row0, y
+
+  inc SCR_TILE_COL
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  iny
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row0, y
+  iny
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row0, y
+
+  inc SCR_TILE_ROW
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row1, y
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row2, y
+  dey
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row1, y
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row2, y
+
+  dec SCR_TILE_COL
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  dey
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row1, y
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row2, y
+
+  inc SCR_TILE_ROW
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row3, y
+
+  inc SCR_TILE_COL
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  iny
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row1, y
+  iny
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row2, y
+  jmp collision_prep_done
+column_even_row_odd:
+  // if here, even column, odd row
+  // upper left collision char is in lower left of tile
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  ldy #0
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row0, y
+  iny
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row0, y
+
+  inc SCR_TILE_COL
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  iny
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row0, y
+
+  inc SCR_TILE_ROW
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row1, y
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row2, y
+
+  dec SCR_TILE_COL
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  dey
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row1, y
+  lda SCR_tiles_lr, x
+  sta collision_metadata_row2, y
+  dey
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row1, y
+  lda SCR_tiles_ll, x
+  sta collision_metadata_row2, y
+
+  inc SCR_TILE_ROW
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row3, y
+  iny
+  lda SCR_tiles_ur, x
+  sta collision_metadata_row3, y
+
+  inc SCR_TILE_COL
+  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  iny
+  lda SCR_tiles_ul, x
+  sta collision_metadata_row3, y
+collision_prep_done:
+
+  // now subtract the first column visible from the global position to get the local 
+  // position relative to left side of screen, in pixel coordinates
+  lda p1lx
+  sec
+  sbc SCR_first_visible_column_pixels
+  sta p1lx
+  lda p1lx+1
+  sbc SCR_first_visible_column_pixels+1
+  sta p1lx+1
+
+
   // // get the far left location in screen char coords
   // lda p1lx
   // and #%11111000            // truncate to nearest screen char location
@@ -1080,16 +1356,6 @@ collide_prep:
   // // ror collision_tile_x
   // // ror
   // // ror collision_tile_x
-
-  // now subtract the first column visible from the global position to get the local 
-  // position relative to left side of screen, in pixel coordinates
-  lda p1lx
-  sec
-  sbc SCR_first_visible_column_pixels
-  sta p1lx
-  lda p1lx+1
-  sbc SCR_first_visible_column_pixels+1
-  sta p1lx+1
 
   lda p1hva
   bmi collidel
@@ -1295,16 +1561,16 @@ p1gx:        .byte 0,0
 p1lx:        .byte 0,0
 p1lx2:       .byte 0,0
 p1sx:        .byte 0,0
-p1cx:        .byte 0
-p1cx2:       .byte 0
+//p1cx:        .byte 0,0
+//p1cx2:       .byte 0,0
 p1vvi:       .byte 0
 p1vva:       .byte 0,0
 p1gy:        .byte 0,0
 p1ly:        .byte 0,0 // 2 bytes due to a quirk in calculation
 p1ly2:       .byte 0,0
 p1sy:        .byte 0
-p1cy:        .byte 0
-p1cy2:       .byte 0
+// p1cy:        .byte 0
+// p1cy2:       .byte 0
 p1hvt:       .byte 0
 p1vvt:       .byte 0
 
@@ -1342,3 +1608,8 @@ collision_metadata_row0: .byte 0,0,0
 collision_metadata_row1: .byte 0,0,0
 collision_metadata_row2: .byte 0,0,0
 collision_metadata_row3: .byte 0,0,0
+
+collision_tile_temp_row: .byte 0
+collision_tile_temp_col: .byte 0
+collision_column_even:   .byte 0
+collision_row_even:      .byte 0
