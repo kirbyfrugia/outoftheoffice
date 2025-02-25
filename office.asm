@@ -715,12 +715,12 @@ updp1vvd:
 
 // loads the tile at the given row and column
 // and stores the tile id to X
-.macro get_tile(tile_row, tile_column) {
+.macro get_collision_tile(tile_row, tile_column) {
   tya
   pha
   ldy tile_row
   cpy #10
-  bcs get_tile_empty // past bottom of screen
+  bcs get_collision_tile_empty // past bottom of screen
   lda SCR_rowptrs_lo, y
   sta SCR_TILE_ROW_CURR
   lda SCR_rowptrs_hi, y
@@ -729,12 +729,28 @@ updp1vvd:
   ldy tile_column
   lda (SCR_TILE_ROW_CURR), y
   tax
-  jmp get_tile_done
-get_tile_empty:
+  lda SCR_char_tileset_tag, x
+  beq get_collision_tile_empty // filter out tiles that aren't collidable
+  bne get_collision_tile_done
+get_collision_tile_empty:
   ldx #0
-get_tile_done:
+get_collision_tile_done:
   pla
   tay
+}
+
+// assuming the tile id is in X, get the character material
+// at tile_char within the tile, store the result in
+// collision_metadata_row indexed by Y.
+.macro set_material(tile_char, collision_metadata_row) {
+  txa
+  pha
+  lda tile_char, x                   // get the character
+  tax
+  lda SCR_char_attribs, x  // get the material
+  sta collision_metadata_row, y
+  pla
+  tax
 }
 
 // // TODO: deal with far right of map
@@ -1105,45 +1121,34 @@ column_even:
 column_even_row_even:
   // if here, even column, even row
   // upper left collision char is in upper left of tile
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   ldy #0
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row0, y
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row1, y
+  set_material(SCR_tiles_ul, collision_metadata_row0)
+  set_material(SCR_tiles_ll, collision_metadata_row1)
   iny
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row0, y
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row1, y
+  set_material(SCR_tiles_ur, collision_metadata_row0)
+  set_material(SCR_tiles_lr, collision_metadata_row1)
   
   inc SCR_TILE_COL
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   iny
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row0, y
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row1, y
+  set_material(SCR_tiles_ul, collision_metadata_row0)
+  set_material(SCR_tiles_ll, collision_metadata_row1)
 
   inc SCR_TILE_ROW
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row2, y
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row3, y
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  set_material(SCR_tiles_ul, collision_metadata_row2)
+  set_material(SCR_tiles_ll, collision_metadata_row3)
 
   dec SCR_TILE_COL
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   ldy #0
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row2, y
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row3, y
+  set_material(SCR_tiles_ul, collision_metadata_row2)
+  set_material(SCR_tiles_ll, collision_metadata_row3)
   iny
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row2, y
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row3, y
+  set_material(SCR_tiles_ur, collision_metadata_row2)
+  set_material(SCR_tiles_lr, collision_metadata_row3)
+
   jmp collision_prep_done
 column_odd:
   lda collision_row_even
@@ -1152,147 +1157,114 @@ column_odd:
 column_odd_row_even:
   // if here, odd column, even row
   // upper left collision char is in upper right of tile
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   ldy #0
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row0, y
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row1, y
+  set_material(SCR_tiles_ur, collision_metadata_row0)
+  set_material(SCR_tiles_lr, collision_metadata_row1)
 
   inc SCR_TILE_COL
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   iny
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row0, y
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row1, y
+  set_material(SCR_tiles_ul, collision_metadata_row0)
+  set_material(SCR_tiles_ll, collision_metadata_row1)
   iny
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row0, y
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row1, y
+  set_material(SCR_tiles_ur, collision_metadata_row0)
+  set_material(SCR_tiles_lr, collision_metadata_row1)
 
   inc SCR_TILE_ROW
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row2, y
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row3, y
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  set_material(SCR_tiles_ur, collision_metadata_row2)
+  set_material(SCR_tiles_lr, collision_metadata_row3)
   dey
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row2, y
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row3, y
+  set_material(SCR_tiles_ul, collision_metadata_row2)
+  set_material(SCR_tiles_ll, collision_metadata_row3)
 
   dec SCR_TILE_COL
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   dey
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row2, y
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row3, y
+  set_material(SCR_tiles_ur, collision_metadata_row2)
+  set_material(SCR_tiles_lr, collision_metadata_row3)
+
   jmp collision_prep_done
 column_odd_row_odd:
   // if here, odd column, odd row
   // upper left collision char is in lower right of tile
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   ldy #0
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row0, y
+  set_material(SCR_tiles_lr, collision_metadata_row0)
 
   inc SCR_TILE_COL
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   iny
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row0, y
+  set_material(SCR_tiles_ll, collision_metadata_row0)
   iny
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row0, y
+  set_material(SCR_tiles_lr, collision_metadata_row0)
 
   inc SCR_TILE_ROW
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row1, y
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row2, y
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  set_material(SCR_tiles_ur, collision_metadata_row1)
+  set_material(SCR_tiles_lr, collision_metadata_row2)
   dey
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row1, y
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row2, y
+  set_material(SCR_tiles_ul, collision_metadata_row1)
+  set_material(SCR_tiles_ll, collision_metadata_row2)
 
   dec SCR_TILE_COL
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   dey
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row1, y
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row2, y
+  set_material(SCR_tiles_ur, collision_metadata_row1)
+  set_material(SCR_tiles_lr, collision_metadata_row2)
 
   inc SCR_TILE_ROW
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row3, y
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  set_material(SCR_tiles_ur, collision_metadata_row3)
 
   inc SCR_TILE_COL
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   iny
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row3, y
+  set_material(SCR_tiles_ul, collision_metadata_row3)
   iny
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row3, y
+  set_material(SCR_tiles_ur, collision_metadata_row3)
+
   jmp collision_prep_done
 column_even_row_odd:
   // if here, even column, odd row
   // upper left collision char is in lower left of tile
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   ldy #0
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row0, y
+  set_material(SCR_tiles_ll, collision_metadata_row0)
   iny
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row0, y
+  set_material(SCR_tiles_lr, collision_metadata_row0)
 
   inc SCR_TILE_COL
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   iny
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row0, y
+  set_material(SCR_tiles_ll, collision_metadata_row0)
 
   inc SCR_TILE_ROW
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row1, y
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row2, y
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  set_material(SCR_tiles_ul, collision_metadata_row1)
+  set_material(SCR_tiles_ll, collision_metadata_row2)
 
   dec SCR_TILE_COL
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   dey
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row1, y
-  lda SCR_tiles_lr, x
-  sta collision_metadata_row2, y
+  set_material(SCR_tiles_ur, collision_metadata_row1)
+  set_material(SCR_tiles_lr, collision_metadata_row2)
   dey
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row1, y
-  lda SCR_tiles_ll, x
-  sta collision_metadata_row2, y
+  set_material(SCR_tiles_ul, collision_metadata_row1)
+  set_material(SCR_tiles_ll, collision_metadata_row2)
 
   inc SCR_TILE_ROW
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row3, y
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  set_material(SCR_tiles_ul, collision_metadata_row3)
   iny
-  lda SCR_tiles_ur, x
-  sta collision_metadata_row3, y
+  set_material(SCR_tiles_ur, collision_metadata_row3)
 
   inc SCR_TILE_COL
-  get_tile(SCR_TILE_ROW, SCR_TILE_COL)
+  get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   iny
-  lda SCR_tiles_ul, x
-  sta collision_metadata_row3, y
+  set_material(SCR_tiles_ul, collision_metadata_row3)
+
 collision_prep_done:
 
   // now subtract the first column visible from the global position to get the local 
