@@ -343,7 +343,6 @@ loadmap:
   sta maxp1gx
 
   lda #(200-p1height-40)
-//  lda #164
   sta maxp1gy
   lda #0
   sta maxp1gy+1
