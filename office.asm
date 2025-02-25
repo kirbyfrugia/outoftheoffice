@@ -1087,10 +1087,12 @@ collide_prep:
   lda SCR_TILE_COL
   sta collision_tile_temp_col
 
-  // TODO: we need to get the metadata for the actual char for each of
-  //   the lookups, not just the tile metadata. Do something like this:
-  //   lda tile_metadata
-  //   and #%11110010 <- remove metadata for other columns
+  // TODO:
+  //   let's have the char contain the collision information in the material
+  //   let's have the tile allow us to override it. So if the tile has a tag of #0, then
+  //   ignore the collision infoormation
+  // TODO:
+  //   store the char material data the same way we store the tile data (charset_attrib_L1_data)
 
   // now SCR_TILE_COL contains the first x tile
   lda collision_column_even
@@ -1237,10 +1239,10 @@ column_odd_row_odd:
   get_tile(SCR_TILE_ROW, SCR_TILE_COL)
   iny
   lda SCR_tiles_ul, x
-  sta collision_metadata_row1, y
+  sta collision_metadata_row3, y
   iny
   lda SCR_tiles_ur, x
-  sta collision_metadata_row2, y
+  sta collision_metadata_row3, y
   jmp collision_prep_done
 column_even_row_odd:
   // if here, even column, odd row
