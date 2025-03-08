@@ -58,7 +58,6 @@ init:
   sta p1vva+1
   sta p1gx+1
   sta p1lx+1
-  sta can_jump
   sta delta_pixels_x
   sta delta_pixels_y
   sta max_delta_pixels_x
@@ -68,9 +67,7 @@ init:
   sta p1hvi
   sta p1vvi
 
-  lda #vvzero
-  sta p1vvi
-  sta p1vvi
+  set_on_ground()
 
   lda #0
   sta p1gx+1
@@ -490,11 +487,6 @@ log_line2:
 
   iny
   iny
-  lda can_jump
-  jsr loghexit
-
-  iny
-  iny
   lda collide_pixels_x
   jsr loghexit
   iny
@@ -507,6 +499,11 @@ log_line2:
   jsr loghexit
   iny
   lda p1cy2
+  jsr loghexit
+
+  iny
+  iny
+  lda on_ground
   jsr loghexit
 
   // next row
@@ -619,6 +616,14 @@ log_line_3_loop:
 //   maxhvl - max velocity when moving left
 //   maxhvr - max velocity when moving right
 
+.macro set_on_ground() {
+  lda #0
+  sta on_ground
+  sta p1vva
+  lda #vvzero
+  sta p1vvi
+}
+
 updp1hv:
   lda ebl
   and #%00000001
@@ -670,39 +675,30 @@ updp1hvd:
   rts
 
 updp1vv:
-  // only jump on new button presses
+  lda on_ground
+  bne updp1vv_not_on_ground
+
+  // only jump on new button presses and on ground
   lda ebp
   and #%00000011
   cmp #%00000010
-  beq updp1vvup
-  lda ebd
-  and #%00000001
-  beq updp1vvdown
-  lda #maxvvd
-  sta p1vvt
-  bne updp1vtvd
-updp1vvup:
-  // if not on the ground, ignore
-  // lda p1gy+1
-  // cmp maxp1gy+1
-  // bne updp1vtvd
-  // lda p1gy
-  // cmp maxp1gy
-  // bne updp1vtvd
-  lda can_jump
-  bne updp1vtvd
+  bne updp1vv_on_ground
 
-  lda #1
-  sta can_jump
-  
+  // if here, jumping
   lda #maxvvu
   sta p1vvi
   lda #maxvvd
   sta p1vvt
 
-  bne updp1vvd
-updp1vvdown:
+  jmp updp1vvd
+updp1vv_not_on_ground:
+  // if not on the ground, target velocity is always
+  // max falling speed
   lda #maxvvd
+  sta p1vvt
+  jmp updp1vtvd
+updp1vv_on_ground:
+  lda #vvzero
   sta p1vvt
 updp1vtvd:
   lda p1vvi
@@ -786,6 +782,16 @@ collision_move_out_to_left:
   lda #hvzero
   sta p1hvi
 
+  lda p1cx
+  sec
+  sbc collide_pixels_x
+  sta p1cx
+  
+  lda p1cx2
+  sec
+  sbc collide_pixels_x
+  sta p1cx2
+
   lda p1lx
   sec
   sbc collide_pixels_x
@@ -817,6 +823,16 @@ collision_move_out_to_right:
   sta p1hva+1
   lda #hvzero
   sta p1hvi
+
+  lda p1cx
+  clc
+  adc collide_pixels_x
+  sta p1cx
+
+  lda p1cx2
+  clc
+  adc collide_pixels_x
+  sta p1cx2
 
   lda p1lx
   clc
@@ -850,6 +866,16 @@ collision_move_out_to_top:
   // lda #vvzero
   // sta p1vvi
 
+  lda p1cy
+  sec
+  sbc collide_pixels_y
+  sta p1cy
+
+  lda p1cy2
+  sec
+  sbc collide_pixels_y
+  sta p1cy2
+
   lda p1ly
   sec
   sbc collide_pixels_y
@@ -869,9 +895,6 @@ collision_move_out_to_top:
   // rol
   and #%11111000
   sta p1gy
-
-  lda #0
-  sta can_jump
   rts
 
 collision_move_out_to_bottom:
@@ -881,6 +904,16 @@ collision_move_out_to_bottom:
   sta p1vva+1
   lda #vvzero
   sta p1vvi
+
+  lda p1cy
+  clc
+  adc collide_pixels_y
+  sta p1cy
+
+  lda p1cy2
+  clc
+  adc collide_pixels_y
+  sta p1cy2
 
   lda p1ly
   clc
@@ -902,8 +935,46 @@ collision_move_out_to_bottom:
   and #%11111000
   sta p1gy
 
+  rts
+
+// Should only be called after collision detection
+update_ground_status:
+  // first check if character is at bottom of screen
+  lda p1ly+1
+  cmp maxp1gy+1
+  bcc ugs_collisions
+  lda p1ly
+  cmp maxp1gy
+  bcs ugs_on_ground
+ugs_collisions:
+  lda p1cy2
+  // player isn't on the ground if their feet aren't about
+  // to enter the next screen char down
+  cmp #24
+  bne ugs_not_on_ground
+  // if 
+  ldx #0
+  lda collision_metadata_row3, x
+  and #%10000000
+  bne ugs_on_ground
+  inx
+  lda collision_metadata_row3, x
+  and #%10000000
+  bne ugs_on_ground
+  lda p1cx2
+  cmp #17
+  bcc ugs_not_on_ground
+  inx
+  lda collision_metadata_row3, x
+  and #%10000000
+  bne ugs_on_ground
+ugs_not_on_ground:
   lda #1
-  sta can_jump
+  sta on_ground
+  bne ugs_done
+ugs_on_ground:
+  set_on_ground()
+ugs_done:
   rts
 
 collide_left_side:
@@ -1081,10 +1152,6 @@ cmlu_done:
   rts
 
 collision_moving_right:
-  ldx #0
-  lda collision_metadata_row0, x
-  and #%10000000
-
   jsr collide_left_side
   lda collide_pixels_x
   bne cmr_collision
@@ -1143,11 +1210,7 @@ updp1p:
   bcc updp1vpt
  
   // moved below the bottom of the screen
-  lda #0
-  sta can_jump
-  sta p1vva
-  lda #vvzero
-  sta p1vvi
+  set_on_ground()
 
   lda maxp1gy
   sta p1gy
@@ -1544,31 +1607,8 @@ collidelz:
 collidezz:
   // not moving horiz, not moving vert
   // jsr collision_not_moving
-  jmp collided
 collided:
-  // TODO: remove
-  lda p1lx
-  sec
-  sbc p1lx_prev
-  sta delta_pixels_x
-  cmp max_delta_pixels_x
-  bmi blah1
-  bcc blah1
-  sta max_delta_pixels_x
-blah1:
-  lda p1ly
-  sec
-  sbc p1ly_prev
-  sta delta_pixels_y
-  cmp max_delta_pixels_y
-  bmi blah2
-  bcc blah2
-  sta max_delta_pixels_y
-blah2:
-  lda p1lx
-  sta p1lx_prev
-  lda p1ly
-  sta p1ly_prev
+  jsr update_ground_status
 
   // now subtract the first column visible from the global position to get the local 
   // position relative to left side of screen, in pixel coordinates
@@ -1761,7 +1801,8 @@ collision_tile_temp_row: .byte 0
 collision_tile_temp_col: .byte 0
 collision_column_even:   .byte 0
 collision_row_even:      .byte 0
-can_jump:                .byte 0
+// can_jump:                .byte 0
+on_ground:               .byte 0
 
 max_delta_pixels_x:            .byte 0
 max_delta_pixels_y:            .byte 0
