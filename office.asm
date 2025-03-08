@@ -58,6 +58,11 @@ init:
   sta p1vva+1
   sta p1gx+1
   sta p1lx+1
+  sta can_jump
+  sta delta_pixels_x
+  sta delta_pixels_y
+  sta max_delta_pixels_x
+  sta max_delta_pixels_y
 
   lda #hvzero
   sta p1hvi
@@ -69,9 +74,11 @@ init:
 
   lda #0
   sta p1gx+1
+  sta p1lx_prev+1
 
   lda #8
   sta p1gx
+  sta p1lx_prev
   clc
   rol p1gx
   rol p1gx+1
@@ -133,9 +140,11 @@ init:
   jsr SCR_draw_screen
 
 loop:
+  lda #%10000000
+  bit $d011
+  bne loop // msb of raster is set, so do nothing
   lda $d012
-  //cmp #$fa
-  cmp #13 // https://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt
+  cmp #13 // https://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt (Section 3.4)
   bne loop
 
   // use odd/even frames since the buffer flip may be faster
@@ -481,31 +490,24 @@ log_line2:
 
   iny
   iny
-  lda SCR_first_visible_tile
-  jsr loghexit
-  iny
-  lda SCR_tile_offset
-  jsr loghexit
-  iny
-  lda SCR_last_visible_tile
+  lda can_jump
   jsr loghexit
 
   iny
   iny
-  lda p1cx
+  lda collide_pixels_x
   jsr loghexit
+  iny
+  lda collide_pixels_y
+  jsr loghexit
+
+  iny
   iny
   lda p1cx2
-  jsr loghexit
-
-  iny
-  iny
-  lda p1cy
   jsr loghexit
   iny
   lda p1cy2
   jsr loghexit
-
 
   // next row
   lda SCR_buffer_flag
@@ -681,12 +683,17 @@ updp1vv:
   bne updp1vtvd
 updp1vvup:
   // if not on the ground, ignore
-  lda p1gy+1
-  cmp maxp1gy+1
+  // lda p1gy+1
+  // cmp maxp1gy+1
+  // bne updp1vtvd
+  // lda p1gy
+  // cmp maxp1gy
+  // bne updp1vtvd
+  lda can_jump
   bne updp1vtvd
-  lda p1gy
-  cmp maxp1gy
-  bne updp1vtvd
+
+  lda #1
+  sta can_jump
   
   lda #maxvvu
   sta p1vvi
@@ -771,209 +778,384 @@ get_collision_tile_done:
 }
 
 collide_right_side:
-// Player is moving left. Check to see if the player collides with any
-// tiles as they move right to left.
-// Checks an area 3 characters wide, 4 characters tall.
-// The player will collide with the far left column, the middle column,
-//   and maybe the right column because the player is 14 pixels wide
-//   and may touch 2-3 screen chars. They'll collide with between
-//   3-4 chars high for the same reason.
-collide_left_side:
-  lda p1cx2
-  cmp #17
-  bcc cls_middle
-cls_right:
-  // if here, the player is past the left side of the right
-  // character of the collision area
-  ldx #2
-  lda collision_metadata_row0, x
-  and #%10000000
-  bne cls_right_collided
-  lda collision_metadata_row1, x
-  and #%10000000
-  bne cls_right_collided
-  lda collision_metadata_row2, x
-  and #%10000000
-  bne cls_right_collided
-  lda p1cy2
-  cmp #25
-  bcc cls_middle // if < 3 player won't collide with bottom row
-  lda collision_metadata_row3, x
-  and #%10000000
-  bne cls_right_collided
-cls_middle:
-  ldx #1
-  lda collision_metadata_row0, x
-  and #%10000000
-  bne cls_middle_collided
-  lda collision_metadata_row1, x
-  and #%10000000
-  bne cls_middle_collided
-  lda collision_metadata_row2, x
-  and #%10000000
-  bne cls_middle_collided
-  lda p1cy2
-  cmp #25
-  bcc cls_left // if < 3 player won't collide with bottom row
-  lda collision_metadata_row3, x
-  and #%10000000
-  bne cls_middle_collided
-cls_left:
   ldx #0
   lda collision_metadata_row0, x
   and #%10000000
-  bne cls_left_collided
+  bne crs_collision
   lda collision_metadata_row1, x
   and #%10000000
-  bne cls_left_collided
+  bne crs_collision
   lda collision_metadata_row2, x
   and #%10000000
-  bne cls_left_collided
-  lda p1cy2
-  cmp #25
-  bcc cls_no_collision // if < 3 player won't collide with bottom row
-  lda collision_metadata_row3, x
+  bne crs_collision
+crs_no_collision:
+  lda #0
+  sta collide_pixels_x
+  beq crs_done
+crs_collision:
+  lda #8
+  sec
+  sbc p1cx
+  sta collide_pixels_x
+crs_done:
+  rts
+
+collide_left_side:
+  lda p1cx2
+  cmp #17
+  bcc cls_no_collision
+  ldx #2
+  lda collision_metadata_row0,x
   and #%10000000
-  bne cls_left_collided
+  bne cls_collision
+  lda collision_metadata_row1,x
+  and #%10000000
+  bne cls_collision
+  lda collision_metadata_row2,x
+  and #%10000000
+  bne cls_collision
+  // lda collision_metadata_row3,x
+  // and #%10000000
+  // bne cls_collision
 cls_no_collision:
   lda #0
   sta collide_pixels_x
   beq cls_done
-cls_right_collided:
+cls_collision:
   lda p1cx2
   sec
   sbc #16
-  sta collide_pixels_x
-  jmp cls_done
-cls_middle_collided:
-  lda p1cx2
-  sec
-  sbc #8
-  sta collide_pixels_x
-  jmp cls_done
-cls_left_collided:
-  lda p1cx2
   sta collide_pixels_x
 cls_done:
   rts
 
+// collide_left_side:
+//   lda #0
+//   sta zpb0
+// cls_left:
+//   // if here, the player is past the left side of the right
+//   // character of the collision area
+//   ldx #0
+//   lda collision_metadata_row0, x
+//   and #%10000000
+//   bne cls_left_collided
+//   lda collision_metadata_row1, x
+//   and #%10000000
+//   bne cls_left_collided
+//   lda collision_metadata_row2, x
+//   and #%10000000
+//   bne cls_left_collided
+//   lda p1cy2
+//   cmp #25
+//   bcc cls_middle // if player won't collide with bottom row
+//   lda collision_metadata_row3, x
+//   and #%10000000
+//   bne cls_left_collided
+//   beq cls_middle
+// cls_left_collided:
+//   lda p1cx2
+//   sta zpb0
+//   jmp cls_done
+// cls_middle:
+//   ldx #1
+//   lda collision_metadata_row0, x
+//   and #%10000000
+//   bne cls_middle_collided
+//   lda collision_metadata_row1, x
+//   and #%10000000
+//   bne cls_middle_collided
+//   lda collision_metadata_row2, x
+//   and #%10000000
+//   bne cls_middle_collided
+//   lda p1cy2
+//   cmp #25
+//   bcc cls_right // if < 3 player won't collide with bottom row
+//   lda collision_metadata_row3, x
+//   and #%10000000
+//   bne cls_middle_collided
+//   beq cls_right
+// cls_middle_collided:
+//   lda p1cx2
+//   sec
+//   sbc #8
+//   sta zpb0
+//   jmp cls_done
+// cls_right:
+//   lda p1cx2
+//   cmp #17
+//   bcc cls_done
+//   ldx #2
+//   lda collision_metadata_row0, x
+//   and #%10000000
+//   bne cls_right_collided
+//   lda collision_metadata_row1, x
+//   and #%10000000
+//   bne cls_right_collided
+//   lda collision_metadata_row2, x
+//   and #%10000000
+//   bne cls_right_collided
+//   lda p1cy2
+//   cmp #25
+//   bcc cls_no_collision // if < 3 player won't collide with bottom row
+//   lda collision_metadata_row3, x
+//   and #%10000000
+//   bne cls_right_collided
+//   beq cls_no_collision
+// cls_right_collided:
+//   lda p1cx2
+//   sec
+//   sbc #16
+//   sta zpb0
+//   jmp cls_done
+// cls_no_collision:
+// cls_done:
+//   lda zpb0
+//   sta collide_pixels_x
+//   rts
+
+
+// collide_left_side:
+//   lda #0
+//   sta zpb0
+//   lda p1cx2
+//   cmp #17
+//   bcc cls_middle
+// cls_right:
+//   // if here, the player is past the left side of the right
+//   // character of the collision area
+//   ldx #2
+//   lda collision_metadata_row0, x
+//   and #%10000000
+//   bne cls_right_collided
+//   lda collision_metadata_row1, x
+//   and #%10000000
+//   bne cls_right_collided
+//   lda collision_metadata_row2, x
+//   and #%10000000
+//   bne cls_right_collided
+//   lda p1cy2
+//   cmp #25
+//   bcc cls_middle // if < 3 player won't collide with bottom row
+//   lda collision_metadata_row3, x
+//   and #%10000000
+//   bne cls_right_collided
+//   beq cls_middle
+// cls_right_collided:
+//   lda p1cx2
+//   sec
+//   sbc #16
+//   clc
+//   adc zpb0
+//   sta zpb0
+//   jmp cls_done
+// cls_middle:
+//   ldx #1
+//   lda collision_metadata_row0, x
+//   and #%10000000
+//   bne cls_middle_collided
+//   lda collision_metadata_row1, x
+//   and #%10000000
+//   bne cls_middle_collided
+//   lda collision_metadata_row2, x
+//   and #%10000000
+//   bne cls_middle_collided
+//   lda p1cy2
+//   cmp #25
+//   bcc cls_left // if < 3 player won't collide with bottom row
+//   lda collision_metadata_row3, x
+//   and #%10000000
+//   bne cls_middle_collided
+//   beq cls_left
+// cls_middle_collided:
+//   lda p1cx2
+//   sec
+//   sbc #8
+//   clc
+//   adc zpb0
+//   sta zpb0
+//   jmp cls_done
+// cls_left:
+//   ldx #0
+//   lda collision_metadata_row0, x
+//   and #%10000000
+//   bne cls_left_collided
+//   lda collision_metadata_row1, x
+//   and #%10000000
+//   bne cls_left_collided
+//   lda collision_metadata_row2, x
+//   and #%10000000
+//   bne cls_left_collided
+//   lda p1cy2
+//   cmp #25
+//   bcc cls_no_collision // if < 3 player won't collide with bottom row
+//   lda collision_metadata_row3, x
+//   and #%10000000
+//   bne cls_left_collided
+//   beq cls_no_collision
+// cls_left_collided:
+//   lda p1cx2
+//   clc
+//   adc zpb0
+//   sta zpb0
+//   jmp cls_done
+// cls_no_collision:
+// cls_done:
+//   lda zpb0
+//   sta collide_pixels_x
+//   rts
+
 collide_bottom_side:
+  lda #0
+  sta collide_pixels_y
+  rts
+
 collide_top_side:
   lda p1cy2
   cmp #25
-  bcc cts_row2
-cts_row3:
-  // if here, the player is past the top side of the bottom
-  // character of the collision area
+  bcc cts_no_collision
   ldx #0
   lda collision_metadata_row3, x
   and #%10000000
-  bne cts_row3_collided
+  bne cts_collision
   inx
   lda collision_metadata_row3, x
   and #%10000000
-  bne cts_row3_collided
+  bne cts_collision
+  lda p1cx2
+  cmp #17
+  bcc cts_no_collision
   inx
   lda collision_metadata_row3, x
   and #%10000000
-  bne cts_row3_collided
-  lda p1cx2
-  cmp #17
-  bcc cts_row2 // if player won't collide with right row
-  inx
-  lda collision_metadata_row3, x
-  and #%10000000
-  bne cts_row3_collided
-  beq cts_row2
-cts_row3_collided:
-  lda p1cy2
-  sec
-  sbc #24
-  sta collide_pixels_y
-  jmp cts_done
-cts_row2:
-  ldx #0
-  lda collision_metadata_row2, x
-  and #%10000000
-  bne cts_row2_collided
-  inx
-  lda collision_metadata_row2, x
-  and #%10000000
-  bne cts_row2_collided
-  inx
-  lda collision_metadata_row2, x
-  and #%10000000
-  bne cts_row2_collided
-  lda p1cx2
-  cmp #17
-  bcc cts_row1 // if player won't collide with right row
-  inx
-  lda collision_metadata_row2, x
-  and #%10000000
-  bne cts_row2_collided
-  beq cts_row1
-cts_row2_collided:
-  lda p1cy2
-  sec
-  sbc #16
-  sta collide_pixels_y
-  jmp cts_done
-cts_row1:
-  ldx #0
-  lda collision_metadata_row1, x
-  and #%10000000
-  bne cts_row1_collided
-  inx
-  lda collision_metadata_row1, x
-  and #%10000000
-  bne cts_row1_collided
-  inx
-  lda collision_metadata_row1, x
-  and #%10000000
-  bne cts_row1_collided
-  lda p1cx2
-  cmp #17
-  bcc cts_row0 // if player won't collide with right row
-  inx
-  lda collision_metadata_row1, x
-  and #%10000000
-  bne cts_row1_collided
-  beq cts_row0
-cts_row1_collided:
-  lda p1cy2
-  sec
-  sbc #8
-  sta collide_pixels_y
-  jmp cts_done
-cts_row0:
-  ldx #0
-  lda collision_metadata_row0, x
-  and #%10000000
-  bne cts_row0_collided
-  inx
-  lda collision_metadata_row0, x
-  and #%10000000
-  bne cts_row0_collided
-  inx
-  lda collision_metadata_row0, x
-  and #%10000000
-  bne cts_row0_collided
-  lda p1cx2
-  cmp #17
-  bcc cts_no_collision // if player won't collide with right row
-  inx
-  lda collision_metadata_row0, x
-  and #%10000000
-  bne cts_row0_collided
+  bne cts_collision
 cts_no_collision:
   lda #0
   sta collide_pixels_y
   beq cts_done
-cts_row0_collided:
+cts_collision:
   lda p1cy2
+  sec
+  sbc #24
   sta collide_pixels_y
 cts_done:
   rts
+
+// collide_top_side:
+//   lda p1cy2
+//   cmp #25
+//   bcc cts_row2
+// cts_row3:
+//   // if here, the player is past the top side of the bottom
+//   // character of the collision area
+//   ldx #0
+//   lda collision_metadata_row3, x
+//   and #%10000000
+//   bne cts_row3_collided
+//   inx
+//   lda collision_metadata_row3, x
+//   and #%10000000
+//   bne cts_row3_collided
+//   inx
+//   lda collision_metadata_row3, x
+//   and #%10000000
+//   bne cts_row3_collided
+//   lda p1cx2
+//   cmp #17
+//   bcc cts_row2 // if player won't collide with right column
+//   inx
+//   lda collision_metadata_row3, x
+//   and #%10000000
+//   bne cts_row3_collided
+//   beq cts_row2
+// cts_row3_collided:
+//   lda p1cy2
+//   sec
+//   sbc #24
+//   sta collide_pixels_y
+//   jmp cts_done
+// cts_row2:
+//   ldx #0
+//   lda collision_metadata_row2, x
+//   and #%10000000
+//   bne cts_row2_collided
+//   inx
+//   lda collision_metadata_row2, x
+//   and #%10000000
+//   bne cts_row2_collided
+//   inx
+//   lda collision_metadata_row2, x
+//   and #%10000000
+//   bne cts_row2_collided
+//   lda p1cx2
+//   cmp #17
+//   bcc cts_row1 // if player won't collide with right column
+//   inx
+//   lda collision_metadata_row2, x
+//   and #%10000000
+//   bne cts_row2_collided
+//   beq cts_row1
+// cts_row2_collided:
+//   lda p1cy2
+//   sec
+//   sbc #16
+//   sta collide_pixels_y
+//   jmp cts_done
+// cts_row1:
+//   ldx #0
+//   lda collision_metadata_row1, x
+//   and #%10000000
+//   bne cts_row1_collided
+//   inx
+//   lda collision_metadata_row1, x
+//   and #%10000000
+//   bne cts_row1_collided
+//   inx
+//   lda collision_metadata_row1, x
+//   and #%10000000
+//   bne cts_row1_collided
+//   lda p1cx2
+//   cmp #17
+//   bcc cts_row0 // if player won't collide with right col
+//   inx
+//   lda collision_metadata_row1, x
+//   and #%10000000
+//   bne cts_row1_collided
+//   beq cts_row0
+// cts_row1_collided:
+//   lda p1cy2
+//   sec
+//   sbc #8
+//   sta collide_pixels_y
+//   jmp cts_done
+// cts_row0:
+//   ldx #0
+//   lda collision_metadata_row0, x
+//   and #%10000000
+//   bne cts_row0_collided
+//   inx
+//   lda collision_metadata_row0, x
+//   and #%10000000
+//   bne cts_row0_collided
+//   inx
+//   lda collision_metadata_row0, x
+//   and #%10000000
+//   bne cts_row0_collided
+//   lda p1cx2
+//   cmp #17
+//   bcc cts_no_collision // if player won't collide with right col
+//   inx
+//   lda collision_metadata_row0, x
+//   and #%10000000
+//   bne cts_row0_collided
+// cts_no_collision:
+//   lda #0
+//   sta collide_pixels_y
+//   beq cts_done
+// cts_row0_collided:
+//   lda p1cy2
+//   sta collide_pixels_y
+// cts_done:
+//   rts
 
 collision_move_out_to_left:
   // stop character horizontal movement
@@ -1007,6 +1189,38 @@ collision_move_out_to_left:
   sta p1gx
   rts
 
+collision_move_out_to_right:
+  // stop character horizontal movement
+  lda #0
+  sta p1hva
+  sta p1hva+1
+  lda #hvzero
+  sta p1hvi
+
+  lda p1lx
+  clc
+  adc collide_pixels_x
+  sta p1lx
+  sta p1gx
+  lda p1lx+1
+  adc #0
+  sta p1lx+1
+  sta p1gx+1
+
+  // move to global coordinates with fractional
+  lda p1gx
+  rol
+  rol p1gx+1
+  rol
+  rol p1gx+1
+  rol
+  rol p1gx+1
+  rol
+  rol p1gx+1
+  and #%11110000
+  sta p1gx
+  rts
+
 collision_move_out_to_top:
   // stop character vertical movement
   // lda #0
@@ -1022,18 +1236,30 @@ collision_move_out_to_top:
   sta p1gy
 
   // move to global coordinates with fractional
+  lda #0
+  sta p1gy+1
   lda p1gy
   rol
+  rol p1gy+1
   rol
+  rol p1gy+1
   rol
+  rol p1gy+1
   // rol
   and #%11111000
   sta p1gy
+
+  lda #0
+  sta can_jump
   rts
 
 
 collision_moving_up:
+  lda #0
+  sta collide_pixels_x
+  sta collide_pixels_y
   rts
+
 collision_moving_down:
   jsr collide_top_side
   lda collide_pixels_y
@@ -1043,14 +1269,40 @@ cmd_collision:
   jsr collision_move_out_to_top
 cmd_done:
   rts
+
 collision_moving_left:
+  jsr collide_right_side
+  lda collide_pixels_x
+  beq cml_done
+  jsr collision_move_out_to_right
+cml_done:
   rts
+
+
 collision_moving_left_down:
+  jsr collide_top_side
+  lda collide_pixels_y
+  beq cmld_right_side
+  jsr collision_move_out_to_top
+cmld_right_side:
+  jsr collide_right_side
+  lda collide_pixels_x
+  beq cmld_done
+  jsr collision_move_out_to_right
+cmld_done:
   rts
+
 collision_moving_left_up:
+  lda #0
+  sta collide_pixels_x
+  sta collide_pixels_y
   rts
 
 collision_moving_right:
+  ldx #0
+  lda collision_metadata_row0, x
+  and #%10000000
+
   jsr collide_left_side
   lda collide_pixels_x
   bne cmr_collision
@@ -1061,29 +1313,63 @@ cmr_done:
   rts
 
 collision_moving_right_down:
-  jsr collide_left_side
   jsr collide_top_side
-  lda collide_pixels_x
-  bne cmrd_collision
   lda collide_pixels_y
-  bne cmrd_collision
-  beq cmrd_done
-cmrd_collision:
-  cmp collide_pixels_x
-  bcc cmrd_move_y
-  jsr collision_move_out_to_left
-  jmp cmrd_done
-cmrd_move_y:
+  beq cmrd_left
   jsr collision_move_out_to_top
+cmrd_left:
+  jsr collide_left_side
+  lda collide_pixels_x
+  beq cmrd_done
+  jsr collision_move_out_to_left
 cmrd_done:
   rts
 
+// collision_moving_right_down:
+//   jsr collide_left_side
+//   jsr collide_top_side
+//   lda collide_pixels_x
+//   bne cmrd_collision
+//   lda collide_pixels_y
+//   bne cmrd_collision
+//   beq cmrd_done
+// cmrd_collision:
+//   cmp collide_pixels_x
+//   bcc cmrd_move_y
+//   jsr collision_move_out_to_left
+//   jmp cmrd_done
+// cmrd_move_y:
+//   jsr collision_move_out_to_top
+// cmrd_done:
+//   rts
 
-collision_moving_right_up:
-  rts
+// collision_moving_right:
+//   jsr collide_left_side
+//   lda collide_pixels_x
+//   bne cmr_collision
+//   beq cmr_done
+// cmr_collision:
+//   jsr collision_move_out_to_left
+// cmr_done:
+//   rts
 
-collision_not_moving:
-  rts
+// collision_moving_right_down:
+//   jsr collide_left_side
+//   jsr collide_top_side
+//   lda collide_pixels_x
+//   bne cmrd_collision
+//   lda collide_pixels_y
+//   bne cmrd_collision
+//   beq cmrd_done
+// cmrd_collision:
+//   cmp collide_pixels_x
+//   bcc cmrd_move_y
+//   jsr collision_move_out_to_left
+//   jmp cmrd_done
+// cmrd_move_y:
+//   jsr collision_move_out_to_top
+// cmrd_done:
+//   rts
 
 updp1p:
   // vertical position first
@@ -1108,6 +1394,7 @@ updp1p:
  
   // moved below the bottom of the screen
   lda #0
+  sta can_jump
   sta p1vva
   lda #vvzero
   sta p1vvi
@@ -1246,6 +1533,7 @@ updp1hpt:
 collide_prep:
   // now we're in global, pixel coordinates, get information needed
   // for collision detection
+  
 
   // set the far right location of the character
   lda p1lx
@@ -1469,7 +1757,7 @@ collision_prep_done:
   jmp collided
 collideru:
   // moving right and up
-  jsr collision_moving_right_up
+  // jsr collision_moving_right_up
   jmp collided
 colliderz:
   // moving right, vertical zero
@@ -1485,7 +1773,7 @@ collidez:
   jmp collided
 collidezu:
   // not moving horiz, moving up
-  jsr collision_moving_up
+  // jsr collision_moving_up
   jmp collided
 collidel:
   // moving left
@@ -1497,7 +1785,7 @@ collidel:
   jmp collided
 collidelu:
   // moving left, moving up
-  jsr collision_moving_left_up
+  // jsr collision_moving_left_up
   jmp collided
 collidelz:
   // moving left, not moving vert
@@ -1505,9 +1793,33 @@ collidelz:
   jmp collided
 collidezz:
   // not moving horiz, not moving vert
-  jsr collision_not_moving
+  // jsr collision_not_moving
   jmp collided
 collided:
+  // TODO: remove
+  lda p1lx
+  sec
+  sbc p1lx_prev
+  sta delta_pixels_x
+  cmp max_delta_pixels_x
+  bmi blah1
+  bcc blah1
+  sta max_delta_pixels_x
+blah1:
+  lda p1ly
+  sec
+  sbc p1ly_prev
+  sta delta_pixels_y
+  cmp max_delta_pixels_y
+  bmi blah2
+  bcc blah2
+  sta max_delta_pixels_y
+blah2:
+  lda p1lx
+  sta p1lx_prev
+  lda p1ly
+  sta p1ly_prev
+
   // now subtract the first column visible from the global position to get the local 
   // position relative to left side of screen, in pixel coordinates
   lda p1lx
@@ -1535,9 +1847,12 @@ collided:
   sta p1sx+1
 
   lda p1ly
+  sta p1ly_prev
   clc
   adc #50
   sta p1sy
+  lda p1ly+1
+  sta p1ly_prev+1
 
   // sprite position is now calculated and stored in p1sx/p1sy, but we might
   // need to scroll which will impact the sprite position
@@ -1638,6 +1953,8 @@ p1hvi:       .byte 0
 p1hva:       .byte 0,0
 p1gx:        .byte 0,0
 p1lx:        .byte 0,0
+p1lx_delta:  .byte 0,0
+p1lx_prev:   .byte 0,0
 p1lx2:       .byte 0,0
 p1sx:        .byte 0,0
 p1cx:        .byte 0,0
@@ -1646,6 +1963,8 @@ p1vvi:       .byte 0
 p1vva:       .byte 0,0
 p1gy:        .byte 0,0
 p1ly:        .byte 0,0 // 2 bytes due to a quirk in calculation
+p1ly_delta:  .byte 0,0
+p1ly_prev:   .byte 0,0
 p1ly2:       .byte 0,0
 p1sy:        .byte 0
 p1cy:        .byte 0
@@ -1692,3 +2011,10 @@ collision_tile_temp_row: .byte 0
 collision_tile_temp_col: .byte 0
 collision_column_even:   .byte 0
 collision_row_even:      .byte 0
+can_jump:                .byte 0
+
+max_delta_pixels_x:            .byte 0
+max_delta_pixels_y:            .byte 0
+
+delta_pixels_x:          .byte 0
+delta_pixels_y:          .byte 0
