@@ -754,9 +754,12 @@ get_collision_tile_done:
 .macro set_material(tile_char, collision_metadata_row) {
   txa
   pha
-  lda tile_char, x                // get the character
+  lda SCR_char_tileset_tag, x    // get tile collision info
+  sta collision_metadata_row, y
+  lda tile_char, x               // get the character
   tax
-  lda SCR_char_attribs, x        // get the material
+  lda SCR_char_attribs, x        // get the char collision info (material)
+  and collision_metadata_row, y
   sta collision_metadata_row, y
   pla
   tax
@@ -1191,18 +1194,18 @@ ugs_collisions:
   bne ugs_not_on_ground
   ldx #0
   lda collision_metadata_row3, x
-  and #%10000000
+  and #%00100000
   bne ugs_on_ground
   inx
   lda collision_metadata_row3, x
-  and #%10000000
+  and #%00100000
   bne ugs_on_ground
   lda p1cx2
   cmp #17
   bcc ugs_not_on_ground
   inx
   lda collision_metadata_row3, x
-  and #%10000000
+  and #%00100000
   bne ugs_on_ground
 ugs_not_on_ground:
   lda #1
@@ -1213,6 +1216,16 @@ ugs_on_ground:
 ugs_done:
   rts
 
+// TODO:
+//   - Separate head collision from body to maybe help?
+//   - Only do upper collision on specific "ceiling" type tiles. Then default
+//     to colliding upwards first so we can glide along ceilings. None of the
+//     other tiles have the upwards collision field set.
+//   - Implement checking the right bits for collision
+//see this todo^
+
+// collision bits
+// LRTBxxxx
 collide_left_side:
   lda p1cx2
   cmp #17
@@ -1248,19 +1261,19 @@ cls_done:
 collide_right_side:
   ldx #0
   lda collision_metadata_row0, x
-  and #%10000000
+  and #%01000000
   bne crs_collision
   lda collision_metadata_row1, x
-  and #%10000000
+  and #%01000000
   bne crs_collision
   lda collision_metadata_row2, x
-  and #%10000000
+  and #%01000000
   bne crs_collision
   lda p1cy2
   cmp #25
   bcc crs_no_collision
   lda collision_metadata_row3, x
-  and #%10000000
+  and #%01000000
   bne crs_collision
 crs_no_collision:
   lda #0
@@ -1280,18 +1293,18 @@ collide_top_side:
   bcc cts_no_collision
   ldx #0
   lda collision_metadata_row3, x
-  and #%10000000
+  and #%00100000
   bne cts_collision
   inx
   lda collision_metadata_row3, x
-  and #%10000000
+  and #%00100000
   bne cts_collision
   lda p1cx2
   cmp #17
   bcc cts_no_collision
   inx
   lda collision_metadata_row3, x
-  and #%10000000
+  and #%00100000
   bne cts_collision
 cts_no_collision:
   lda #0
@@ -1308,18 +1321,18 @@ cts_done:
 collide_bottom_side:
   ldx #0
   lda collision_metadata_row0, x
-  and #%10000000
+  and #%00010000
   bne cbs_collision
   inx
   lda collision_metadata_row0, x
-  and #%10000000
+  and #%00010000
   bne cbs_collision
   lda p1cx2
   cmp #17
   bcc cbs_no_collision
   inx
   lda collision_metadata_row0, x
-  and #%10000000
+  and #%00010000
   bne cbs_collision
 cbs_no_collision:
   lda #0
@@ -1380,30 +1393,30 @@ cmld_done:
   rts
 
 collision_moving_left_up:
-  jsr collide_prep
-  jsr collide_right_side
-  lda collide_pixels_x
-  beq cmlu_bottom_side
-  jsr collision_move_out_to_right
-cmlu_bottom_side:
-  jsr collide_prep
-  jsr collide_bottom_side
-  lda collide_pixels_y
-  beq cmlu_done
-  jsr collision_move_out_to_bottom
-cmlu_done:
-//   jsr collide_prep
-//   jsr collide_bottom_side
-//   lda collide_pixels_y
-//   beq cmlu_right_side
-//   jsr collision_move_out_to_bottom
-// cmlu_right_side:
 //   jsr collide_prep
 //   jsr collide_right_side
 //   lda collide_pixels_x
-//   beq cmlu_done
+//   beq cmlu_bottom_side
 //   jsr collision_move_out_to_right
+// cmlu_bottom_side:
+//   jsr collide_prep
+//   jsr collide_bottom_side
+//   lda collide_pixels_y
+//   beq cmlu_done
+//   jsr collision_move_out_to_bottom
 // cmlu_done:
+  jsr collide_prep
+  jsr collide_bottom_side
+  lda collide_pixels_y
+  beq cmlu_right_side
+  jsr collision_move_out_to_bottom
+cmlu_right_side:
+  jsr collide_prep
+  jsr collide_right_side
+  lda collide_pixels_x
+  beq cmlu_done
+  jsr collision_move_out_to_right
+cmlu_done:
   rts
 
 collision_moving_right:
@@ -1433,30 +1446,30 @@ cmrd_done:
   rts
 
 collision_moving_right_up:
-  jsr collide_prep
-  jsr collide_left_side
-  lda collide_pixels_x
-  beq cmru_bottom
-  jsr collision_move_out_to_left
-cmru_bottom:
-  jsr collide_prep
-  jsr collide_bottom_side
-  lda collide_pixels_y
-  beq cmru_done
-  jsr collision_move_out_to_bottom
-cmru_done:
-//   jsr collide_prep
-//   jsr collide_bottom_side
-//   lda collide_pixels_y
-//   beq cmru_left
-//   jsr collision_move_out_to_bottom
-// cmru_left:
 //   jsr collide_prep
 //   jsr collide_left_side
 //   lda collide_pixels_x
-//   beq cmru_done
+//   beq cmru_bottom
 //   jsr collision_move_out_to_left
+// cmru_bottom:
+//   jsr collide_prep
+//   jsr collide_bottom_side
+//   lda collide_pixels_y
+//   beq cmru_done
+//   jsr collision_move_out_to_bottom
 // cmru_done:
+  jsr collide_prep
+  jsr collide_bottom_side
+  lda collide_pixels_y
+  beq cmru_left
+  jsr collision_move_out_to_bottom
+cmru_left:
+  jsr collide_prep
+  jsr collide_left_side
+  lda collide_pixels_x
+  beq cmru_done
+  jsr collision_move_out_to_left
+cmru_done:
   rts
 
 
