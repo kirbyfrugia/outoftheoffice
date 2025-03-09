@@ -133,12 +133,15 @@ init:
   jsr SCR_draw_screen
 
 loop:
-  lda #%10000000
-  bit $d011
-  bne loop // msb of raster is set, so do nothing
   lda $d012
-  cmp #13 // https://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt (Section 3.4)
+  cmp #$fa
   bne loop
+  // lda #%10000000
+  // bit $d011
+  // bne loop  // msb of raster is set, so do nothing
+  // lda $d012
+  // cmp #13   // https://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt (Section 3.4)
+  // bne loop
 
   // use odd/even frames since the buffer flip may be faster
   // than the raster blank area
@@ -190,13 +193,14 @@ loop_swap_to_back:
   SCR_update_scroll_register()
 move_color:
   lda SCR_color_flag
-  beq swap_buffer
+  beq move_color_done
   cmp #%00000001
   beq swap_color_left
   jsr SCR_move_color_right
   jmp loop
 swap_color_left:
   jsr SCR_move_color_left
+move_color_done:
   jmp loop
 
 cls:
