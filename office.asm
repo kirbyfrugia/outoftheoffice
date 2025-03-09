@@ -1021,9 +1021,10 @@ collision_prep_done:
 collision_move_out_to_left:
   // stop character horizontal movement
   lda #0
-  sta p1hva
   sta p1hva+1
-  lda #hvzero
+  lda #$f8
+  sta p1hva
+  lda #(hvzero-8)
   sta p1hvi
 
   lda p1cx
@@ -1056,16 +1057,17 @@ collision_move_out_to_left:
   rol p1gx+1
   rol
   rol p1gx+1
-  and #%11110000
+  ora #%00001111
   sta p1gx
   rts
 
 collision_move_out_to_right:
   // stop character horizontal movement
   lda #0
-  sta p1hva
   sta p1hva+1
-  lda #hvzero
+  lda #8
+  sta p1hva
+  lda #(hvzero+8)
   sta p1hvi
 
   lda p1cx
@@ -1099,6 +1101,7 @@ collision_move_out_to_right:
   rol
   rol p1gx+1
   and #%11110000
+  //ora #%00000011 // add some subpixels so we're no longer colliding
   sta p1gx
   rts
 
@@ -1195,12 +1198,14 @@ update_ground_status:
   cmp maxp1gy
   bcs ugs_on_ground
 ugs_collisions:
+  // TODO: do we really need to do this so many times?
+  jsr collide_prep
+
   lda p1cy2
   // player isn't on the ground if their feet aren't about
   // to enter the next screen char down
   cmp #24
   bne ugs_not_on_ground
-  // if 
   ldx #0
   lda collision_metadata_row3, x
   and #%10000000
@@ -1393,17 +1398,29 @@ cmld_done:
 
 collision_moving_left_up:
   jsr collide_prep
-  jsr collide_bottom_side
-  lda collide_pixels_y
-  beq cmlu_right_side
-  jsr collision_move_out_to_bottom
-cmlu_right_side:
-  jsr collide_prep
   jsr collide_right_side
   lda collide_pixels_x
-  beq cmlu_done
+  beq cmlu_bottom_side
   jsr collision_move_out_to_right
+cmlu_bottom_side:
+  jsr collide_prep
+  jsr collide_bottom_side
+  lda collide_pixels_y
+  beq cmlu_done
+  jsr collision_move_out_to_bottom
 cmlu_done:
+//   jsr collide_prep
+//   jsr collide_bottom_side
+//   lda collide_pixels_y
+//   beq cmlu_right_side
+//   jsr collision_move_out_to_bottom
+// cmlu_right_side:
+//   jsr collide_prep
+//   jsr collide_right_side
+//   lda collide_pixels_x
+//   beq cmlu_done
+//   jsr collision_move_out_to_right
+// cmlu_done:
   rts
 
 collision_moving_right:
@@ -1434,17 +1451,29 @@ cmrd_done:
 
 collision_moving_right_up:
   jsr collide_prep
-  jsr collide_bottom_side
-  lda collide_pixels_y
-  beq cmru_left
-  jsr collision_move_out_to_bottom
-cmru_left:
-  jsr collide_prep
   jsr collide_left_side
   lda collide_pixels_x
-  beq cmru_done
+  beq cmru_bottom
   jsr collision_move_out_to_left
+cmru_bottom:
+  jsr collide_prep
+  jsr collide_bottom_side
+  lda collide_pixels_y
+  beq cmru_done
+  jsr collision_move_out_to_bottom
 cmru_done:
+//   jsr collide_prep
+//   jsr collide_bottom_side
+//   lda collide_pixels_y
+//   beq cmru_left
+//   jsr collision_move_out_to_bottom
+// cmru_left:
+//   jsr collide_prep
+//   jsr collide_left_side
+//   lda collide_pixels_x
+//   beq cmru_done
+//   jsr collision_move_out_to_left
+// cmru_done:
   rts
 
 
@@ -1634,16 +1663,18 @@ collided:
   lda p1lx
   sec
   sbc SCR_first_visible_column_pixels
-  sta p1lx
+  //sta p1lx
+  sta p1sx
   lda p1lx+1
   sbc SCR_first_visible_column_pixels+1
-  sta p1lx+1
+  //sta p1lx+1
+  sta p1sx+1
 
-  lda p1lx
+  lda p1sx
   clc
   adc #31
   sta p1sx
-  lda p1lx+1
+  lda p1sx+1
   adc #0
   sta p1sx+1
 
