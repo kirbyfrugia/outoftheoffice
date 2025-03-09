@@ -58,10 +58,6 @@ init:
   sta p1vva+1
   sta p1gx+1
   sta p1lx+1
-  sta delta_pixels_x
-  sta delta_pixels_y
-  sta max_delta_pixels_x
-  sta max_delta_pixels_y
 
   lda #hvzero
   sta p1hvi
@@ -522,13 +518,6 @@ log_back_line3:
 log_line3:
 
   ldy #1
-  lda collision_tile_temp_row
-  jsr loghexit
-  iny
-  lda collision_tile_temp_col
-  jsr loghexit
-
-  iny
   lda collision_row_even
   jsr loghexit
   iny
@@ -845,12 +834,6 @@ collide_prep:
   lda collision_column_even
   and #%00000001
   sta collision_column_even
-
-  // TODO: delete
-  lda SCR_TILE_ROW
-  sta collision_tile_temp_row
-  lda SCR_TILE_COL
-  sta collision_tile_temp_col
 
   // TODO:
   //   let's have the char contain the collision information in the material
@@ -1827,35 +1810,14 @@ maxp1gy:   .byte 0,0
 
 frame: .byte 0
 
-collision_tile_x:      .byte 0,0 // two bytes, 2nd needed during calc
-collision_tile_y:      .byte 0
-collision_tile:        .byte 0
-collide_x:             .byte 0
-collide_y:             .byte 0
-
 collide_pixels_x: .byte 0
 collide_pixels_y: .byte 0
 
-collide_min_char_x: .byte 0,0
-collide_min_char_y: .byte 0
-collide_max_char_x: .byte 0,0
-collide_max_char_y: .byte 0
-
-collision_metadata:
 collision_metadata_row0: .byte 0,0,0
 collision_metadata_row1: .byte 0,0,0
 collision_metadata_row2: .byte 0,0,0
 collision_metadata_row3: .byte 0,0,0
 
-collision_tile_temp_row: .byte 0
-collision_tile_temp_col: .byte 0
 collision_column_even:   .byte 0
 collision_row_even:      .byte 0
-// can_jump:                .byte 0
 on_ground:               .byte 0
-
-max_delta_pixels_x:            .byte 0
-max_delta_pixels_y:            .byte 0
-
-delta_pixels_x:          .byte 0
-delta_pixels_y:          .byte 0
