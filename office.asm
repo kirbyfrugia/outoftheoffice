@@ -773,482 +773,7 @@ get_collision_tile_done:
   tax
 }
 
-
-collision_move_out_to_left:
-  // stop character horizontal movement
-  lda #0
-  sta p1hva
-  sta p1hva+1
-  lda #hvzero
-  sta p1hvi
-
-  lda p1cx
-  sec
-  sbc collide_pixels_x
-  sta p1cx
-  
-  lda p1cx2
-  sec
-  sbc collide_pixels_x
-  sta p1cx2
-
-  lda p1lx
-  sec
-  sbc collide_pixels_x
-  sta p1lx
-  sta p1gx
-  lda p1lx+1
-  sbc #0
-  sta p1lx+1
-  sta p1gx+1
-
-  // move to global coordinates with fractional
-  lda p1gx
-  rol
-  rol p1gx+1
-  rol
-  rol p1gx+1
-  rol
-  rol p1gx+1
-  rol
-  rol p1gx+1
-  and #%11110000
-  sta p1gx
-  rts
-
-collision_move_out_to_right:
-  // stop character horizontal movement
-  lda #0
-  sta p1hva
-  sta p1hva+1
-  lda #hvzero
-  sta p1hvi
-
-  lda p1cx
-  clc
-  adc collide_pixels_x
-  sta p1cx
-
-  lda p1cx2
-  clc
-  adc collide_pixels_x
-  sta p1cx2
-
-  lda p1lx
-  clc
-  adc collide_pixels_x
-  sta p1lx
-  sta p1gx
-  lda p1lx+1
-  adc #0
-  sta p1lx+1
-  sta p1gx+1
-
-  // move to global coordinates with fractional
-  lda p1gx
-  rol
-  rol p1gx+1
-  rol
-  rol p1gx+1
-  rol
-  rol p1gx+1
-  rol
-  rol p1gx+1
-  and #%11110000
-  sta p1gx
-  rts
-
-collision_move_out_to_top:
-  // stop character vertical movement
-  // lda #0
-  // sta p1vva
-  // sta p1vva+1
-  // lda #vvzero
-  // sta p1vvi
-
-  lda p1cy
-  sec
-  sbc collide_pixels_y
-  sta p1cy
-
-  lda p1cy2
-  sec
-  sbc collide_pixels_y
-  sta p1cy2
-
-  lda p1ly
-  sec
-  sbc collide_pixels_y
-  sta p1ly
-  sta p1gy
-
-  // move to global coordinates with fractional
-  lda #0
-  sta p1gy+1
-  lda p1gy
-  rol
-  rol p1gy+1
-  rol
-  rol p1gy+1
-  rol
-  rol p1gy+1
-  // rol
-  and #%11111000
-  sta p1gy
-  rts
-
-collision_move_out_to_bottom:
-  // stop character vertical movement
-  lda #0
-  sta p1vva
-  sta p1vva+1
-  lda #vvzero
-  sta p1vvi
-
-  lda p1cy
-  clc
-  adc collide_pixels_y
-  sta p1cy
-
-  lda p1cy2
-  clc
-  adc collide_pixels_y
-  sta p1cy2
-
-  lda p1ly
-  clc
-  adc collide_pixels_y
-  sta p1ly
-  sta p1gy
-
-  // move to global coordinates with fractional
-  lda #0
-  sta p1gy+1
-  lda p1gy
-  rol
-  rol p1gy+1
-  rol
-  rol p1gy+1
-  rol
-  rol p1gy+1
-  // rol
-  and #%11111000
-  sta p1gy
-
-  rts
-
-// Should only be called after collision detection
-update_ground_status:
-  // first check if character is at bottom of screen
-  lda p1ly+1
-  cmp maxp1gy+1
-  bcc ugs_collisions
-  lda p1ly
-  cmp maxp1gy
-  bcs ugs_on_ground
-ugs_collisions:
-  lda p1cy2
-  // player isn't on the ground if their feet aren't about
-  // to enter the next screen char down
-  cmp #24
-  bne ugs_not_on_ground
-  // if 
-  ldx #0
-  lda collision_metadata_row3, x
-  and #%10000000
-  bne ugs_on_ground
-  inx
-  lda collision_metadata_row3, x
-  and #%10000000
-  bne ugs_on_ground
-  lda p1cx2
-  cmp #17
-  bcc ugs_not_on_ground
-  inx
-  lda collision_metadata_row3, x
-  and #%10000000
-  bne ugs_on_ground
-ugs_not_on_ground:
-  lda #1
-  sta on_ground
-  bne ugs_done
-ugs_on_ground:
-  set_on_ground()
-ugs_done:
-  rts
-
-collide_left_side:
-  lda p1cx2
-  cmp #17
-  bcc cls_no_collision
-  ldx #2
-  lda collision_metadata_row0,x
-  and #%10000000
-  bne cls_collision
-  lda collision_metadata_row1,x
-  and #%10000000
-  bne cls_collision
-  lda collision_metadata_row2,x
-  and #%10000000
-  bne cls_collision
-  lda p1cy2
-  cmp #25
-  bcc cls_no_collision
-  lda collision_metadata_row3, x
-  and #%10000000
-  bne cls_collision
-cls_no_collision:
-  lda #0
-  sta collide_pixels_x
-  beq cls_done
-cls_collision:
-  lda p1cx2
-  sec
-  sbc #16
-  sta collide_pixels_x
-cls_done:
-  rts
-
-collide_right_side:
-  ldx #0
-  lda collision_metadata_row0, x
-  and #%10000000
-  bne crs_collision
-  lda collision_metadata_row1, x
-  and #%10000000
-  bne crs_collision
-  lda collision_metadata_row2, x
-  and #%10000000
-  bne crs_collision
-  lda p1cy2
-  cmp #25
-  bcc crs_no_collision
-  lda collision_metadata_row3, x
-  and #%10000000
-  bne crs_collision
-crs_no_collision:
-  lda #0
-  sta collide_pixels_x
-  beq crs_done
-crs_collision:
-  lda #8
-  sec
-  sbc p1cx
-  sta collide_pixels_x
-crs_done:
-  rts
-
-collide_top_side:
-  lda p1cy2
-  cmp #25
-  bcc cts_no_collision
-  ldx #0
-  lda collision_metadata_row3, x
-  and #%10000000
-  bne cts_collision
-  inx
-  lda collision_metadata_row3, x
-  and #%10000000
-  bne cts_collision
-  lda p1cx2
-  cmp #17
-  bcc cts_no_collision
-  inx
-  lda collision_metadata_row3, x
-  and #%10000000
-  bne cts_collision
-cts_no_collision:
-  lda #0
-  sta collide_pixels_y
-  beq cts_done
-cts_collision:
-  lda p1cy2
-  sec
-  sbc #24
-  sta collide_pixels_y
-cts_done:
-  rts
-
-collide_bottom_side:
-  ldx #0
-  lda collision_metadata_row0, x
-  and #%10000000
-  bne cbs_collision
-  inx
-  lda collision_metadata_row0, x
-  and #%10000000
-  bne cbs_collision
-  lda p1cx2
-  cmp #17
-  bcc cbs_no_collision
-  inx
-  lda collision_metadata_row0, x
-  and #%10000000
-  bne cbs_collision
-cbs_no_collision:
-  lda #0
-  sta collide_pixels_y
-  beq cbs_done
-cbs_collision:
-  lda #8
-  sec
-  sbc p1cy
-  sta collide_pixels_y
-cbs_done:
-  rts
-
-collision_moving_up:
-  jsr collide_bottom_side
-  lda collide_pixels_y
-  beq cmd_done
-cmu_collision:
-  jsr collision_move_out_to_bottom
-cmu_done:
-  rts
-
-collision_moving_down:
-  jsr collide_top_side
-  lda collide_pixels_y
-  bne cmd_collision
-  beq cmd_done
-cmd_collision:
-  jsr collision_move_out_to_top
-cmd_done:
-  rts
-
-collision_moving_left:
-  jsr collide_right_side
-  lda collide_pixels_x
-  beq cml_done
-  jsr collision_move_out_to_right
-cml_done:
-  rts
-
-
-collision_moving_left_down:
-  jsr collide_top_side
-  lda collide_pixels_y
-  beq cmld_right_side
-  jsr collision_move_out_to_top
-cmld_right_side:
-  jsr collide_right_side
-  lda collide_pixels_x
-  beq cmld_done
-  jsr collision_move_out_to_right
-cmld_done:
-  rts
-
-collision_moving_left_up:
-  jsr collide_bottom_side
-  lda collide_pixels_y
-  beq cmlu_left
-  jsr collision_move_out_to_bottom
-cmlu_left:
-  jsr collide_left_side
-  lda collide_pixels_x
-  beq cmlu_done
-  jsr collision_move_out_to_left
-cmlu_done:
-  rts
-
-collision_moving_right:
-  jsr collide_left_side
-  lda collide_pixels_x
-  bne cmr_collision
-  beq cmr_done
-cmr_collision:
-  jsr collision_move_out_to_left
-cmr_done:
-  rts
-
-collision_moving_right_down:
-  jsr collide_top_side
-  lda collide_pixels_y
-  beq cmrd_left
-  jsr collision_move_out_to_top
-cmrd_left:
-  jsr collide_left_side
-  lda collide_pixels_x
-  beq cmrd_done
-  jsr collision_move_out_to_left
-cmrd_done:
-  rts
-
-collision_moving_right_up:
-  jsr collide_bottom_side
-  lda collide_pixels_y
-  beq cmru_left
-  jsr collision_move_out_to_bottom
-cmru_left:
-  jsr collide_left_side
-  lda collide_pixels_x
-  beq cmru_done
-  jsr collision_move_out_to_left
-cmru_done:
-  rts
-
-
-updp1p:
-  // vertical position first
-  lda p1gy
-  clc
-  adc p1vva
-  sta p1gy
-  sta p1ly
-
-  lda p1gy+1
-  adc p1vva+1
-  sta p1gy+1
-  sta p1ly+1
-
-  bmi updp1vpneg
-  
-  cmp maxp1gy+1
-  bcc updp1vpt
-  lda p1ly
-  cmp maxp1gy
-  bcc updp1vpt
- 
-  // moved below the bottom of the screen
-  set_on_ground()
-
-  lda maxp1gy
-  sta p1gy
-  lda maxp1gy+1
-  sta p1gy+1
-  lda #(200-p1height-40)
-  //lda #214
-  //lda #230
-  sta p1ly
-  bne updp1vpt_coll
-updp1vpneg:
-  // move would have moved char above level
-  lda #0
-  sta p1gy
-  sta p1gy+1
-  sta p1vva
-
-  lda #vvzero
-  sta p1vvi
-
-  //lda #50
-  lda #scrrow0
-  sta p1ly
-  bne updp1vpt_coll
-updp1vpt:
-  // valid move wrt level vertical bounds
-  // drop fractional part of position
-  clc
-  ror p1ly+1
-  ror p1ly
-  ror p1ly+1
-  ror p1ly
-  ror p1ly+1
-  ror p1ly
-  lda p1ly+1
-  and #%00011111
-  sta p1ly+1
-updp1vpt_coll:
+collide_prep:
   // now we're in global, pixel coordinates, get information needed
   // for collision detection
   lda p1ly
@@ -1277,73 +802,6 @@ updp1vpt_coll:
   and #%00000001
   sta collision_row_even
 
-updp1hp:
-  // Update global position of character in level
-  lda p1gx
-  clc
-  adc p1hva
-  sta p1gx  
-  sta p1lx
-
-  lda p1gx+1
-  adc p1hva+1
-  sta p1gx+1
-  sta p1lx+1
-
-  bmi updp1hpneg
-
-  cmp maxp1gx+1
-  bcc updp1hpt
-  lda p1lx
-  cmp maxp1gx
-  bcc updp1hpt
-
-  // if here, moved past right of level
-
-  // stop character horizontal movement
-  lda #0
-  sta p1hva
-  sta p1hva+1
-  lda #hvzero
-  sta p1hvi
-
-  // update player position to furthest right position possible
-  lda maxp1gx
-  sta p1gx
-  sta p1lx
-  lda maxp1gx+1
-  sta p1gx+1
-  sta p1lx+1
-  jmp updp1hpt
-updp1hpneg:
-  // move would have moved char to left of level
-  // update position to far left of level and stop horiz movement
-  lda #0
-  sta p1gx
-  sta p1gx+1
-  sta p1lx
-  sta p1lx+1
-  sta p1hva
-  sta p1hva+1
-
-  lda #hvzero
-  sta p1hvi
-  jmp collide_prep
-updp1hpt:
-  // get rid of the fractional portion
-  ror p1lx+1
-  ror p1lx 
-  ror p1lx+1
-  ror p1lx 
-  ror p1lx+1
-  ror p1lx 
-  ror p1lx+1
-  ror p1lx 
-  lda p1lx+1
-  and #%00001111
-  sta p1lx+1
-
-collide_prep:
   // now we're in global, pixel coordinates, get information needed
   // for collision detection
   
@@ -1556,8 +1014,569 @@ column_even_row_odd:
   get_collision_tile(SCR_TILE_ROW, SCR_TILE_COL)
   iny
   set_material(SCR_tiles_ul, collision_metadata_row3)
-
 collision_prep_done:
+  rts
+
+
+collision_move_out_to_left:
+  // stop character horizontal movement
+  lda #0
+  sta p1hva
+  sta p1hva+1
+  lda #hvzero
+  sta p1hvi
+
+  lda p1cx
+  sec
+  sbc collide_pixels_x
+  sta p1cx
+  
+  lda p1cx2
+  sec
+  sbc collide_pixels_x
+  sta p1cx2
+
+  lda p1lx
+  sec
+  sbc collide_pixels_x
+  sta p1lx
+  sta p1gx
+  lda p1lx+1
+  sbc #0
+  sta p1lx+1
+  sta p1gx+1
+
+  // move to global coordinates with fractional
+  lda p1gx
+  rol
+  rol p1gx+1
+  rol
+  rol p1gx+1
+  rol
+  rol p1gx+1
+  rol
+  rol p1gx+1
+  and #%11110000
+  sta p1gx
+  rts
+
+collision_move_out_to_right:
+  // stop character horizontal movement
+  lda #0
+  sta p1hva
+  sta p1hva+1
+  lda #hvzero
+  sta p1hvi
+
+  lda p1cx
+  clc
+  adc collide_pixels_x
+  sta p1cx
+
+  lda p1cx2
+  clc
+  adc collide_pixels_x
+  sta p1cx2
+
+  lda p1lx
+  clc
+  adc collide_pixels_x
+  sta p1lx
+  sta p1gx
+  lda p1lx+1
+  adc #0
+  sta p1lx+1
+  sta p1gx+1
+
+  // move to global coordinates with fractional
+  lda p1gx
+  rol
+  rol p1gx+1
+  rol
+  rol p1gx+1
+  rol
+  rol p1gx+1
+  rol
+  rol p1gx+1
+  and #%11110000
+  sta p1gx
+  rts
+
+collision_move_out_to_top:
+  // stop character vertical movement
+  // lda #0
+  // sta p1vva
+  // sta p1vva+1
+  // lda #vvzero
+  // sta p1vvi
+
+  lda p1cy
+  sec
+  sbc collide_pixels_y
+  sta p1cy
+
+  lda p1cy2
+  sec
+  sbc collide_pixels_y
+  sta p1cy2
+
+  lda p1ly
+  sec
+  sbc collide_pixels_y
+  sta p1ly
+  sta p1gy
+  lda p1ly+1
+  sbc #0
+  sta p1ly+1
+  sta p1gy+1
+
+  // move to global coordinates with fractional
+  lda p1gy
+  rol
+  rol p1gy+1
+  rol
+  rol p1gy+1
+  rol
+  rol p1gy+1
+  // rol
+  and #%11111000
+  sta p1gy
+  rts
+
+collision_move_out_to_bottom:
+  // stop character vertical movement
+  lda #0
+  sta p1vva
+  sta p1vva+1
+  lda #vvzero
+  sta p1vvi
+
+  lda p1cy
+  clc
+  adc collide_pixels_y
+  sta p1cy
+
+  lda p1cy2
+  clc
+  adc collide_pixels_y
+  sta p1cy2
+
+  lda p1ly
+  clc
+  adc collide_pixels_y
+  sta p1ly
+  sta p1gy
+  lda p1ly+1
+  adc #0
+  sta p1ly+1
+  sta p1gy+1
+
+  // move to global coordinates with fractional
+  lda p1gy
+  rol
+  rol p1gy+1
+  rol
+  rol p1gy+1
+  rol
+  rol p1gy+1
+  // rol
+  and #%11111000
+  sta p1gy
+
+  rts
+
+// Should only be called after collision detection
+update_ground_status:
+  // first check if character is at bottom of screen
+  lda p1ly+1
+  cmp maxp1gy+1
+  bcc ugs_collisions
+  lda p1ly
+  cmp maxp1gy
+  bcs ugs_on_ground
+ugs_collisions:
+  lda p1cy2
+  // player isn't on the ground if their feet aren't about
+  // to enter the next screen char down
+  cmp #24
+  bne ugs_not_on_ground
+  // if 
+  ldx #0
+  lda collision_metadata_row3, x
+  and #%10000000
+  bne ugs_on_ground
+  inx
+  lda collision_metadata_row3, x
+  and #%10000000
+  bne ugs_on_ground
+  lda p1cx2
+  cmp #17
+  bcc ugs_not_on_ground
+  inx
+  lda collision_metadata_row3, x
+  and #%10000000
+  bne ugs_on_ground
+ugs_not_on_ground:
+  lda #1
+  sta on_ground
+  bne ugs_done
+ugs_on_ground:
+  set_on_ground()
+ugs_done:
+  rts
+
+collide_left_side:
+  lda p1cx2
+  cmp #17
+  bcc cls_no_collision
+  ldx #2
+  lda collision_metadata_row0,x
+  and #%10000000
+  bne cls_collision
+  lda collision_metadata_row1,x
+  and #%10000000
+  bne cls_collision
+  lda collision_metadata_row2,x
+  and #%10000000
+  bne cls_collision
+  lda p1cy2
+  cmp #25
+  bcc cls_no_collision
+  lda collision_metadata_row3, x
+  and #%10000000
+  bne cls_collision
+cls_no_collision:
+  lda #0
+  sta collide_pixels_x
+  beq cls_done
+cls_collision:
+  lda p1cx2
+  sec
+  sbc #16
+  sta collide_pixels_x
+cls_done:
+  rts
+
+collide_right_side:
+  ldx #0
+  lda collision_metadata_row0, x
+  and #%10000000
+  bne crs_collision
+  lda collision_metadata_row1, x
+  and #%10000000
+  bne crs_collision
+  lda collision_metadata_row2, x
+  and #%10000000
+  bne crs_collision
+  lda p1cy2
+  cmp #25
+  bcc crs_no_collision
+  lda collision_metadata_row3, x
+  and #%10000000
+  bne crs_collision
+crs_no_collision:
+  lda #0
+  sta collide_pixels_x
+  beq crs_done
+crs_collision:
+  lda #8
+  sec
+  sbc p1cx
+  sta collide_pixels_x
+crs_done:
+  rts
+
+collide_top_side:
+  lda p1cy2
+  cmp #25
+  bcc cts_no_collision
+  ldx #0
+  lda collision_metadata_row3, x
+  and #%10000000
+  bne cts_collision
+  inx
+  lda collision_metadata_row3, x
+  and #%10000000
+  bne cts_collision
+  lda p1cx2
+  cmp #17
+  bcc cts_no_collision
+  inx
+  lda collision_metadata_row3, x
+  and #%10000000
+  bne cts_collision
+cts_no_collision:
+  lda #0
+  sta collide_pixels_y
+  beq cts_done
+cts_collision:
+  lda p1cy2
+  sec
+  sbc #24
+  sta collide_pixels_y
+cts_done:
+  rts
+
+collide_bottom_side:
+  ldx #0
+  lda collision_metadata_row0, x
+  and #%10000000
+  bne cbs_collision
+  inx
+  lda collision_metadata_row0, x
+  and #%10000000
+  bne cbs_collision
+  lda p1cx2
+  cmp #17
+  bcc cbs_no_collision
+  inx
+  lda collision_metadata_row0, x
+  and #%10000000
+  bne cbs_collision
+cbs_no_collision:
+  lda #0
+  sta collide_pixels_y
+  beq cbs_done
+cbs_collision:
+  lda #8
+  sec
+  sbc p1cy
+  sta collide_pixels_y
+cbs_done:
+  rts
+
+collision_moving_up:
+  jsr collide_prep
+  jsr collide_bottom_side
+  lda collide_pixels_y
+  beq cmd_done
+cmu_collision:
+  jsr collision_move_out_to_bottom
+cmu_done:
+  rts
+
+collision_moving_down:
+  jsr collide_prep
+  jsr collide_top_side
+  lda collide_pixels_y
+  bne cmd_collision
+  beq cmd_done
+cmd_collision:
+  jsr collision_move_out_to_top
+cmd_done:
+  rts
+
+collision_moving_left:
+  jsr collide_prep
+  jsr collide_right_side
+  lda collide_pixels_x
+  beq cml_done
+  jsr collision_move_out_to_right
+cml_done:
+  rts
+
+
+collision_moving_left_down:
+  jsr collide_prep
+  jsr collide_top_side
+  lda collide_pixels_y
+  beq cmld_right_side
+  jsr collision_move_out_to_top
+cmld_right_side:
+  jsr collide_prep
+  jsr collide_right_side
+  lda collide_pixels_x
+  beq cmld_done
+  jsr collision_move_out_to_right
+cmld_done:
+  rts
+
+collision_moving_left_up:
+  jsr collide_prep
+  jsr collide_bottom_side
+  lda collide_pixels_y
+  beq cmlu_right_side
+  jsr collision_move_out_to_bottom
+cmlu_right_side:
+  jsr collide_prep
+  jsr collide_right_side
+  lda collide_pixels_x
+  beq cmlu_done
+  jsr collision_move_out_to_right
+cmlu_done:
+  rts
+
+collision_moving_right:
+  jsr collide_prep
+  jsr collide_left_side
+  lda collide_pixels_x
+  bne cmr_collision
+  beq cmr_done
+cmr_collision:
+  jsr collision_move_out_to_left
+cmr_done:
+  rts
+
+collision_moving_right_down:
+  jsr collide_prep
+  jsr collide_top_side
+  lda collide_pixels_y
+  beq cmrd_left
+  jsr collision_move_out_to_top
+cmrd_left:
+  jsr collide_prep
+  jsr collide_left_side
+  lda collide_pixels_x
+  beq cmrd_done
+  jsr collision_move_out_to_left
+cmrd_done:
+  rts
+
+collision_moving_right_up:
+  jsr collide_prep
+  jsr collide_bottom_side
+  lda collide_pixels_y
+  beq cmru_left
+  jsr collision_move_out_to_bottom
+cmru_left:
+  jsr collide_prep
+  jsr collide_left_side
+  lda collide_pixels_x
+  beq cmru_done
+  jsr collision_move_out_to_left
+cmru_done:
+  rts
+
+
+updp1p:
+  // vertical position first
+  lda p1gy
+  clc
+  adc p1vva
+  sta p1gy
+  sta p1ly
+
+  lda p1gy+1
+  adc p1vva+1
+  sta p1gy+1
+  sta p1ly+1
+
+  bmi updp1vpneg
+  
+  cmp maxp1gy+1
+  bcc updp1vpt
+  lda p1ly
+  cmp maxp1gy
+  bcc updp1vpt
+ 
+  // moved below the bottom of the screen
+  set_on_ground()
+
+  lda maxp1gy
+  sta p1gy
+  lda maxp1gy+1
+  sta p1gy+1
+  lda #(200-p1height-40)
+  //lda #214
+  //lda #230
+  sta p1ly
+  bne updp1vpt_coll
+updp1vpneg:
+  // move would have moved char above level
+  lda #0
+  sta p1gy
+  sta p1gy+1
+  sta p1vva
+
+  lda #vvzero
+  sta p1vvi
+
+  //lda #50
+  lda #scrrow0
+  sta p1ly
+  bne updp1vpt_coll
+updp1vpt:
+  // valid move wrt level vertical bounds
+  // drop fractional part of position
+  clc
+  ror p1ly+1
+  ror p1ly
+  ror p1ly+1
+  ror p1ly
+  ror p1ly+1
+  ror p1ly
+  lda p1ly+1
+  and #%00011111
+  sta p1ly+1
+updp1vpt_coll:
+
+updp1hp:
+  // Update global position of character in level
+  lda p1gx
+  clc
+  adc p1hva
+  sta p1gx  
+  sta p1lx
+
+  lda p1gx+1
+  adc p1hva+1
+  sta p1gx+1
+  sta p1lx+1
+
+  bmi updp1hpneg
+
+  cmp maxp1gx+1
+  bcc updp1hpt
+  lda p1lx
+  cmp maxp1gx
+  bcc updp1hpt
+
+  // if here, moved past right of level
+
+  // stop character horizontal movement
+  lda #0
+  sta p1hva
+  sta p1hva+1
+  lda #hvzero
+  sta p1hvi
+
+  // update player position to furthest right position possible
+  lda maxp1gx
+  sta p1gx
+  sta p1lx
+  lda maxp1gx+1
+  sta p1gx+1
+  sta p1lx+1
+  jmp updp1hpt
+updp1hpneg:
+  // move would have moved char to left of level
+  // update position to far left of level and stop horiz movement
+  lda #0
+  sta p1gx
+  sta p1gx+1
+  sta p1lx
+  sta p1lx+1
+  sta p1hva
+  sta p1hva+1
+
+  lda #hvzero
+  sta p1hvi
+  jmp start_collision
+updp1hpt:
+  // get rid of the fractional portion
+  ror p1lx+1
+  ror p1lx 
+  ror p1lx+1
+  ror p1lx 
+  ror p1lx+1
+  ror p1lx 
+  ror p1lx+1
+  ror p1lx 
+  lda p1lx+1
+  and #%00001111
+  sta p1lx+1
+
+start_collision:
   lda p1hva
   bmi collidel
   beq collidez
