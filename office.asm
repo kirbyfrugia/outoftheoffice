@@ -160,7 +160,7 @@ even_frame:
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
-  jsr log
+  // jsr log
   lda SCR_buffer_ready // need to redraw due to wrapping scroll register
   bne loop
   SCR_update_scroll_register() // only scroll if we didn't redraw
