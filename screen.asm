@@ -67,8 +67,8 @@
 .var SCR_sprite_sheet_prg    = $4ffe
 .var SCR_sprite_sheet        = $5000
 
-// X holds the tile index
-// Y holds the screen column
+// Y holds the tile index
+// X holds the screen column
 .macro SCR_draw_tile(scr_row_upper, scr_row_lower, row_addr) {
   tya
   pha
@@ -86,8 +86,8 @@
   tay
 }
 
-// X holds the tile index
-// Y holds the screen column
+// Y holds the tile index
+// X holds the screen column
 .macro SCR_draw_tile_left(scr_row_upper, scr_row_lower, row_addr) {
   tya
   pha
@@ -101,8 +101,8 @@
   tay
 }
 
-// X holds the tile index
-// Y holds the screen column
+// Y holds the tile index
+// X holds the screen column
 .macro SCR_draw_tile_right(scr_row_upper, scr_row_lower, row_addr) {
   tya
   pha
@@ -112,6 +112,32 @@
   sta scr_row_upper, x
   lda SCR_tiles_lr, y
   sta scr_row_lower, x
+  pla
+  tay
+}
+
+.macro SCR_draw_color_tile(color_row_upper, color_row_lower, row_addr) {
+  tya
+  pha
+  lda (row_addr), y
+  tay
+  lda SCR_char_tileset_attrib, y
+  sta color_row_upper, x
+  sta color_row_upper+1, x
+  sta color_row_lower, x
+  sta color_row_lower+1, x
+  pla
+  tay
+}
+
+.macro SCR_draw_color_tile_half(color_row_upper, color_row_lower, row_addr) {
+  tya
+  pha
+  lda (row_addr), y
+  tay
+  lda SCR_char_tileset_attrib, y
+  sta color_row_upper, x
+  sta color_row_lower, x
   pla
   tay
 }
@@ -264,7 +290,7 @@ lm_loaderr:
   // TODO: something better
 lm_loadd:
 
-  // now switch up tile format
+  // now switch up tile format for tiles
 
   // copy to scratch space
   lda #<SCR_raw_tiles
@@ -393,6 +419,17 @@ ds_loop:
   SCR_draw_tile(1584, 1624, SCR_TILE_ROW_7)
   SCR_draw_tile(1664, 1704, SCR_TILE_ROW_8)
   SCR_draw_tile(1744, 1784, SCR_TILE_ROW_9)
+  
+  SCR_draw_color_tile(55296, 55336, SCR_TILE_ROW_0)
+  SCR_draw_color_tile(55376, 55416, SCR_TILE_ROW_1)
+  SCR_draw_color_tile(55456, 55496, SCR_TILE_ROW_2)
+  SCR_draw_color_tile(55536, 55576, SCR_TILE_ROW_3)
+  SCR_draw_color_tile(55616, 55656, SCR_TILE_ROW_4)
+  SCR_draw_color_tile(55696, 55736, SCR_TILE_ROW_5)
+  SCR_draw_color_tile(55776, 55816, SCR_TILE_ROW_6) 
+  SCR_draw_color_tile(55856, 55896, SCR_TILE_ROW_7)
+  SCR_draw_color_tile(55936, 55976, SCR_TILE_ROW_8)
+  SCR_draw_color_tile(56016, 56056, SCR_TILE_ROW_9)
   // bottom two rows
   lda #66
   sta 1824, x
@@ -586,6 +623,19 @@ mcl_loop:
   beq mcl_loop_done
   jmp mcl_loop
 mcl_loop_done:
+  ldx #39
+  ldy SCR_last_visible_tile
+  SCR_draw_color_tile_half(55296, 55336, SCR_TILE_ROW_0)
+  SCR_draw_color_tile_half(55376, 55416, SCR_TILE_ROW_1)
+  SCR_draw_color_tile_half(55456, 55496, SCR_TILE_ROW_2)
+  SCR_draw_color_tile_half(55536, 55576, SCR_TILE_ROW_3)
+  SCR_draw_color_tile_half(55616, 55656, SCR_TILE_ROW_4)
+  SCR_draw_color_tile_half(55696, 55736, SCR_TILE_ROW_5)
+  SCR_draw_color_tile_half(55776, 55816, SCR_TILE_ROW_6) 
+  SCR_draw_color_tile_half(55856, 55896, SCR_TILE_ROW_7)
+  SCR_draw_color_tile_half(55936, 55976, SCR_TILE_ROW_8)
+  SCR_draw_color_tile_half(56016, 56056, SCR_TILE_ROW_9)
+
   rts
 
 SCR_move_screen_left:
@@ -746,6 +796,7 @@ msl_draw_right_side_front:
   SCR_draw_tile_right(1584, 1624, SCR_TILE_ROW_7)
   SCR_draw_tile_right(1664, 1704, SCR_TILE_ROW_8)
   SCR_draw_tile_right(1744, 1784, SCR_TILE_ROW_9)
+
   lda #0
   sta SCR_tile_offset
   jmp msl_loop_done
@@ -762,6 +813,7 @@ msl_load_new_tile_front:
   SCR_draw_tile_left(1584, 1624, SCR_TILE_ROW_7)
   SCR_draw_tile_left(1664, 1704, SCR_TILE_ROW_8)
   SCR_draw_tile_left(1744, 1784, SCR_TILE_ROW_9)
+
   lda #1
   sta SCR_tile_offset
 msl_loop_done:
@@ -828,6 +880,18 @@ mcr_loop:
   bmi mcr_loop_done
   jmp mcr_loop
 mcr_loop_done:
+  ldx #0
+  ldy SCR_first_visible_tile
+  SCR_draw_color_tile_half(55296, 55336, SCR_TILE_ROW_0)
+  SCR_draw_color_tile_half(55376, 55416, SCR_TILE_ROW_1)
+  SCR_draw_color_tile_half(55456, 55496, SCR_TILE_ROW_2)
+  SCR_draw_color_tile_half(55536, 55576, SCR_TILE_ROW_3)
+  SCR_draw_color_tile_half(55616, 55656, SCR_TILE_ROW_4)
+  SCR_draw_color_tile_half(55696, 55736, SCR_TILE_ROW_5)
+  SCR_draw_color_tile_half(55776, 55816, SCR_TILE_ROW_6) 
+  SCR_draw_color_tile_half(55856, 55896, SCR_TILE_ROW_7)
+  SCR_draw_color_tile_half(55936, 55976, SCR_TILE_ROW_8)
+  SCR_draw_color_tile_half(56016, 56056, SCR_TILE_ROW_9)
   rts
 
 SCR_move_screen_right:
@@ -900,6 +964,7 @@ msr_draw_left_side_back:
   SCR_draw_tile_left(2608, 2648, SCR_TILE_ROW_7)
   SCR_draw_tile_left(2688, 2728, SCR_TILE_ROW_8)
   SCR_draw_tile_left(2768, 2808, SCR_TILE_ROW_9)
+
   lda #0
   sta SCR_tile_offset
   jmp msr_loop_done
@@ -983,6 +1048,7 @@ msr_draw_left_side_front:
   SCR_draw_tile_left(1584, 1624, SCR_TILE_ROW_7)
   SCR_draw_tile_left(1664, 1704, SCR_TILE_ROW_8)
   SCR_draw_tile_left(1744, 1784, SCR_TILE_ROW_9)
+
   lda #0
   sta SCR_tile_offset
   jmp msr_loop_done
@@ -999,6 +1065,7 @@ msr_load_new_tile_front:
   SCR_draw_tile_right(1584, 1624, SCR_TILE_ROW_7)
   SCR_draw_tile_right(1664, 1704, SCR_TILE_ROW_8)
   SCR_draw_tile_right(1744, 1784, SCR_TILE_ROW_9)
+
   lda #1
   sta SCR_tile_offset
 msr_loop_done:
