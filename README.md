@@ -2,14 +2,23 @@
 
 # Pre-requisites
 
-* Install [denise](https://sourceforge.net/projects/deniseemu/) and add to path
+* Install [denise](https://sourceforge.net/projects/deniseemu/) or [vice](https://vice-emu.sourceforge.io/windows.html) and add to path
+* Install java
 * Install [KickAss (C64) VS Code extension](https://marketplace.visualstudio.com/items?itemName=CaptainJiNX.kickass-c64)
 * To edit the levels, install [CharPad C64 Pro](https://subchristsoftware.itch.io/charpad-c64-pro)
+* To edit the sprites, install [SpritePad 64 Pro](https://subchristsoftware.itch.io/spritepad-c64-pro)
 
 # Building
-./assemble.sh
+```./assemble.sh```
 
 # Running
-./run.sh
+
+Note: this was built for NTSC. It'll work in PAL, but setting your emulator to NTSC will work better.
+
+Run with denise:
+```./denise-run.sh```
+
+Run with vice:
+```./vice-run.sh```
 
 # Some helpful tools

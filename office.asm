@@ -550,32 +550,6 @@ log_line_3_loop:
 
   rts
 
-// // in its own subroutine just
-// // so we can time it
-// redraw:
-//   jsr gettime
-//   lda time
-//   sta ptime
-//   lda time+1
-//   sta ptime+1
-//   lda time+2
-//   sta ptime+2
-
-//   //jsr drawscrn
-//   jsr gettime
-
-//   lda time
-//   sec
-//   sbc ptime
-//   sta etime
-//   lda time+1
-//   sbc ptime+1
-//   sta etime+1
-//   lda time+2
-//   sbc ptime+2
-//   sta etime+2
-//   rts
-
 
 // How player velocity and positioning works.
 // Velocity
