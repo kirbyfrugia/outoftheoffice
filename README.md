@@ -21,4 +21,8 @@ Run with denise:
 Run with vice:
 ```./vice-run.sh```
 
+# Updating the sprites
+
+Edit data/sprites.asm in spritepad. After saving any changes, run ./data/charpad-to-kickass-sprites.sh
+
 # Some helpful tools
