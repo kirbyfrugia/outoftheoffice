@@ -8,17 +8,13 @@
 }
 
 .segment Office [outPrg="office.prg", start=$8000]
-//.var hvzero    = 127
-//.var maxhvl    = 88
-//.var maxhvr    = 166
-//
-//.var vvzero    = 127
-//.var maxvvu    = 93
-//.var maxvvd    = 161
-
 .var hvzero    = 127
 .var maxhvl    = 92
 .var maxhvr    = 162
+
+// .var hvzero    = 127
+// .var maxhvl    = 72
+// .var maxhvr    = 182
 
 .var vvzero    = 127
 .var maxvvu    = 100
@@ -30,6 +26,37 @@
 #import "const.asm"
 #import "utils.asm"
 #import "screen.asm"
+
+// Modifies X and A
+.macro copy_sprite(src, dest) {
+  ldx #63
+copy_sprite_data:
+  lda src, x
+  sta dest, x
+  dex
+  bpl copy_sprite_data
+}
+
+irq:
+  pha
+  txa
+  pha
+  tya
+  pha
+
+irqd:
+  lda #1
+  sta frame_tick
+  pla
+  tay
+  pla
+  tax
+  pla
+  // ack the interrupt
+  asl $D019
+  // let the kernal do its thing
+  jmp $EA31
+  //rti
 
 init:
   // switch out basic
@@ -98,10 +125,15 @@ init:
   rol p1gy+1
 
   lda #0
-  sta frame
+  sta frame_phase
+  sta current_buffer
+
+  lda #30
+  sta animation_frame
  
   jsr initui
   jsr initsys
+  jsr initirq
 
   jsr SCR_load_sprite_sheet
 
@@ -132,49 +164,46 @@ init:
   jsr SCR_init_screen
   jsr SCR_draw_screen
 
-loop:
-  lda $d012
-  cmp #$fa
-  bne loop
-  // lda #%10000000
-  // bit $d011
-  // bne loop  // msb of raster is set, so do nothing
-  // lda $d012
-  // cmp #13   // https://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt (Section 3.4)
-  // bne loop
+game_loop:
+  lda frame_tick
+  beq game_loop
+  sei
+  lda #0
+  sta frame_tick
+  cli
+  //jsr updanim
 
-  // use odd/even frames since the buffer flip may be faster
-  // than the raster blank area
-  lda frame
-  eor #%00000001
-  sta frame
-  beq even_frame
-  bne odd_frame
-even_frame:
-  lda SCR_buffer_ready // ignore input if we need to redraw
-  bne loop
-  lda #%00000000
-  sta SCR_color_flag
+  lda frame_phase
+  bne frame_phase_2
+frame_phase_1:
+  // In this phase, we do all the game logic
+  // We also do scrolling and update the back buffer
+  //   if we need to scroll the whole screen
+  // lda #0
+  // sta SCR_color_flag
+
   lda $dc00
   jsr injs
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
   // jsr log
-  lda SCR_buffer_ready // need to redraw due to wrapping scroll register
-  bne loop
-  SCR_update_scroll_register() // only scroll if we didn't redraw
-  jmp loop
-odd_frame:
+  
   lda SCR_buffer_ready
-  bne swap_buffer
-  // TODO: we have time here to do other stuff...
-  beq loop // scroll register didn't wrap
-swap_buffer:
-  lda #0
-  sta SCR_buffer_ready
+  bne frame_phase_1d
+  // only update scroll register if we didn't shift the screen
+  SCR_update_scroll_register()
+frame_phase_1d:
+  lda #1
+  sta frame_phase
+  jmp game_loop
+frame_phase_2:
+  lda SCR_buffer_ready
+  beq frame_phase_2_swapd
+frame_phase_2_swap:
+  // swap screen buffers
   lda SCR_buffer_flag
-  beq loop_swap_to_back
+  beq frame_phase_2_screen0800
   lda $d018
   and #%00001111
   ora #%00010000 // screen location 1024, $0400
@@ -182,8 +211,8 @@ swap_buffer:
   lda #0
   sta SCR_buffer_flag
   SCR_update_scroll_register()
-  jmp move_color
-loop_swap_to_back:
+  bne frame_phase_2_swapd
+frame_phase_2_screen0800:
   lda $d018
   and #%00001111
   ora #%00100000 // screen location 2048, $0800
@@ -191,17 +220,63 @@ loop_swap_to_back:
   lda #1
   sta SCR_buffer_flag
   SCR_update_scroll_register()
-move_color:
+frame_phase_2_swapd:
+  lda #0
+  sta SCR_buffer_ready
+
+  // shift the color memory if needed
   lda SCR_color_flag
-  beq move_color_done
+  beq frame_phase_2d // no need to shift color memory
   cmp #%00000001
-  beq swap_color_left
+  beq frame_phase_2_move_color_left
   jsr SCR_move_color_right
-  jmp loop
-swap_color_left:
+  jmp frame_phase_2d
+frame_phase_2_move_color_left:
   jsr SCR_move_color_left
-move_color_done:
-  jmp loop
+frame_phase_2d:
+  lda #0
+  sta frame_phase
+  sta SCR_color_flag
+  jmp game_loop
+
+
+// odd_frame:
+//   lda SCR_buffer_ready
+//   bne swap_buffer
+//   // TODO: we have time here to do other stuff...
+//   beq loop // scroll register didn't wrap
+// swap_buffer:
+//   lda #0
+//   sta SCR_buffer_ready
+//   lda SCR_buffer_flag
+//   beq loop_swap_to_back
+//   lda $d018
+//   and #%00001111
+//   ora #%00010000 // screen location 1024, $0400
+//   sta $d018
+//   lda #0
+//   sta SCR_buffer_flag
+//   SCR_update_scroll_register()
+//   jmp move_color
+// loop_swap_to_back:
+//   lda $d018
+//   and #%00001111
+//   ora #%00100000 // screen location 2048, $0800
+//   sta $d018
+//   lda #1
+//   sta SCR_buffer_flag
+//   SCR_update_scroll_register()
+// move_color:
+//   lda SCR_color_flag
+//   beq move_color_done
+//   cmp #%00000001
+//   beq swap_color_left
+//   jsr SCR_move_color_right
+//   jmp loop
+// swap_color_left:
+//   jsr SCR_move_color_left
+// move_color_done:
+//   jmp loop
 
 cls:
   ldy #0
@@ -242,16 +317,47 @@ initsys:
 
   lda #0
   sta $d020
+  rts
 
+initirq:
+  // disable interrupts
+  sei
+
+  // switch off interrupts from cia-1
+  lda #%01111111
+  sta $dc0d
+
+  // clear high raster bit
+  and $d011
+  sta $d011
+
+  // clear any pending interrupts from CIA-1/2
+  sta $dc0d
+  sta $dd0d
+
+  // // clear any pending raster IRQ
+  // lda #%11111111
+  // sta $d019
+
+  // raster line where interrupt will occur
+  lda #$00
+  sta $d012
+
+  // set interrupt handling routine
+  lda #<irq
+  sta $0314
+  lda #>irq
+  sta $0315
+
+  // enable raster interrupt source
+  lda #%00000001
+  sta $d01a
+
+  cli // re-enable interrupts
   rts
 
 initspr:
-  ldx #63
-copy_player_sprite:
-  lda sprite_image_0, x
-  sta SCR_sprite_data, x
-  dex
-  bpl copy_player_sprite
+  copy_sprite(sprite_image_0, SCR_sprite_data)
 
   // set sprite multi colors
   lda #sprmc0
@@ -1731,6 +1837,38 @@ updp1pmsb:
 updp1pd:
   rts
 
+
+
+updanim:
+  lda animation_frame
+  cmp #30
+  bne updanim_20
+  copy_sprite(sprite_image_0, SCR_sprite_data)
+  jmp updanim_upd_animation_frame
+updanim_20:
+  lda animation_frame
+  cmp #20
+  bne updanim_10
+  copy_sprite(sprite_image_1, SCR_sprite_data)
+  jmp updanim_upd_animation_frame
+updanim_10:
+  lda animation_frame
+  cmp #10
+  bne updanim_00
+  copy_sprite(sprite_image_2, SCR_sprite_data)
+  jmp updanim_upd_animation_frame
+updanim_00:
+  lda animation_frame
+  bne updanim_upd_animation_frame
+  copy_sprite(sprite_image_3, SCR_sprite_data)
+updanim_upd_animation_frame:
+  dec animation_frame
+  bne updanim_done
+  lda #30
+  sta animation_frame
+updanim_done:
+  rts
+
 // read a joystick
 // inputs
 //   A - joystick port value
@@ -1799,7 +1937,11 @@ tmp1:      .byte 0
 maxp1gx:   .byte 0,0
 maxp1gy:   .byte 0,0
 
-frame: .byte 0
+// TODO: move to zero page
+current_buffer:  .byte 0
+frame_phase:     .byte 0
+frame_tick:      .byte 0
+animation_frame: .byte 0
 
 collide_pixels_x: .byte 0
 collide_pixels_y: .byte 0

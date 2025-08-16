@@ -463,6 +463,7 @@ SCR_init_screen:
   lda #0
   sta SCR_buffer_flag
   sta SCR_buffer_ready
+  sta SCR_color_flag
   lda #0
   sta SCR_scroll_offset
   lda #%00000111
