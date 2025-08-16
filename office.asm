@@ -55,7 +55,7 @@ irqd:
   // ack the interrupt
   asl $D019
   // let the kernal do its thing
-  jmp $EA31
+  jmp (old_irq)
   //rti
 
 init:
@@ -108,9 +108,9 @@ init:
   clc
   rol p1gx
   rol p1gx+1
-  clc
-  rol p1gx
-  rol p1gx+1
+  // clc
+  // rol p1gx
+  // rol p1gx+1
 
   lda #176
   sta p1gy
@@ -340,8 +340,13 @@ initirq:
   // sta $d019
 
   // raster line where interrupt will occur
-  lda #$00
+  lda #$fa
   sta $d012
+
+  lda $0314
+  sta old_irq
+  lda $0315
+  sta old_irq+1
 
   // set interrupt handling routine
   lda #<irq
@@ -448,8 +453,8 @@ loadmap:
   rol maxp1gx+1
   rol maxp1gx
   rol maxp1gx+1
-  rol maxp1gx
-  rol maxp1gx+1
+  // rol maxp1gx
+  // rol maxp1gx+1
   lda maxp1gx
   and #%10000000
   sta maxp1gx
@@ -1125,8 +1130,8 @@ collision_move_out_to_left:
   rol p1gx+1
   rol
   rol p1gx+1
-  rol
-  rol p1gx+1
+  // rol
+  // rol p1gx+1
   ora #%00001111
   sta p1gx
   rts
@@ -1168,8 +1173,8 @@ collision_move_out_to_right:
   rol p1gx+1
   rol
   rol p1gx+1
-  rol
-  rol p1gx+1
+  // rol
+  // rol p1gx+1
   and #%11110000
   //ora #%00000011 // add some subpixels so we're no longer colliding
   sta p1gx
@@ -1679,8 +1684,8 @@ updp1hpt:
   ror p1lx 
   ror p1lx+1
   ror p1lx 
-  ror p1lx+1
-  ror p1lx 
+  // ror p1lx+1
+  // ror p1lx 
   lda p1lx+1
   and #%00001111
   sta p1lx+1
@@ -1954,3 +1959,5 @@ collision_metadata_row3: .byte 0,0,0
 collision_column_even:   .byte 0
 collision_row_even:      .byte 0
 on_ground:               .byte 0
+
+old_irq:                 .byte 0,0
