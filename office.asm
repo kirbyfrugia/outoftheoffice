@@ -12,10 +12,6 @@
 .var maxhvl    = 92
 .var maxhvr    = 162
 
-// .var hvzero    = 127
-// .var maxhvl    = 72
-// .var maxhvr    = 182
-
 .var vvzero    = 127
 .var maxvvu    = 100
 .var maxvvd    = 154
@@ -44,7 +40,12 @@ irq:
   tya
   pha
 
+  lda SCR_buffer_ready
+  beq irqd
+  jsr swap_buffers
+
 irqd:
+  SCR_update_scroll_register()
   lda #1
   sta frame_tick
   pla
@@ -108,9 +109,9 @@ init:
   clc
   rol p1gx
   rol p1gx+1
-  // clc
-  // rol p1gx
-  // rol p1gx+1
+  clc
+  rol p1gx
+  rol p1gx+1
 
   lda #176
   sta p1gy
@@ -173,110 +174,61 @@ game_loop:
   cli
   //jsr updanim
 
-  lda frame_phase
-  bne frame_phase_2
-frame_phase_1:
-  // In this phase, we do all the game logic
-  // We also do scrolling and update the back buffer
-  //   if we need to scroll the whole screen
-  // lda #0
-  // sta SCR_color_flag
-
+  // get input, do game logic, possibly move screen mem
   lda $dc00
   jsr injs
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
-  // jsr log
-  
+
+game_loop_swap:
+  // wait for buffer to swap
   lda SCR_buffer_ready
-  bne frame_phase_1d
-  // only update scroll register if we didn't shift the screen
-  SCR_update_scroll_register()
-frame_phase_1d:
-  lda #1
-  sta frame_phase
+  bne game_loop_swap
+
+  jsr shift_color_mem
   jmp game_loop
-frame_phase_2:
+
+swap_buffers:
   lda SCR_buffer_ready
-  beq frame_phase_2_swapd
-frame_phase_2_swap:
-  // swap screen buffers
+  beq swap_buffersd // no need to swap
   lda SCR_buffer_flag
-  beq frame_phase_2_screen0800
+  beq sb_screen0800
+
   lda $d018
   and #%00001111
   ora #%00010000 // screen location 1024, $0400
   sta $d018
   lda #0
   sta SCR_buffer_flag
-  SCR_update_scroll_register()
-  bne frame_phase_2_swapd
-frame_phase_2_screen0800:
+  beq swap_buffers_swapped
+sb_screen0800:
   lda $d018
   and #%00001111
   ora #%00100000 // screen location 2048, $0800
   sta $d018
   lda #1
   sta SCR_buffer_flag
-  SCR_update_scroll_register()
-frame_phase_2_swapd:
+swap_buffers_swapped:
   lda #0
   sta SCR_buffer_ready
+  // SCR_update_scroll_register()
+swap_buffersd:
+  rts
 
-  // shift the color memory if needed
+shift_color_mem:
   lda SCR_color_flag
-  beq frame_phase_2d // no need to shift color memory
+  beq shift_color_memd // no need to shift color memory
   cmp #%00000001
-  beq frame_phase_2_move_color_left
+  beq shift_color_mem_left
   jsr SCR_move_color_right
-  jmp frame_phase_2d
-frame_phase_2_move_color_left:
+  jmp shift_color_memd
+shift_color_mem_left:
   jsr SCR_move_color_left
-frame_phase_2d:
+shift_color_memd:
   lda #0
-  sta frame_phase
   sta SCR_color_flag
-  jmp game_loop
-
-
-// odd_frame:
-//   lda SCR_buffer_ready
-//   bne swap_buffer
-//   // TODO: we have time here to do other stuff...
-//   beq loop // scroll register didn't wrap
-// swap_buffer:
-//   lda #0
-//   sta SCR_buffer_ready
-//   lda SCR_buffer_flag
-//   beq loop_swap_to_back
-//   lda $d018
-//   and #%00001111
-//   ora #%00010000 // screen location 1024, $0400
-//   sta $d018
-//   lda #0
-//   sta SCR_buffer_flag
-//   SCR_update_scroll_register()
-//   jmp move_color
-// loop_swap_to_back:
-//   lda $d018
-//   and #%00001111
-//   ora #%00100000 // screen location 2048, $0800
-//   sta $d018
-//   lda #1
-//   sta SCR_buffer_flag
-//   SCR_update_scroll_register()
-// move_color:
-//   lda SCR_color_flag
-//   beq move_color_done
-//   cmp #%00000001
-//   beq swap_color_left
-//   jsr SCR_move_color_right
-//   jmp loop
-// swap_color_left:
-//   jsr SCR_move_color_left
-// move_color_done:
-//   jmp loop
+  rts
 
 cls:
   ldy #0
@@ -453,8 +405,8 @@ loadmap:
   rol maxp1gx+1
   rol maxp1gx
   rol maxp1gx+1
-  // rol maxp1gx
-  // rol maxp1gx+1
+  rol maxp1gx
+  rol maxp1gx+1
   lda maxp1gx
   and #%10000000
   sta maxp1gx
@@ -1130,8 +1082,8 @@ collision_move_out_to_left:
   rol p1gx+1
   rol
   rol p1gx+1
-  // rol
-  // rol p1gx+1
+  rol
+  rol p1gx+1
   ora #%00001111
   sta p1gx
   rts
@@ -1173,8 +1125,8 @@ collision_move_out_to_right:
   rol p1gx+1
   rol
   rol p1gx+1
-  // rol
-  // rol p1gx+1
+  rol
+  rol p1gx+1
   and #%11110000
   //ora #%00000011 // add some subpixels so we're no longer colliding
   sta p1gx
@@ -1684,8 +1636,8 @@ updp1hpt:
   ror p1lx 
   ror p1lx+1
   ror p1lx 
-  // ror p1lx+1
-  // ror p1lx 
+  ror p1lx+1
+  ror p1lx 
   lda p1lx+1
   and #%00001111
   sta p1lx+1

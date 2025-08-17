@@ -1100,8 +1100,8 @@ SCR_first_visible_column_pixels: .byte 0,0
 SCR_first_visible_tile:          .byte 0
 SCR_last_visible_tile:           .byte 0
 SCR_tile_offset:                 .byte 0
-SCR_buffer_flag:                 .byte 0
-SCR_buffer_ready:                .byte 0
+SCR_buffer_flag:                 .byte 0 // which buffer
+SCR_buffer_ready:                .byte 0 // buffer ready to be swapped
 SCR_color_flag:                  .byte 0
 SCR_tile_level_width:            .byte 0
 
