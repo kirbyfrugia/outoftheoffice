@@ -40,6 +40,41 @@ irq:
   tya
   pha
 
+  lda melody_started
+  beq melody_sustain // haven't started song yet
+  
+  dec melody_frames_until_16th
+  bpl melody_sustain // continue playing current note, haven't crossed a 16th yet
+  lda #9 // 100 bpm
+  sta melody_frames_until_16th
+  dec melody_duration_remaining
+  bpl melody_sustain // continue playing current note, still playing note
+
+melody_next_note:
+  ldx melody_index
+  cpx #(melody_end - melody)
+  bne melody_play_note
+  // looped to end of song
+  // release sawtooth waveform
+  lda #32
+  sta 54276 // turn off note
+  ldx #0
+  stx melody_index
+melody_play_note:
+  lda melody, x // hf
+  sta 54273
+  inx
+  lda melody, x  // lf
+  sta 54272
+  inx
+  lda melody, x // duration of note
+  sta melody_duration_remaining
+  inx
+  stx melody_index
+  lda #33 // play note, sawtooth wave form
+  sta 54276 
+melody_sustain:
+
   lda SCR_buffer_ready
   beq irqd
   jsr swap_buffers
@@ -53,11 +88,8 @@ irqd:
   pla
   tax
   pla
-  // ack the interrupt
-  asl $D019
-  // let the kernal do its thing
-  jmp (old_irq)
-  //rti
+  asl $D019     // ack the interrupt
+  jmp (old_irq) // let the kernal do its thing
 
 init:
   // switch out basic
@@ -131,9 +163,10 @@ init:
 
   lda #30
   sta animation_frame
- 
+
   jsr initui
   jsr initsys
+  jsr initsound
   jsr initirq
 
   jsr SCR_load_sprite_sheet
@@ -165,6 +198,18 @@ init:
   jsr SCR_init_screen
   jsr SCR_draw_screen
 
+  ldx #0
+  lda melody, x
+  sta 54272+1
+  inx
+  lda melody, x
+  sta 54272
+  inx
+  lda melody, x
+  sta melody_duration_remaining
+  lda #1
+  sta melody_started
+
 game_loop:
   lda frame_tick
   beq game_loop
@@ -172,7 +217,8 @@ game_loop:
   lda #0
   sta frame_tick
   cli
-  //jsr updanim
+  jsr updanim
+  jsr log
 
   // get input, do game logic, possibly move screen mem
   lda $dc00
@@ -311,6 +357,36 @@ initirq:
   sta $d01a
 
   cli // re-enable interrupts
+  rts
+
+initsound:
+  // clear the sid chip
+  ldx #24
+  lda #0
+initsound_clearsid:
+  sta 54272, x
+  dex
+  bpl initsound_clearsid
+
+  // set attack for voice 1
+  ldx #5
+  lda #$f0 // attack 15, decay zero
+  sta 54272, x
+  // set sustain/release for voice 1
+  ldx #$f0 // sustain 15, release 0
+  lda #0
+  sta 54272, x
+  // set volume to max
+  ldx #24
+  lda #15
+  sta 54272, x
+
+  lda #0
+  sta melody_index
+  sta melody_duration_remaining
+  sta melody_started
+  lda #9 // 100 bpm
+  sta melody_frames_until_16th
   rts
 
 initspr:
@@ -585,31 +661,46 @@ log_back_line3:
 log_line3:
 
   ldy #1
-  lda collision_row_even
+  lda melody_duration_remaining
   jsr loghexit
   iny
-  lda collision_column_even
+  iny
+  lda melody_frames_until_16th
   jsr loghexit
+  iny
+  iny
+  lda melody_index
+  jsr loghexit
+  iny
+  iny
+  lda melody_started
+  jsr loghexit
+//   ldy #1
+//   lda collision_row_even
+//   jsr loghexit
+//   iny
+//   lda collision_column_even
+//   jsr loghexit
 
-  ldy #10
-  ldx #0
-log_line_3_loop:
-  lda collision_metadata_row0, x
-  jsr loghexit
-  iny
-  lda collision_metadata_row1, x
-  jsr loghexit
-  iny
-  lda collision_metadata_row2, x
-  jsr loghexit
-  iny
-  lda collision_metadata_row3, x
-  jsr loghexit
-  iny
-  iny
-  inx
-  cpx #3
-  bne log_line_3_loop
+//   ldy #10
+//   ldx #0
+// log_line_3_loop:
+//   lda collision_metadata_row0, x
+//   jsr loghexit
+//   iny
+//   lda collision_metadata_row1, x
+//   jsr loghexit
+//   iny
+//   lda collision_metadata_row2, x
+//   jsr loghexit
+//   iny
+//   lda collision_metadata_row3, x
+//   jsr loghexit
+//   iny
+//   iny
+//   inx
+//   cpx #3
+//   bne log_line_3_loop
 
   rts
 
@@ -1913,3 +2004,21 @@ collision_row_even:      .byte 0
 on_ground:               .byte 0
 
 old_irq:                 .byte 0,0
+
+melody:
+  .byte 25,177,4,28,214,4
+  .byte 25,177,4,25,177,4
+  .byte 25,177,4,28,214,4
+  .byte 32,94,4,25,177,4
+  .byte 28,214,4,19,63,4
+  .byte 19,63,4,19,63,4
+  .byte 21,154,4,24,63,4
+  .byte 25,177,4,24,63,4
+  .byte 19,63,4
+melody_end:
+
+// TODO; initialize these
+melody_index:              .byte 0
+melody_duration_remaining: .byte 0
+melody_frames_until_16th:  .byte 0
+melody_started:            .byte 0
