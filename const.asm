@@ -27,6 +27,84 @@
 .var scrollmin    = 94
 .var scrollmax    = 226
 
+.const VOICE1          = 54272
+.const VOICE1_LF       = 54272
+.const VOICE1_HF       = 54273
+.const VOICE1_CONTROL  = 54276
+.const VOICE1_ENV_AD   = 54277
+.const VOICE1_ENV_SR   = 54278
+
+.const VOICE2          = 54279
+.const VOICE2_LF       = 54279
+.const VOICE2_HF       = 54280
+.const VOICE2_CONTROL  = 54283
+.const VOICE2_ENV_AD   = 54284
+.const VOICE2_ENV_SR   = 54285
+
+.const VOICE3          = 54286
+.const VOICE3_LF       = 54286
+.const VOICE3_HF       = 54287
+.const VOICE3_CONTROL  = 54290
+.const VOICE3_ENV_AD   = 54291
+.const VOICE3_ENV_SR   = 54292
+
+.const SID_FILT_CUTOFF_LB = 54293
+.const SID_FILT_CUTOFF_HB = 54294
+.const SID_FILT_RESONANCE = 54295
+.const SID_FILT_VOL       = 54296
+
+.const NOTE_REST   = 0
+.const NOTE_A1_HF  = 3
+.const NOTE_A1_LF  = 134
+.const NOTE_E1_HF  = 2
+.const NOTE_E1_LF  = 163
+.const NOTE_A2_HF  = 7
+.const NOTE_A2_LF  = 12
+.const NOTE_B2_HF  = 7
+.const NOTE_B2_LF  = 233
+.const NOTE_CS2_HF = 4
+.const NOTE_CS2_LF = 112
+.const NOTE_E2_HF  = 5
+.const NOTE_E2_LF  = 71
+.const NOTE_FS2_HF = 5
+.const NOTE_FS2_LF = 237
+.const NOTE_A3_HF  = 14
+.const NOTE_A3_LF  = 24
+.const NOTE_B3_HF  = 15
+.const NOTE_B3_LF  = 210
+.const NOTE_CS3_HF = 8
+.const NOTE_CS3_LF = 225
+.const NOTE_D3_HF  = 9
+.const NOTE_D3_LF  = 104
+.const NOTE_E3_HF  = 10
+.const NOTE_E3_LF  = 143
+.const NOTE_A4_HF  = 28
+.const NOTE_A4_LF  = 49
+.const NOTE_B4_HF  = 31
+.const NOTE_B4_LF  = 165
+.const NOTE_CS4_HF = 17
+.const NOTE_CS4_LF = 195
+.const NOTE_D4_HF  = 18
+.const NOTE_D4_LF  = 209
+.const NOTE_E4_HF  = 21
+.const NOTE_E4_LF  = 31
+.const NOTE_FS4_HF = 23
+.const NOTE_FS4_LF = 181
+.const NOTE_GS4_HF = 26
+.const NOTE_GS4_LF = 156
+.const NOTE_A5_HF  = 56
+.const NOTE_A5_LF  = 99
+.const NOTE_CS5_HF = 35
+.const NOTE_CS5_LF = 134
+.const NOTE_D5_HF  = 37
+.const NOTE_D5_LF  = 162
+.const NOTE_E5_HF  = 42
+.const NOTE_E5_LF  = 62
+.const NOTE_FS5_HF = 47
+.const NOTE_FS5_LF = 107
+.const NOTE_GS5_HF = 53
+.const NOTE_GS5_LF = 57
+
 
 // //////////////////////////////////////////////////////////////////////////////
 // // warning: these areas of memory are used for file loading and saving.
