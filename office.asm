@@ -44,11 +44,11 @@ irq:
   beq melody_sustain // haven't started song yet
   
   dec melody_frames_until_16th
-  bpl melody_sustain // continue playing current note, haven't crossed a 16th yet
+  bne melody_sustain // continue playing current note, haven't crossed a 16th yet
   lda #9 // 100 bpm
   sta melody_frames_until_16th
   dec melody_duration_remaining
-  bpl melody_sustain // continue playing current note, still playing note
+  bne melody_sustain // continue playing current note, still playing note
 
 melody_next_note:
   ldx melody_index
@@ -369,17 +369,14 @@ initsound_clearsid:
   bpl initsound_clearsid
 
   // set attack for voice 1
-  ldx #5
-  lda #$f0 // attack 15, decay zero
-  sta 54272, x
+  lda #$58
+  sta 54277
   // set sustain/release for voice 1
-  ldx #$f0 // sustain 15, release 0
-  lda #0
-  sta 54272, x
+  lda #$c3
+  sta 54278
   // set volume to max
-  ldx #24
   lda #15
-  sta 54272, x
+  sta 54296
 
   lda #0
   sta melody_index
@@ -2005,6 +2002,13 @@ on_ground:               .byte 0
 
 old_irq:                 .byte 0,0
 
+// melody:
+//   .byte 25,177,4,28,214,4
+//   .byte 25,177,4,28,214,4
+//   .byte 25,177,4,28,214,4
+//   .byte 25,177,4,28,214,4
+// melody_end:
+
 melody:
   .byte 25,177,4,28,214,4
   .byte 25,177,4,25,177,4
@@ -2022,3 +2026,4 @@ melody_index:              .byte 0
 melody_duration_remaining: .byte 0
 melody_frames_until_16th:  .byte 0
 melody_started:            .byte 0
+
