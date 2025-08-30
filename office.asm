@@ -55,13 +55,15 @@ melody_next_note:
   cpx #(melody_end - melody)
   bne melody_play_note
   // looped to end of song
-  // release sawtooth waveform
-  lda #32
-  sta 54276 // turn off note
+  // release note
+  lda 54276
+  and #%11111110
+  sta 54276
   ldx #0
   stx melody_index
 melody_play_note:
   lda melody, x // hf
+  beq melody_play_note_rest
   sta 54273
   inx
   lda melody, x  // lf
@@ -69,10 +71,22 @@ melody_play_note:
   inx
   lda melody, x // duration of note
   sta melody_duration_remaining
-  inx
-  stx melody_index
   lda #33 // play note, sawtooth wave form
-  sta 54276 
+  sta 54276
+  jmp melody_play_note_played
+melody_play_note_rest:
+  lda 54276
+  and #%11111110
+  sta 54276
+  inx
+  inx
+  lda melody, x
+  sta melody_duration_remaining
+melody_play_note_played:
+  lda melody_index
+  clc
+  adc #3
+  sta melody_index
 melody_sustain:
 
   lda SCR_buffer_ready
@@ -370,9 +384,11 @@ initsound_clearsid:
 
   // set attack for voice 1
   lda #$58
+  // lda #$f5
   sta 54277
   // set sustain/release for voice 1
   lda #$c3
+  // lda #$45
   sta 54278
   // set volume to max
   lda #15
@@ -2009,16 +2025,35 @@ old_irq:                 .byte 0,0
 //   .byte 25,177,4,28,214,4
 // melody_end:
 
+// melody:
+//   .byte 25,177,4,28,214,4
+//   .byte 25,177,4,25,177,4
+//   .byte 25,177,4,28,214,4
+//   .byte 32,94,4,25,177,4
+//   .byte 28,214,4,19,63,4
+//   .byte 19,63,4,19,63,4
+//   .byte 21,154,4,24,63,4
+//   .byte 25,177,4,24,63,4
+//   .byte 19,63,4
+// melody_end:
+
 melody:
-  .byte 25,177,4,28,214,4
-  .byte 25,177,4,25,177,4
-  .byte 25,177,4,28,214,4
-  .byte 32,94,4,25,177,4
-  .byte 28,214,4,19,63,4
-  .byte 19,63,4,19,63,4
-  .byte 21,154,4,24,63,4
-  .byte 25,177,4,24,63,4
-  .byte 19,63,4
+  .byte 16,195,2
+  .byte 18,209,2
+  .byte 21,31,2
+  .byte 22,96,2
+  .byte 25,30,2
+  .byte 28,49,2
+  .byte 31,165,2
+  .byte 33,135,2
+  .byte 0,0,4
+  .byte 33,135,2
+  .byte 31,165,2
+  .byte 28,49,2
+  .byte 25,30,2
+  .byte 22,96,2
+  .byte 21,31,2
+  .byte 18,209,2
 melody_end:
 
 // TODO; initialize these
