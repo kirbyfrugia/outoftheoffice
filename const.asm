@@ -27,6 +27,7 @@
 .var scrollmin    = 94
 .var scrollmax    = 226
 
+.const SID_BASE        = 54272
 .const VOICE1          = 54272
 .const VOICE1_LF       = 54272
 .const VOICE1_HF       = 54273

@@ -413,29 +413,26 @@ initsound:
   ldx #24
   lda #0
 initsound_clearsid:
-  sta VOICE1, x
-  sta VOICE2, x
-  sta VOICE3, x
+  sta SID_BASE, x
   dex
   bpl initsound_clearsid
 
-  // // Set filter to low-pass, voice 2 only
   // lda #%00000000
-  // sta SID_FILT_CUTOFF_LB
+  lda #%11111111
+  sta SID_FILT_CUTOFF_LB
 
-  // // lda #%10000000
-  // lda #%00001010
-  // sta SID_FILT_CUTOFF_HB
+  // lda #%00000100
+  lda #%00001100
+  sta SID_FILT_CUTOFF_HB
 
-  // lda #%00000010
-  // sta SID_FILT_RESONANCE
+  lda #%00000010 // Filter voice 2
+  sta SID_FILT_RESONANCE
 
-  // lda #%01001111 // filter mode and volume
-  // sta SID_FILT_VOL
-
-
-  lda #%00001111
+  lda #%01001111 // high pass filter, full volume
   sta SID_FILT_VOL
+
+  // lda #%00001111
+  // sta SID_FILT_VOL
 
   lda #melody_v1_attack_decay
   sta VOICE1_ENV_AD
