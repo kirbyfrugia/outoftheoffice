@@ -21,6 +21,7 @@
 #import "data.asm"
 #import "const.asm"
 #import "utils.asm"
+#import "data/song-devils-dream.asm"
 #import "screen.asm"
 
 // Modifies X and A
@@ -33,8 +34,8 @@ copy_sprite_data:
   bpl copy_sprite_data
 }
 
-.macro voice_handler(voice_control, voice_hf, voice_lf, melody_duration_remaining, melody_index, melody, melody_end) {
-  dec melody_duration_remaining
+.macro voice_handler(voice_control, voice_hf, voice_lf, melody_voice_control, melody_dur_left, melody_index, melody, melody_end) {
+  dec melody_dur_left
   beq melody_next_note
   jmp melody_sustain // continue playing current note, still playing note
 
@@ -58,18 +59,17 @@ melody_play_note:
   sta voice_lf
   inx
   lda melody, x // duration of note
-  sta melody_duration_remaining
-  lda #33 // play note, sawtooth wave form
+  sta melody_dur_left
+  lda melody_voice_control
   sta voice_control
   jmp melody_play_note_played
 melody_play_note_rest:
   lda voice_control
   and #%11111110
   sta voice_control
-  inx
-  inx
+  ldx #2
   lda melody, x
-  sta melody_duration_remaining
+  sta melody_dur_left
 melody_play_note_played:
   lda melody_index
   clc
@@ -96,9 +96,9 @@ melody_play:
   lda #9 // 100 bpm
   sta melody_frames_until_16th
 
-  voice_handler(VOICE1_CONTROL, VOICE1_HF, VOICE1_LF, melody_v1_dur_left, melody_v1_index, melody_v1, melody_v1_end)
-  voice_handler(VOICE2_CONTROL, VOICE2_HF, VOICE2_LF, melody_v2_dur_left, melody_v2_index, melody_v2, melody_v2_end)
-  voice_handler(VOICE3_CONTROL, VOICE3_HF, VOICE3_LF, melody_v3_dur_left, melody_v3_index, melody_v3, melody_v3_end)
+  voice_handler(VOICE1_CONTROL, VOICE1_HF, VOICE1_LF, melody_v1_control, melody_v1_dur_left, melody_v1_index, melody_v1, melody_v1_end)
+  voice_handler(VOICE2_CONTROL, VOICE2_HF, VOICE2_LF, melody_v2_control, melody_v2_dur_left, melody_v2_index, melody_v2, melody_v2_end)
+  voice_handler(VOICE3_CONTROL, VOICE3_HF, VOICE3_LF, melody_v3_control, melody_v3_dur_left, melody_v3_index, melody_v3, melody_v3_end)
 
 melody_sustain:
 
@@ -731,10 +731,6 @@ log_back_line3:
 log_line3:
 
   ldy #1
-  lda melody_v1_dur_left
-  jsr loghexit
-  iny
-  iny
   lda melody_frames_until_16th
   jsr loghexit
   iny
@@ -743,8 +739,25 @@ log_line3:
   jsr loghexit
   iny
   iny
-  lda melody_started
+  lda melody_v1_dur_left
   jsr loghexit
+  iny
+  iny
+  lda melody_v2_index
+  jsr loghexit
+  iny
+  iny
+  lda melody_v2_dur_left
+  jsr loghexit
+  iny
+  iny
+  lda melody_v3_index
+  jsr loghexit
+  iny
+  iny
+  lda melody_v3_dur_left
+  jsr loghexit
+
 //   ldy #1
 //   lda collision_row_even
 //   jsr loghexit
@@ -2075,262 +2088,6 @@ on_ground:               .byte 0
 
 old_irq:                 .byte 0,0
 
-// melody:
-//   .byte 25,177,4,28,214,4
-//   .byte 25,177,4,28,214,4
-//   .byte 25,177,4,28,214,4
-//   .byte 25,177,4,28,214,4
-// melody_end:
-
-// melody_attack_decay:    .byte $58
-// melody_sustain_release: .byte $c3
-// melody:
-//   .byte 25,177,4,28,214,4
-//   .byte 25,177,4,25,177,4
-//   .byte 25,177,4,28,214,4
-//   .byte 32,94,4,25,177,4
-//   .byte 28,214,4,19,63,4
-//   .byte 19,63,4,19,63,4
-//   .byte 21,154,4,24,63,4
-//   .byte 25,177,4,24,63,4
-//   .byte 19,63,4
-// melody_end:
-
-// melody:
-//   .byte 16,195,2
-//   .byte 18,209,2
-//   .byte 21,31,2
-//   .byte 22,96,2
-//   .byte 25,30,2
-//   .byte 28,49,2
-//   .byte 31,165,2
-//   .byte 33,135,2
-//   .byte 0,0,4
-//   .byte 33,135,2
-//   .byte 31,165,2
-//   .byte 28,49,2
-//   .byte 25,30,2
-//   .byte 22,96,2
-//   .byte 21,31,2
-//   .byte 18,209,2
-// melody_end:
-
-// melody:
-//   .byte 0,0,2
-//   .byte 0,0,2
-//   .byte 0,0,2
-// melody_end:
-
-// Devil's Dream
-// C, F, G are sharp
-// notes are 8ths unless specified
-// E5 // quarter note
-// A5, G#5, A5, E5, A5, G#5, A5, E5
-// A5, G#5, A5, E5, F#5, E5, D5, C#5
-// D5, F#5, B4, F#5, D5, F#5, B4, F#5
-// D5, F#5, B4, F#5, A5, G#5, F#5, E5
-// A5, G#5, A5, E5, A5, G#5, A5, E5
-// A5, G#5, A5, E5, F#5, E5, D5, C#5
-// D5, F#5, E5, D5, C#5, A4, B4, A4
-// E4, A4, A4, E5 // quarter notes
-melody_v1_attack_decay:    .byte $48
-melody_v1_sustain_release: .byte $B6
-melody_v1:
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_GS4_HF, NOTE_GS4_LF, 2
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_GS4_HF, NOTE_GS4_LF, 2
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_GS4_HF, NOTE_GS4_LF, 2
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-  .byte NOTE_FS4_HF, NOTE_FS4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-  .byte NOTE_D4_HF, NOTE_D4_LF, 2
-  .byte NOTE_CS4_HF, NOTE_CS4_LF, 2
-
-  .byte NOTE_D4_HF, NOTE_D4_LF, 2
-  .byte NOTE_FS4_HF, NOTE_FS4_LF, 2
-  .byte NOTE_B3_HF, NOTE_B3_LF, 2
-  .byte NOTE_FS4_HF, NOTE_FS4_LF, 2
-  .byte NOTE_D4_HF, NOTE_D4_LF, 2
-  .byte NOTE_FS4_HF, NOTE_FS4_LF, 2
-  .byte NOTE_B3_HF, NOTE_B3_LF, 2
-  .byte NOTE_FS4_HF, NOTE_FS4_LF, 2
-
-  .byte NOTE_D4_HF, NOTE_D4_LF, 2
-  .byte NOTE_FS4_HF, NOTE_FS4_LF, 2
-  .byte NOTE_B3_HF, NOTE_B3_LF, 2
-  .byte NOTE_FS4_HF, NOTE_FS4_LF, 2
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_GS4_HF, NOTE_GS4_LF, 2
-  .byte NOTE_FS4_HF, NOTE_FS4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_GS4_HF, NOTE_GS4_LF, 2
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_GS4_HF, NOTE_GS4_LF, 2
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_GS4_HF, NOTE_GS4_LF, 2
-  .byte NOTE_A4_HF, NOTE_A4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-  .byte NOTE_FS4_HF, NOTE_FS4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-  .byte NOTE_D4_HF, NOTE_D4_LF, 2
-  .byte NOTE_CS4_HF, NOTE_CS4_LF, 2
-
-  .byte NOTE_D4_HF, NOTE_D4_LF, 2
-  .byte NOTE_FS4_HF, NOTE_FS4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-  .byte NOTE_D4_HF, NOTE_D4_LF, 2
-  .byte NOTE_CS4_HF, NOTE_CS4_LF, 2
-  .byte NOTE_A3_HF, NOTE_A3_LF, 2
-  .byte NOTE_B3_HF, NOTE_B3_LF, 2
-  .byte NOTE_A3_HF, NOTE_A3_LF, 2
-
-  .byte NOTE_E3_HF, NOTE_E3_LF, 4
-  .byte NOTE_A3_HF, NOTE_A3_LF, 4
-  .byte NOTE_A3_HF, NOTE_A3_LF, 4
-  .byte NOTE_E4_HF, NOTE_E4_LF, 4
-melody_v1_end:
-
-// melody_v2_attack_decay:    .byte $26
-// melody_v2_sustain_release: .byte $74
-melody_v2_attack_decay:    .byte $25
-melody_v2_sustain_release: .byte $64
-melody_v2:
-  .byte NOTE_A2_HF, NOTE_A2_LF, 4
-  .byte NOTE_CS2_HF, NOTE_CS2_LF, 4
-  .byte NOTE_E2_HF, NOTE_E2_LF, 4
-  .byte NOTE_CS2_HF, NOTE_CS2_LF, 4
-
-  .byte NOTE_A2_HF, NOTE_A2_LF, 4
-  .byte NOTE_REST, NOTE_REST, 4
-  .byte NOTE_CS3_HF, NOTE_CS3_LF, 4
-  .byte NOTE_REST, NOTE_REST, 4
-
-  .byte NOTE_D3_HF, NOTE_D3_LF, 4
-  .byte NOTE_B3_HF, NOTE_B3_LF, 4
-  .byte NOTE_B2_HF, NOTE_B2_LF, 4
-  .byte NOTE_B3_HF, NOTE_B3_LF, 4
-
-  .byte NOTE_D3_HF, NOTE_D3_LF, 4
-  .byte NOTE_B3_HF, NOTE_B3_LF, 4
-  .byte NOTE_E3_HF, NOTE_E3_LF, 4
-  .byte NOTE_B3_HF, NOTE_B3_LF, 4
-
-  .byte NOTE_A2_HF, NOTE_A2_LF, 4
-  .byte NOTE_A3_HF, NOTE_A3_LF, 4
-  .byte NOTE_E2_HF, NOTE_E2_LF, 4
-  .byte NOTE_A3_HF, NOTE_A3_LF, 4
-
-  .byte NOTE_A2_HF, NOTE_A2_LF, 4
-  .byte NOTE_REST, NOTE_REST, 4
-  .byte NOTE_CS3_HF, NOTE_CS3_LF, 4
-  .byte NOTE_REST, NOTE_REST, 4
-
-  .byte NOTE_D3_HF, NOTE_D3_LF, 4
-  .byte NOTE_B3_HF, NOTE_B3_LF, 4
-  .byte NOTE_A2_HF, NOTE_A2_LF, 4
-  .byte NOTE_B3_HF, NOTE_B3_LF, 4
-
-  .byte NOTE_FS2_HF, NOTE_FS2_LF, 4
-  .byte NOTE_B3_HF, NOTE_B3_LF, 4
-  .byte NOTE_A2_HF, NOTE_A2_LF, 4
-  .byte NOTE_REST, NOTE_REST, 4
-melody_v2_end:
-
-melody_v3_attack_decay:    .byte $48
-melody_v3_sustain_release: .byte $B6
-melody_v3:
-  .byte 0,0,4
-melody_v3_end:
-
-// Higher pitch...
-// melody_attack_decay:    .byte $14
-// melody_sustain_release: .byte $82
-// melody:
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 4
-
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_GS5_HF, NOTE_GS5_LF, 2
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 2
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_GS5_HF, NOTE_GS5_LF, 2
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 2
-
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_GS5_HF, NOTE_GS5_LF, 2
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 2
-//   .byte NOTE_FS5_HF, NOTE_FS5_LF, 2
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 2
-//   .byte NOTE_D5_HF, NOTE_D5_LF, 2
-//   .byte NOTE_CS5_HF, NOTE_CS5_LF, 2
-
-//   .byte NOTE_D5_HF, NOTE_D5_LF, 2
-//   .byte NOTE_FS5_HF, NOTE_FS5_LF, 2
-//   .byte NOTE_B4_HF, NOTE_B4_LF, 2
-//   .byte NOTE_FS5_HF, NOTE_FS5_LF, 2
-//   .byte NOTE_D5_HF, NOTE_D5_LF, 2
-//   .byte NOTE_FS5_HF, NOTE_FS5_LF, 2
-//   .byte NOTE_B4_HF, NOTE_B4_LF, 2
-//   .byte NOTE_FS5_HF, NOTE_FS5_LF, 2
-
-//   .byte NOTE_D5_HF, NOTE_D5_LF, 2
-//   .byte NOTE_FS5_HF, NOTE_FS5_LF, 2
-//   .byte NOTE_B4_HF, NOTE_B4_LF, 2
-//   .byte NOTE_FS5_HF, NOTE_FS5_LF, 2
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_GS5_HF, NOTE_GS5_LF, 2
-//   .byte NOTE_FS5_HF, NOTE_FS5_LF, 2
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 2
-
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_GS5_HF, NOTE_GS5_LF, 2
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 2
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_GS5_HF, NOTE_GS5_LF, 2
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 2
-
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_GS5_HF, NOTE_GS5_LF, 2
-//   .byte NOTE_A5_HF, NOTE_A5_LF, 2
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 2
-//   .byte NOTE_FS5_HF, NOTE_FS5_LF, 2
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 2
-//   .byte NOTE_D5_HF, NOTE_D5_LF, 2
-//   .byte NOTE_CS5_HF, NOTE_CS5_LF, 2
-
-//   .byte NOTE_D5_HF, NOTE_D5_LF, 2
-//   .byte NOTE_FS5_HF, NOTE_FS5_LF, 2
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 2
-//   .byte NOTE_D5_HF, NOTE_D5_LF, 2
-//   .byte NOTE_CS5_HF, NOTE_CS5_LF, 2
-//   .byte NOTE_A4_HF, NOTE_A4_LF, 2
-//   .byte NOTE_B4_HF, NOTE_B4_LF, 2
-//   .byte NOTE_A4_HF, NOTE_A4_LF, 2
-
-//   .byte NOTE_E4_HF, NOTE_E4_LF, 4
-//   .byte NOTE_A4_HF, NOTE_A4_LF, 4
-//   .byte NOTE_A4_HF, NOTE_A4_LF, 4
-//   .byte NOTE_E5_HF, NOTE_E5_LF, 4
-// melody_end:
 
 // TODO; initialize these
 melody_v1_index:              .byte 0
