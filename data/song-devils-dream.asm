@@ -191,9 +191,9 @@ melody_v2:
   .byte NOTE_REST, NOTE_REST, 4
 melody_v2_end:
 
-melody_v3:
-  .byte 0,0,4
-melody_v3_end:
+// melody_v3:
+//   .byte 0,0,4
+// melody_v3_end:
 
 .const melody_v1_attack_decay    = $48
 .const melody_v1_sustain_release = $B6
@@ -204,9 +204,9 @@ melody_v3_end:
 .const melody_v2_attack_decay    = $35 // $25
 .const melody_v2_sustain_release = $A7 // $64
 .const melody_v2_control         = %00010001
-.const melody_v3_attack_decay    = $48
-.const melody_v3_sustain_release = $B6
-.const melody_v3_control         = %00100001
+// .const melody_v3_attack_decay    = $48
+// .const melody_v3_sustain_release = $B6
+// .const melody_v3_control         = %00100001
 
 .const melody_cutoff_filter_hi = %00000010
 .const melody_cutoff_filter_lo = %11111111

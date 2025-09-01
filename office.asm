@@ -76,6 +76,29 @@ melody_play_note_played:
   sta melody_index
 }
 
+.macro play_sound_effect(pulse_lo, pulse_hi, attack_decay, sustain_release, freq_lo, freq_hi, waveform, num_ticks) {
+  lda #pulse_lo
+  sta VOICE3_PULSE_LO
+  lda #pulse_hi
+  sta VOICE3_PULSE_HI
+
+  lda #attack_decay
+  sta VOICE3_ENV_AD
+  lda #sustain_release
+  sta VOICE3_ENV_SR
+
+  lda #freq_lo
+  sta VOICE3_LF
+  lda #freq_hi
+  sta VOICE3_HF
+
+  lda #waveform
+  sta VOICE3_CONTROL
+
+  lda #num_ticks
+  sta sound_effect_ticks_left
+}
+
 irq:
   pha
   txa
@@ -83,14 +106,84 @@ irq:
   tya
   pha
 
-  lda melody_started
-  bne melody_is_started
-  jmp melody_skip
-melody_is_started:
+  lda sound_started
+  bne sound_is_started
+  jmp sound_done
+sound_is_started:
+  lda sound_effect_new_irq
+  beq sound_effect_process
+
+  // if here, we're loading a new sound from the ggame loop
+  ldx sound_effect_index_irq
+
+  lda sound_effects_pulse_lo, x
+  sta VOICE3_PULSE_LO
+  lda sound_effects_pulse_hi, x
+  sta VOICE3_PULSE_HI
+
+  lda sound_effects_attack_decay, x
+  sta VOICE3_ENV_AD
+  lda sound_effects_sustain_release, x
+  sta VOICE3_ENV_SR
+
+  lda sound_effects_freq_lo, x
+  sta VOICE3_LF
+  lda sound_effects_freq_hi, x
+  sta VOICE3_HF
+
+  lda sound_effects_waveform, x
+  sta VOICE3_CONTROL
+
+  lda sound_effects_num_ticks, x
+  sta sound_effect_ticks_left
+
+  lda sound_effects_sweep_freq_lo, x
+  sta sound_effect_sweep_freq_lo
+
+  lda sound_effects_sweep_freq_hi, x
+  sta sound_effect_sweep_freq_hi
+
+  lda sound_effects_sweep_num_ticks, x
+  sta sound_effect_sweep_ticks_left
+
+  lda #0
+  sta sound_effect_new_irq
+
+sound_effect_process:
+  // let's deal with sound effects
+  dec sound_effect_ticks_left
+  bne sound_effect_sweep
+  // done playing this sound effect
+  lda VOICE3_CONTROL
+  and #%11111110 // gate off
+  sta VOICE3_CONTROL
+
+  // set duration to 1 intentionally, gets decremented even if no sound is playing
+  lda #1
+  sta sound_effect_ticks_left
+  sta sound_effect_sweep_ticks_left
+  bne music
+sound_effect_sweep:
+  dec sound_effect_sweep_ticks_left
+  beq sound_effect_sweep_done
+  // still sweeping
+  lda VOICE3_LF
+  clc
+  adc sound_effect_sweep_freq_lo
+  sta VOICE3_LF
+  lda VOICE3_HF
+  adc sound_effect_sweep_freq_hi
+  sta VOICE3_HF
+  jmp music
+sound_effect_sweep_done:
+  lda #1
+  sta sound_effect_sweep_done
+music:
+  // now let's deal with the music
   dec melody_frames_until_16th
-  beq melody_play
-  jmp melody_skip
-melody_play:
+  beq on_16th
+  jmp sound_done
+on_16th:
   lda #melody_tempo
   sta melody_frames_until_16th
 
@@ -98,10 +191,8 @@ melody_play:
 melody_v1_done:
   voice_handler(VOICE2_CONTROL, VOICE2_HF, VOICE2_LF, melody_v2_control, melody_v2_dur_left, melody_v2_index, melody_v2, melody_v2_end, melody_v2_done)
 melody_v2_done:
-  voice_handler(VOICE3_CONTROL, VOICE3_HF, VOICE3_LF, melody_v3_control, melody_v3_dur_left, melody_v3_index, melody_v3, melody_v3_end, melody_v3_done)
-melody_v3_done:
-melody_skip:
 
+sound_done:
   lda SCR_buffer_ready
   beq irqd
   jsr swap_buffers
@@ -229,10 +320,25 @@ init:
 game_loop:
   lda frame_tick
   beq game_loop
+
+  // disable interrupts and set variables used
+  // by the irq handler
   sei
   lda #0
   sta frame_tick
+  lda sound_effect_new_game_loop
+  beq no_new_sound
+  // if here, a new sound was triggered in the game loop last loop
+  lda sound_effect_index_game_loop
+  sta sound_effect_index_irq       // index of new sound to play, to be read by irq
+  lda #1
+  sta sound_effect_new_irq         // flag indicating we have a new sound to load for the irq handler
+no_new_sound:
   cli
+  // end of section with disabled interrupts
+  lda #0
+  sta sound_effect_new_game_loop   // clear game loop flag
+
   jsr updanim
   jsr log
 
@@ -402,72 +508,49 @@ initsound_clearsid:
   sta VOICE1_ENV_SR
   lda #melody_v2_attack_decay
   sta VOICE2_ENV_AD
-  lda #melody_v1_sustain_release
+  lda #melody_v2_sustain_release
   sta VOICE2_ENV_SR
-  lda #melody_v3_attack_decay
-  sta VOICE3_ENV_AD
-  lda #melody_v3_sustain_release
-  sta VOICE3_ENV_SR
+  // lda #melody_v3_attack_decay
+  // sta VOICE3_ENV_AD
+  // lda #melody_v3_sustain_release
+  // sta VOICE3_ENV_SR
 
   lda #0
+  sta sound_effect_index_irq
+  sta sound_effect_index_game_loop
+  sta sound_effect_new_irq
+  sta sound_effect_new_game_loop
   sta melody_v1_index
   sta melody_v1_dur_left
   sta melody_v2_index
   sta melody_v2_dur_left
   sta melody_v3_index
   sta melody_v3_dur_left
-  sta melody_started
+  sta sound_effect_sweep_freq_lo
+  sta sound_effect_sweep_freq_hi
+  sta sound_started
   lda #melody_tempo
   sta melody_frames_until_16th
   rts
 
 startsound:
-  // ldx #0
-  // lda melody_v1, x
-  // sta VOICE1_HF
-  // inx
-  // lda melody_v1, x
-  // sta VOICE1_LF
-  // inx
-  // lda melody_v1, x
-  // sta melody_v1_dur_left
-
-  // ldx #0
-  // lda melody_v2, x
-  // sta VOICE2_HF
-  // inx
-  // lda melody_v2, x
-  // sta VOICE2_LF
-  // inx
-  // lda melody_v2, x
-  // sta melody_v2_dur_left
-
-  // ldx #0
-  // lda melody_v3, x
-  // sta VOICE3_HF
-  // inx
-  // lda melody_v3, x
-  // sta VOICE3_LF
-  // inx
-  // lda melody_v3, x
-  // sta melody_v3_dur_left
-
   // on init, move to end of song with 1 16th notes remaining
   // so that we loop back to start in the irq
-  lda #1
-  sta melody_v1_dur_left
-  sta melody_v2_dur_left
-  sta melody_v3_dur_left
 
   lda #(melody_v1_end - melody_v1)
   sta melody_v1_index
   lda #(melody_v2_end - melody_v2)
   sta melody_v2_index
-  lda #(melody_v3_end - melody_v3)
-  sta melody_v2_index
+  // lda #(melody_v3_end - melody_v3)
+  // sta melody_v3_index
 
   lda #1
-  sta melody_started
+  sta sound_effect_ticks_left
+  sta sound_effect_sweep_ticks_left
+  sta melody_v1_dur_left
+  sta melody_v2_dur_left
+  sta melody_v3_dur_left
+  sta sound_started
   rts
 
 initspr:
@@ -768,6 +851,26 @@ log_line3:
   iny
   lda melody_v3_dur_left
   jsr loghexit
+  iny
+  iny
+  lda sound_effect_ticks_left
+  jsr loghexit
+  iny
+  iny
+  lda sound_effect_sweep_ticks_left
+  jsr loghexit
+  iny
+  iny
+  lda VOICE3_LF
+  jsr loghexit
+  iny
+  iny
+  lda VOICE3_HF
+  jsr loghexit
+
+  
+
+  
 
 //   ldy #1
 //   lda collision_row_even
@@ -898,8 +1001,13 @@ updp1vv:
   and #%00000011
   cmp #%00000010
   bne updp1vv_on_ground
-
   // if here, jumping
+  // Play jump sound effect
+  lda #0 // jump index
+  sta sound_effect_index_game_loop
+  lda #1
+  sta sound_effect_new_game_loop
+
   lda #maxvvu
   sta p1vvi
   lda #maxvvd
@@ -2099,8 +2207,7 @@ on_ground:               .byte 0
 
 old_irq:                 .byte 0,0
 
-
-// TODO; initialize these
+sound_started:                .byte 0
 melody_v1_index:              .byte 0
 melody_v1_dur_left:           .byte 0
 melody_v2_index:              .byte 0
@@ -2108,5 +2215,39 @@ melody_v2_dur_left:           .byte 0
 melody_v3_index:              .byte 0
 melody_v3_dur_left:           .byte 0
 melody_frames_until_16th:     .byte 0
-melody_started:               .byte 0
 
+sound_effect_ticks_left:      .byte 0
+sound_effect_sweep_freq_lo:   .byte 0
+sound_effect_sweep_freq_hi:   .byte 0
+sound_effect_sweep_ticks_left:      .byte 0
+
+sound_effect_new_irq:    .byte 0
+sound_effect_new_game_loop:   .byte 0
+sound_effect_index_irq:       .byte 0
+sound_effect_index_game_loop:
+
+// sound effects table
+// indices:
+//   0 - jump
+sound_effects_pulse_lo:
+  .byte $00
+sound_effects_pulse_hi:
+  .byte $08
+sound_effects_attack_decay:
+  .byte $16
+sound_effects_sustain_release:
+  .byte $25
+sound_effects_freq_lo:
+  .byte $16
+sound_effects_freq_hi:
+  .byte $01
+sound_effects_waveform:
+  .byte %01000001
+sound_effects_num_ticks:
+  .byte 60
+sound_effects_sweep_freq_lo:
+  .byte $01
+sound_effects_sweep_freq_hi:
+  .byte $00
+sound_effects_sweep_num_ticks:
+  .byte 60

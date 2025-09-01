@@ -67,9 +67,9 @@ melody_v2:
   .byte NOTE_G3_HF, NOTE_G3_LF, 24
 melody_v2_end:
 
-melody_v3:
-  .byte 0,0,72
-melody_v3_end:
+// melody_v3:
+//   .byte 0,0,72
+// melody_v3_end:
 
 .const melody_v1_attack_decay    = $35
 .const melody_v1_sustain_release = $A7
@@ -77,12 +77,12 @@ melody_v3_end:
 .const melody_v2_attack_decay    = $35 // $25
 .const melody_v2_sustain_release = $A7 // $64
 .const melody_v2_control         = %00010001
-.const melody_v3_attack_decay    = $48
-.const melody_v3_sustain_release = $B6
-.const melody_v3_control         = %00100001
+// .const melody_v3_attack_decay    = $48
+// .const melody_v3_sustain_release = $B6
+// .const melody_v3_control         = %00100001
 
 .const melody_cutoff_filter_hi = %00000010
 .const melody_cutoff_filter_lo = %11111111
-.const melody_filter_resonance = %00000010
-.const melody_filter_volume    = %01001111
-.const melody_tempo            = 9 // N frames between 16th notes
+.const melody_filter_resonance = %00000010 // apply filter to voice 2
+.const melody_filter_volume    = %01001111 // high pass filter, full volume
+.const melody_tempo            = 10        // N frames between 16th notes
