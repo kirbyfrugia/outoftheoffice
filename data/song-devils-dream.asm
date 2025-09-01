@@ -10,9 +10,6 @@
 // A5, G#5, A5, E5, F#5, E5, D5, C#5
 // D5, F#5, E5, D5, C#5, A4, B4, A4
 // E4, A4, A4, E5 // quarter notes
-melody_v1_attack_decay:     .byte $48
-melody_v1_sustain_release:  .byte $B6
-melody_v1_control:          .byte %00110001
 // melody_v1:
 //   .byte NOTE_A4_HF, NOTE_A4_LF, 2
 //   .byte NOTE_GS4_HF, NOTE_GS4_LF, 2
@@ -152,11 +149,6 @@ melody_v1:
   .byte NOTE_E3_HF, NOTE_E3_LF, 4
 melody_v1_end:
 
-// melody_v2_attack_decay:    .byte $26
-// melody_v2_sustain_release: .byte $74
-melody_v2_attack_decay:     .byte $25
-melody_v2_sustain_release:  .byte $64
-melody_v2_control:          .byte %00110001
 melody_v2:
   .byte NOTE_A2_HF, NOTE_A2_LF, 4
   .byte NOTE_CS2_HF, NOTE_CS2_LF, 4
@@ -199,9 +191,25 @@ melody_v2:
   .byte NOTE_REST, NOTE_REST, 4
 melody_v2_end:
 
-melody_v3_attack_decay:     .byte $48
-melody_v3_sustain_release:  .byte $B6
-melody_v3_control:          .byte %00100001
 melody_v3:
   .byte 0,0,4
 melody_v3_end:
+
+.const melody_v1_attack_decay    = $48
+.const melody_v1_sustain_release = $B6
+.const melody_v1_control         = %00110001
+// .const melody_v2_attack_decay    = $25 // $26
+// .const melody_v2_sustain_release = $64 // $74
+// .const melody_v2_control         = %00110001
+.const melody_v2_attack_decay    = $35 // $25
+.const melody_v2_sustain_release = $A7 // $64
+.const melody_v2_control         = %00010001
+.const melody_v3_attack_decay    = $48
+.const melody_v3_sustain_release = $B6
+.const melody_v3_control         = %00100001
+
+.const melody_cutoff_filter_hi = %00000010
+.const melody_cutoff_filter_lo = %11111111
+.const melody_filter_resonance = %00000010
+.const melody_filter_volume    = %01001111
+.const melody_tempo            = 9 // N frames between 16th notes

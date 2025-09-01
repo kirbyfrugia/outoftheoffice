@@ -21,6 +21,7 @@
 #import "data.asm"
 #import "const.asm"
 #import "utils.asm"
+// #import "data/song-kirby.asm"
 #import "data/song-devils-dream.asm"
 #import "screen.asm"
 
@@ -34,11 +35,9 @@ copy_sprite_data:
   bpl copy_sprite_data
 }
 
-.macro voice_handler(voice_control, voice_hf, voice_lf, melody_voice_control, melody_dur_left, melody_index, melody, melody_end) {
+.macro voice_handler(voice_control, voice_hf, voice_lf, melody_voice_control, melody_dur_left, melody_index, melody, melody_end, next_jump_point) {
   dec melody_dur_left
-  beq melody_next_note
-  jmp melody_sustain // continue playing current note, still playing note
-
+  bne next_jump_point // continue playing current note, still playing note
 melody_next_note:
   ldx melody_index
   cpx #(melody_end - melody)
@@ -60,7 +59,7 @@ melody_play_note:
   inx
   lda melody, x // duration of note
   sta melody_dur_left
-  lda melody_voice_control
+  lda #melody_voice_control
   sta voice_control
   jmp melody_play_note_played
 melody_play_note_rest:
@@ -86,21 +85,22 @@ irq:
 
   lda melody_started
   bne melody_is_started
-  jmp melody_sustain
+  jmp melody_skip
 melody_is_started:
   dec melody_frames_until_16th
   beq melody_play
-  // continue playing current note, haven't crossed a 16th yet
-  jmp melody_sustain
+  jmp melody_skip
 melody_play:
-  lda #9 // 100 bpm
+  lda #melody_tempo
   sta melody_frames_until_16th
 
-  voice_handler(VOICE1_CONTROL, VOICE1_HF, VOICE1_LF, melody_v1_control, melody_v1_dur_left, melody_v1_index, melody_v1, melody_v1_end)
-  voice_handler(VOICE2_CONTROL, VOICE2_HF, VOICE2_LF, melody_v2_control, melody_v2_dur_left, melody_v2_index, melody_v2, melody_v2_end)
-  voice_handler(VOICE3_CONTROL, VOICE3_HF, VOICE3_LF, melody_v3_control, melody_v3_dur_left, melody_v3_index, melody_v3, melody_v3_end)
-
-melody_sustain:
+  voice_handler(VOICE1_CONTROL, VOICE1_HF, VOICE1_LF, melody_v1_control, melody_v1_dur_left, melody_v1_index, melody_v1, melody_v1_end, melody_v1_done)
+melody_v1_done:
+  voice_handler(VOICE2_CONTROL, VOICE2_HF, VOICE2_LF, melody_v2_control, melody_v2_dur_left, melody_v2_index, melody_v2, melody_v2_end, melody_v2_done)
+melody_v2_done:
+  voice_handler(VOICE3_CONTROL, VOICE3_HF, VOICE3_LF, melody_v3_control, melody_v3_dur_left, melody_v3_index, melody_v3, melody_v3_end, melody_v3_done)
+melody_v3_done:
+melody_skip:
 
   lda SCR_buffer_ready
   beq irqd
@@ -193,8 +193,8 @@ init:
 
   jsr initui
   jsr initsys
-  jsr initsound
   jsr initirq
+  jsr initsound
 
   jsr SCR_load_sprite_sheet
 
@@ -224,40 +224,7 @@ init:
 
   jsr SCR_init_screen
   jsr SCR_draw_screen
-
-  // start the music
-  ldx #0
-  lda melody_v1, x
-  sta VOICE1_HF
-  inx
-  lda melody_v1, x
-  sta VOICE1_LF
-  inx
-  lda melody_v1, x
-  sta melody_v1_dur_left
-
-  ldx #0
-  lda melody_v2, x
-  sta VOICE2_HF
-  inx
-  lda melody_v2, x
-  sta VOICE2_LF
-  inx
-  lda melody_v2, x
-  sta melody_v2_dur_left
-
-  ldx #0
-  lda melody_v3, x
-  sta VOICE3_HF
-  inx
-  lda melody_v3, x
-  sta VOICE3_LF
-  inx
-  lda melody_v3, x
-  sta melody_v3_dur_left
-
-  lda #1
-  sta melody_started
+  jsr startsound
 
 game_loop:
   lda frame_tick
@@ -417,22 +384,17 @@ initsound_clearsid:
   dex
   bpl initsound_clearsid
 
-  // lda #%00000000
-  lda #%11111111
+  lda #melody_cutoff_filter_lo
   sta SID_FILT_CUTOFF_LB
 
-  // lda #%00000100
-  lda #%00001100
+  lda #melody_cutoff_filter_hi
   sta SID_FILT_CUTOFF_HB
 
-  lda #%00000010 // Filter voice 2
+  lda #melody_filter_resonance
   sta SID_FILT_RESONANCE
 
-  lda #%01001111 // high pass filter, full volume
+  lda #melody_filter_volume
   sta SID_FILT_VOL
-
-  // lda #%00001111
-  // sta SID_FILT_VOL
 
   lda #melody_v1_attack_decay
   sta VOICE1_ENV_AD
@@ -455,8 +417,57 @@ initsound_clearsid:
   sta melody_v3_index
   sta melody_v3_dur_left
   sta melody_started
-  lda #9 // 100 bpm
+  lda #melody_tempo
   sta melody_frames_until_16th
+  rts
+
+startsound:
+  // ldx #0
+  // lda melody_v1, x
+  // sta VOICE1_HF
+  // inx
+  // lda melody_v1, x
+  // sta VOICE1_LF
+  // inx
+  // lda melody_v1, x
+  // sta melody_v1_dur_left
+
+  // ldx #0
+  // lda melody_v2, x
+  // sta VOICE2_HF
+  // inx
+  // lda melody_v2, x
+  // sta VOICE2_LF
+  // inx
+  // lda melody_v2, x
+  // sta melody_v2_dur_left
+
+  // ldx #0
+  // lda melody_v3, x
+  // sta VOICE3_HF
+  // inx
+  // lda melody_v3, x
+  // sta VOICE3_LF
+  // inx
+  // lda melody_v3, x
+  // sta melody_v3_dur_left
+
+  // on init, move to end of song with 1 16th notes remaining
+  // so that we loop back to start in the irq
+  lda #1
+  sta melody_v1_dur_left
+  sta melody_v2_dur_left
+  sta melody_v3_dur_left
+
+  lda #(melody_v1_end - melody_v1)
+  sta melody_v1_index
+  lda #(melody_v2_end - melody_v2)
+  sta melody_v2_index
+  lda #(melody_v3_end - melody_v3)
+  sta melody_v2_index
+
+  lda #1
+  sta melody_started
   rts
 
 initspr:
