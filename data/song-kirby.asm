@@ -6,8 +6,10 @@
 // repeat
 melody_v1:
   .byte NOTE_C4_HF, NOTE_C4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-  .byte NOTE_G4_HF, NOTE_G4_LF, 2
+  .byte NOTE_E4_HF, NOTE_E4_LF, 1
+  .byte NOTE_G4_HF, NOTE_G4_LF, 1
+  .byte NOTE_E4_HF, NOTE_E4_LF, 1
+  .byte NOTE_G4_HF, NOTE_G4_LF, 1
   .byte NOTE_C4_HF, NOTE_C4_LF, 2
   .byte NOTE_E4_HF, NOTE_E4_LF, 2
   .byte NOTE_G4_HF, NOTE_G4_LF, 2
@@ -15,12 +17,18 @@ melody_v1:
   .byte NOTE_E4_HF, NOTE_E4_LF, 2
   .byte NOTE_G4_HF, NOTE_G4_LF, 2
   .byte NOTE_C4_HF, NOTE_C4_LF, 2
-  .byte NOTE_E4_HF, NOTE_E4_LF, 2
-  .byte NOTE_G4_HF, NOTE_G4_LF, 2
+  .byte NOTE_E4_HF, NOTE_E4_LF, 1
+  .byte NOTE_G4_HF, NOTE_G4_LF, 1
+  .byte NOTE_E4_HF, NOTE_E4_LF, 1
+  .byte NOTE_G4_HF, NOTE_G4_LF, 1
 
   .byte NOTE_F4_HF, NOTE_F4_LF, 2
   .byte NOTE_A4_HF, NOTE_A4_LF, 2
   .byte NOTE_C5_HF, NOTE_C5_HF, 2
+  // .byte NOTE_A4_HF, NOTE_A4_LF, 1
+  // .byte NOTE_C5_HF, NOTE_C5_HF, 1
+  // .byte NOTE_A4_HF, NOTE_A4_LF, 1
+  // .byte NOTE_C5_HF, NOTE_C5_HF, 1
   .byte NOTE_F4_HF, NOTE_F4_LF, 2
   .byte NOTE_A4_HF, NOTE_A4_LF, 2
   .byte NOTE_C5_HF, NOTE_C5_HF, 2
@@ -30,10 +38,16 @@ melody_v1:
   .byte NOTE_F4_HF, NOTE_F4_LF, 2
   .byte NOTE_A4_HF, NOTE_A4_LF, 2
   .byte NOTE_C5_HF, NOTE_C5_HF, 2
+  // .byte NOTE_A4_HF, NOTE_A4_LF, 1
+  // .byte NOTE_C5_HF, NOTE_C5_HF, 1
+  // .byte NOTE_A4_HF, NOTE_A4_LF, 1
+  // .byte NOTE_C5_HF, NOTE_C5_HF, 1
 
   .byte NOTE_G4_HF, NOTE_G4_LF, 2
-  .byte NOTE_B4_HF, NOTE_B4_LF, 2
-  .byte NOTE_D5_HF, NOTE_D5_LF, 2
+  .byte NOTE_B4_HF, NOTE_B4_LF, 1
+  .byte NOTE_D5_HF, NOTE_D5_LF, 1
+  .byte NOTE_B4_HF, NOTE_B4_LF, 1
+  .byte NOTE_D5_HF, NOTE_D5_LF, 1
   .byte NOTE_G4_HF, NOTE_G4_LF, 2
   .byte NOTE_B4_HF, NOTE_B4_LF, 2
   .byte NOTE_D5_HF, NOTE_D5_LF, 2
@@ -41,12 +55,14 @@ melody_v1:
   .byte NOTE_B4_HF, NOTE_B4_LF, 2
   .byte NOTE_D5_HF, NOTE_D5_LF, 2
   .byte NOTE_G4_HF, NOTE_G4_LF, 2
-  .byte NOTE_B4_HF, NOTE_B4_LF, 2
-  .byte NOTE_D5_HF, NOTE_D5_LF, 2
+  .byte NOTE_B4_HF, NOTE_B4_LF, 1
+  .byte NOTE_D5_HF, NOTE_D5_LF, 1
+  .byte NOTE_B4_HF, NOTE_B4_LF, 1
+  .byte NOTE_D5_HF, NOTE_D5_LF, 1
 melody_v1_end:
 
 melody_v2:
-  .byte NOTE_C3_HF, NOTE_C3_LF, 24
+  .byte NOTE_A3_HF, NOTE_A3_LF, 24
   .byte NOTE_F3_HF, NOTE_F3_LF, 24
   .byte NOTE_G3_HF, NOTE_G3_LF, 24
 melody_v2_end:

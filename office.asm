@@ -21,8 +21,8 @@
 #import "data.asm"
 #import "const.asm"
 #import "utils.asm"
-// #import "data/song-kirby.asm"
-#import "data/song-devils-dream.asm"
+#import "data/song-kirby.asm"
+// #import "data/song-devils-dream.asm"
 #import "screen.asm"
 
 // Modifies X and A
