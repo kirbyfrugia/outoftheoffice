@@ -7,7 +7,8 @@
   [name="LEVEL1", type="prg", segments="level1"]
 }
 
-.segment Office [outPrg="office.prg", start=$8000]
+// .segment Office [outPrg="office.prg", start=$8000]
+.segment Office [outPrg="office.prg", start=$6000]
 .var hvzero    = 127
 .var maxhvl    = 92
 .var maxhvr    = 162
@@ -201,20 +202,19 @@ irqd:
   SCR_update_scroll_register()
   lda #1
   sta frame_tick
+
+  // ack raster irq
+  asl $d019
+
   pla
   tay
   pla
   tax
   pla
-  asl $D019     // ack the interrupt
-  jmp (old_irq) // let the kernal do its thing
+
+  jmp $ea81 // let the kernal do its thing 
 
 init:
-  // switch out basic
-  lda $01
-  and #%11111110
-  sta $01
-
   lda #0
   sta ptime
   sta ptime+1
@@ -313,6 +313,7 @@ init:
 
   jsr initspr
 
+  
   jsr SCR_init_screen
   jsr SCR_draw_screen
   jsr startsound
@@ -340,7 +341,7 @@ no_new_sound:
   sta sound_effect_new_game_loop   // clear game loop flag
 
   jsr updanim
-  jsr log
+  // jsr log
 
   // get input, do game logic, possibly move screen mem
   lda $dc00
@@ -443,36 +444,54 @@ initirq:
   // disable interrupts
   sei
 
-  // switch off interrupts from cia-1
-  lda #%01111111
-  sta $dc0d
+  // // switch out basic and kernal
+  // lda $01
+  // and #%11111000
+  // ora #%00000100
+  // sta $01
 
-  // clear high raster bit
-  and $d011
-  sta $d011
+  // lda #%11000100
+  // // and #%11111110
+  // sta $0001
 
-  // clear any pending interrupts from CIA-1/2
+  // switch off cia interrupts
+  lda #$7f
   sta $dc0d
   sta $dd0d
 
-  // // clear any pending raster IRQ
-  // lda #%11111111
-  // sta $d019
+  // clear any pending interrupts from CIA-1/2
+  lda $dc0d
+  lda $dd0d
+
+  // clear high raster bit
+  lda $d011
+  and #%01111111
+  sta $d011
+
+  // clear any pending raster interrupts
+  lda #$0f
+  sta $d019
 
   // raster line where interrupt will occur
   lda #$fa
   sta $d012
 
-  lda $0314
-  sta old_irq
-  lda $0315
-  sta old_irq+1
+  // lda $0314
+  // sta old_irq
+  // lda $0315
+  // sta old_irq+1
 
   // set interrupt handling routine
   lda #<irq
   sta $0314
   lda #>irq
   sta $0315
+
+  // // set interrupt handling routine if unload kernal
+  // lda #<irq
+  // sta $fffe
+  // lda #>irq
+  // sta $ffff
 
   // enable raster interrupt source
   lda #%00000001
@@ -2135,12 +2154,12 @@ injs:
   rol ebp
   rts
 
-gettime:
-  jsr $ffde
-  sty time+2
-  stx time+1
-  sta time
-  rts
+// gettime:
+//   jsr $ffde
+//   sty time+2
+//   stx time+1
+//   sta time
+//   rts
 
 // data area
 minx:        .byte 0,0
