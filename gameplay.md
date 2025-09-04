@@ -39,3 +39,14 @@ Uncomfotable quotes:
 * ""
 
 
+New thoughts:
+* Make jumping higher, allow to jump over enemies
+* You can slide by enemies, too
+* You have missions, like replacing cartridges in printers
+* Missions show up as tickets in the bottom of the screen.
+  * They have an indicator like an "urgent" or "warning" sign, with an icon.
+    The icon is a thing like a printer, or a power symbol, etc.
+    Next to those is an indicator telling you which printer it is and the direction to it.
+  * Each level has a certain number of tickets you have to accomplish. Getting them done
+    allows you to face the final boss.
+* Your goal is to get the missions done as fast as possible.

@@ -100,7 +100,52 @@ melody_play_note_played:
   sta sound_effect_ticks_left
 }
 
-irq:
+irq_noscroll:
+  pha
+  txa
+  pha
+  tya
+  pha
+
+  // reset scrolling to not be scrolled for the last three lines
+  lda $d016
+  and #%11110000
+  sta $d016
+
+irq_noscrolld:
+  // ack raster irq
+  asl $d019
+
+  // now set interrupt for the no scroll area
+  // raster line where interrupt will occur
+  lda #RASTER_VBLANK
+  sta $d012
+
+  // set interrupt handling routine
+  lda #<irq_vblank
+  sta $0314
+  lda #>irq_vblank
+  sta $0315
+
+  pla
+  tay
+  pla
+  tax
+  pla
+  jmp $ea81 // let the kernal do its thing 
+
+// TODO next:
+//  Chain IRQs together.
+//  Trigger raster when get to the last 3 character rows. Reset the scroll register to nothing.
+//  Then schedule the raster for the line following the last three character rows.
+//  First thing to do on  is reset the scroll register to what it was on the last interrupt.
+//  Then do all the rest of our IRQ work.
+//  Turn logging back on and see if it works.
+//  Create the following subroutines:
+//    irq_noscroll - trigger when reach the last three character rows
+//    irq_vblank   - trigger when reach vblank
+
+irq_vblank:
   pha
   txa
   pha
@@ -195,16 +240,27 @@ melody_v2_done:
 
 sound_done:
   lda SCR_buffer_ready
-  beq irqd
+  beq irq_vblankd
   jsr swap_buffers
 
-irqd:
+irq_vblankd:
   SCR_update_scroll_register()
   lda #1
   sta frame_tick
 
   // ack raster irq
   asl $d019
+
+  // now set interrupt for the no scroll area
+  // raster line where interrupt will occur
+  lda #RASTER_LAST3
+  sta $d012
+
+  // set interrupt handling routine
+  lda #<irq_noscroll
+  sta $0314
+  lda #>irq_noscroll
+  sta $0315
 
   pla
   tay
@@ -279,7 +335,7 @@ init:
   sta frame_phase
   sta current_buffer
 
-  lda #30
+  lda #20
   sta animation_frame
 
   jsr initui
@@ -341,6 +397,7 @@ no_new_sound:
   sta sound_effect_new_game_loop   // clear game loop flag
 
   jsr updanim
+  jsr hud
   // jsr log
 
   // get input, do game logic, possibly move screen mem
@@ -473,18 +530,13 @@ initirq:
   sta $d019
 
   // raster line where interrupt will occur
-  lda #$fa
+  lda #RASTER_LAST3
   sta $d012
 
-  // lda $0314
-  // sta old_irq
-  // lda $0315
-  // sta old_irq+1
-
   // set interrupt handling routine
-  lda #<irq
+  lda #<irq_noscroll
   sta $0314
-  lda #>irq
+  lda #>irq_noscroll
   sta $0315
 
   // // set interrupt handling routine if unload kernal
@@ -687,6 +739,24 @@ loadmap:
 
   rts
 
+hud:
+  lda SCR_buffer_flag
+  bne hud_back_screen
+  lda #$70
+  sta zpb0
+  lda #$07
+  sta zpb1
+  bne hud_render
+hud_back_screen:
+  lda #$70
+  sta zpb0
+  lda #$0b
+  sta zpb1
+hud_render:
+  ldy #1
+  lda #1
+  sta (zpb0), y
+  rts
 
 // todo dont assemble for release
 log:
@@ -2133,7 +2203,7 @@ updanim_00:
 updanim_upd_animation_frame:
   dec animation_frame
   bne updanim_done
-  lda #30
+  lda #20
   sta animation_frame
 updanim_done:
   rts

@@ -1,4 +1,4 @@
-
+// TODO: convert from var to const
 .var zpb0 = $fb
 .var zpb1 = $fc
 .var zpb2 = $fd
@@ -26,6 +26,9 @@
 // scrollmax must be a chunk below 255
 .var scrollmin    = 94
 .var scrollmax    = 226
+
+.const RASTER_LAST3    = $e2
+.const RASTER_VBLANK   = $fa
 
 .const SID_BASE        = 54272
 .const VOICE1          = 54272
