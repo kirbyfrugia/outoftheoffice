@@ -100,7 +100,9 @@ melody_play_note_played:
   sta sound_effect_ticks_left
 }
 
-irq_noscroll:
+// This interrupt is called right before we get to the hud part of the screen.
+// We disable scrolling until we've rendered those three rows of characters.
+irq_hud:
   pha
   txa
   pha
@@ -112,7 +114,7 @@ irq_noscroll:
   and #%11110000
   sta $d016
 
-irq_noscrolld:
+irq_hudd:
   // ack raster irq
   asl $d019
 
@@ -133,17 +135,6 @@ irq_noscrolld:
   tax
   pla
   jmp $ea81 // let the kernal do its thing 
-
-// TODO next:
-//  Chain IRQs together.
-//  Trigger raster when get to the last 3 character rows. Reset the scroll register to nothing.
-//  Then schedule the raster for the line following the last three character rows.
-//  First thing to do on  is reset the scroll register to what it was on the last interrupt.
-//  Then do all the rest of our IRQ work.
-//  Turn logging back on and see if it works.
-//  Create the following subroutines:
-//    irq_noscroll - trigger when reach the last three character rows
-//    irq_vblank   - trigger when reach vblank
 
 irq_vblank:
   pha
@@ -253,13 +244,13 @@ irq_vblankd:
 
   // now set interrupt for the no scroll area
   // raster line where interrupt will occur
-  lda #RASTER_LAST3
+  lda #RASTER_HUD
   sta $d012
 
   // set interrupt handling routine
-  lda #<irq_noscroll
+  lda #<irq_hud
   sta $0314
-  lda #>irq_noscroll
+  lda #>irq_hud
   sta $0315
 
   pla
@@ -530,20 +521,14 @@ initirq:
   sta $d019
 
   // raster line where interrupt will occur
-  lda #RASTER_LAST3
+  lda #RASTER_HUD
   sta $d012
 
   // set interrupt handling routine
-  lda #<irq_noscroll
+  lda #<irq_hud
   sta $0314
-  lda #>irq_noscroll
+  lda #>irq_hud
   sta $0315
-
-  // // set interrupt handling routine if unload kernal
-  // lda #<irq
-  // sta $fffe
-  // lda #>irq
-  // sta $ffff
 
   // enable raster interrupt source
   lda #%00000001
