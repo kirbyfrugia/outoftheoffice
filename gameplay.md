@@ -50,3 +50,6 @@ New thoughts:
   * Each level has a certain number of tickets you have to accomplish. Getting them done
     allows you to face the final boss.
 * Your goal is to get the missions done as fast as possible.
+* Bad guys
+  * Mice
+  * Fires to be put out, have to grab the fire extinguisher.

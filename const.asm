@@ -30,6 +30,7 @@
 .const RASTER_VBLANK   = $fa
 
 .const SID_BASE        = 54272
+
 .const VOICE1          = 54272
 .const VOICE1_LF       = 54272
 .const VOICE1_HF       = 54273

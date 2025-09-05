@@ -29,7 +29,7 @@
 //   Sprite sheet
 //     $4ffe-$4fff - just used to store the prg load location, ignored
 //     $5000-$77ff - sprite sheet, 160 sprites
-//     $7800-795f  - sprite attrib data, 160 bytesp
+//     $7800-795f  - sprite attrib data, 160 bytes
 //   More level data, tile metadata
 //     note: this uses a lot of memory, but it makes accessing the tiles faster/easier
 //     

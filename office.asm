@@ -1,14 +1,6 @@
 #import "data/level1.asm"
 #import "data/sprites.asm"
 
-.disk [filename="office.d64", name="OFFICE", id="O1" ] {
-  [name="OFFICE", type="prg", segments="Office"],
-  [name="SPRITES", type="prg", segments="sprites"],
-  [name="LEVEL1", type="prg", segments="level1"]
-}
-
-// .segment Office [outPrg="office.prg", start=$8000]
-.segment Office [outPrg="office.prg", start=$6000]
 .var hvzero    = 127
 .var maxhvl    = 92
 .var maxhvr    = 162
@@ -17,6 +9,69 @@
 .var maxvvu    = 100
 .var maxvvd    = 154
 
+.disk [filename="office.d64", name="OFFICE", id="O1" ] {
+  [name="OFFICE", type="prg", segments="StubBasic"],
+  [name="GAME", type="prg", segments="Game"],
+  [name="SPRITES", type="prg", segments="sprites"],
+  [name="LEVEL1", type="prg", segments="level1"]
+}
+
+.segment StubBasic [start=$0801]
+// --------------------------------------
+// BASIC loader stub
+// --------------------------------------
+
+// A BASIC line: 10 SYS2061
+.word nextLine      // pointer to next BASIC line
+.word 10            // line number
+.byte $9e           // BASIC token for SYS
+.text "2061"        // ASCII for SYS address
+.byte 0             // end of BASIC line
+nextLine:
+.word 0             // end of program marker
+
+// --------------------------------------
+// Stub routine at $080d (2061)
+// --------------------------------------
+// .segment StubAsm [start=$080d]
+.pc = $080d
+stub:
+  sei
+  lda $01
+  and #%11111000      // clear LORAM/HIRAM/CHAREN bits
+  ora #%00000110      // LORAM=0 (BASIC out), HIRAM=1 (keep KERNAL), CHAREN=1 (keep I/O)
+  sta $01
+  cli
+  
+  // load the game
+  lda #15                      // logical file number
+  ldx #8                       // device number
+  ldy #0                       // secondary address is 0, should load to location "start"
+  jsr $ffba                    // setlfs
+  lda #(gamename_end-gamename) // length of filename
+  ldx #<gamename               // pointer to filename low byte
+  ldy #>gamename               // pointer to filename high byte
+  jsr $ffbd                    // setnam
+  
+  lda #0
+  ldx #<start
+  ldy #>start
+  jsr $ffd5                    // load
+  sta $fb
+  stx $fc
+  sty $fd
+
+  jmp start            // jump into the game
+
+// data area
+gamename:
+  .text "GAME"
+gamename_end:
+fload_results:
+  .byte 0, 0
+
+.segment Game [start=$8000]
+start:
   jmp init
 
 #import "data.asm"
@@ -25,6 +80,7 @@
 #import "data/song-kirby.asm"
 // #import "data/song-devils-dream.asm"
 #import "screen.asm"
+#import "data/level1-enemies.asm"
 
 // Modifies X and A
 .macro copy_sprite(src, dest) {
@@ -77,29 +133,6 @@ melody_play_note_played:
   sta melody_index
 }
 
-.macro play_sound_effect(pulse_lo, pulse_hi, attack_decay, sustain_release, freq_lo, freq_hi, waveform, num_ticks) {
-  lda #pulse_lo
-  sta VOICE3_PULSE_LO
-  lda #pulse_hi
-  sta VOICE3_PULSE_HI
-
-  lda #attack_decay
-  sta VOICE3_ENV_AD
-  lda #sustain_release
-  sta VOICE3_ENV_SR
-
-  lda #freq_lo
-  sta VOICE3_LF
-  lda #freq_hi
-  sta VOICE3_HF
-
-  lda #waveform
-  sta VOICE3_CONTROL
-
-  lda #num_ticks
-  sta sound_effect_ticks_left
-}
-
 // This interrupt is called right before we get to the hud part of the screen.
 // We disable scrolling until we've rendered those three rows of characters.
 irq_hud:
@@ -149,8 +182,16 @@ irq_vblank:
 sound_is_started:
   lda sound_effect_new_irq
   beq sound_effect_process
+sound_effect_new:
+  // if here, we're loading a new sound from the game loop
+  
+  // Reset the oscillator so we always start from the same pitch
+  lda VOICE3_CONTROL
+  ora #%00001000  // set test bit
+  sta VOICE3_CONTROL
+  and #%11110111  // clear test bit
+  sta VOICE3_CONTROL
 
-  // if here, we're loading a new sound from the ggame loop
   ldx sound_effect_index_irq
 
   lda sound_effects_pulse_lo, x
@@ -172,23 +213,22 @@ sound_is_started:
   sta VOICE3_CONTROL
 
   lda sound_effects_num_ticks, x
-  sta sound_effect_ticks_left
+  sta current_sound_effect_ticks_left
 
   lda sound_effects_sweep_freq_lo, x
-  sta sound_effect_sweep_freq_lo
+  sta current_sound_effect_sweep_freq_lo
 
   lda sound_effects_sweep_freq_hi, x
-  sta sound_effect_sweep_freq_hi
+  sta current_sound_effect_sweep_freq_hi
 
   lda sound_effects_sweep_num_ticks, x
-  sta sound_effect_sweep_ticks_left
+  sta current_sound_effect_sweep_ticks_left
 
   lda #0
   sta sound_effect_new_irq
-
+  beq music
 sound_effect_process:
-  // let's deal with sound effects
-  dec sound_effect_ticks_left
+  dec current_sound_effect_ticks_left
   bne sound_effect_sweep
   // done playing this sound effect
   lda VOICE3_CONTROL
@@ -197,24 +237,24 @@ sound_effect_process:
 
   // set duration to 1 intentionally, gets decremented even if no sound is playing
   lda #1
-  sta sound_effect_ticks_left
-  sta sound_effect_sweep_ticks_left
+  sta current_sound_effect_ticks_left
+  sta current_sound_effect_sweep_ticks_left
   bne music
 sound_effect_sweep:
-  dec sound_effect_sweep_ticks_left
+  dec current_sound_effect_sweep_ticks_left
   beq sound_effect_sweep_done
   // still sweeping
   lda VOICE3_LF
   clc
-  adc sound_effect_sweep_freq_lo
+  adc current_sound_effect_sweep_freq_lo
   sta VOICE3_LF
   lda VOICE3_HF
-  adc sound_effect_sweep_freq_hi
+  adc current_sound_effect_sweep_freq_hi
   sta VOICE3_HF
   jmp music
 sound_effect_sweep_done:
   lda #1
-  sta sound_effect_sweep_done
+  sta current_sound_effect_sweep_ticks_left
 music:
   // now let's deal with the music
   dec melody_frames_until_16th
@@ -376,11 +416,12 @@ game_loop:
   sta frame_tick
   lda sound_effect_new_game_loop
   beq no_new_sound
-  // if here, a new sound was triggered in the game loop last loop
+  // if here, a new sound was triggered in the game loop on the last loop
   lda sound_effect_index_game_loop
   sta sound_effect_index_irq       // index of new sound to play, to be read by irq
   lda #1
   sta sound_effect_new_irq         // flag indicating we have a new sound to load for the irq handler
+  // TODO: the above could be faster if we use the BIT op
 no_new_sound:
   cli
   // end of section with disabled interrupts
@@ -388,8 +429,8 @@ no_new_sound:
   sta sound_effect_new_game_loop   // clear game loop flag
 
   jsr updanim
-  jsr hud
-  // jsr log
+  // jsr hud
+  jsr log
 
   // get input, do game logic, possibly move screen mem
   lda $dc00
@@ -492,6 +533,11 @@ initirq:
   // disable interrupts
   sei
 
+  // // switch out basic
+  // lda $01
+  // and #%11111000
+  // ora #%00000110
+  // sta $01
   // // switch out basic and kernal
   // lda $01
   // and #%11111000
@@ -580,10 +626,10 @@ initsound_clearsid:
   sta melody_v1_dur_left
   sta melody_v2_index
   sta melody_v2_dur_left
-  sta melody_v3_index
-  sta melody_v3_dur_left
-  sta sound_effect_sweep_freq_lo
-  sta sound_effect_sweep_freq_hi
+  // sta melody_v3_index
+  // sta melody_v3_dur_left
+  sta current_sound_effect_sweep_freq_lo
+  sta current_sound_effect_sweep_freq_hi
   sta sound_started
   lda #melody_tempo
   sta melody_frames_until_16th
@@ -601,16 +647,18 @@ startsound:
   // sta melody_v3_index
 
   lda #1
-  sta sound_effect_ticks_left
-  sta sound_effect_sweep_ticks_left
+  sta current_sound_effect_ticks_left
+  sta current_sound_effect_sweep_ticks_left
   sta melody_v1_dur_left
   sta melody_v2_dur_left
-  sta melody_v3_dur_left
+  // sta melody_v3_dur_left
   sta sound_started
   rts
 
 initspr:
   copy_sprite(sprite_image_0, SCR_sprite_data)
+  copy_sprite(sprite_image_8, SCR_sprite_data+64)
+  copy_sprite(sprite_image_8, SCR_sprite_data+128)
 
   // set sprite multi colors
   lda #sprmc0
@@ -625,10 +673,10 @@ initspr:
   stx $07f8 // front buffer
   stx $0bf8 // back buffer
 
-  lda #%00000001
+  lda #%00000111
   sta $d01c
 
-  lda #%00000001
+  lda #%00000111
   sta $d015 //spr enable
 
   lda #$0a
@@ -638,6 +686,12 @@ initspr:
 
   lda #128
   sta $d000 //spr0x
+  ldx #0
+  lda enemies_minx_lo, x
+  sta $d001
+  ldx #1
+  lda enemies_minx_lo, x
+  sta $d002
   //lda #16
   //sta $d002 //spr1x
   //sta $d004 //spr2x
@@ -646,6 +700,13 @@ initspr:
 
   lda #194
   sta $d001 //spr0y
+
+  ldx #0
+  lda enemies_posy, x
+  sta $d001
+  ldx #1
+  lda enemies_posy, x
+  sta $d002
   //lda #58
   //sta $d003 //spr1y
   //lda #106
@@ -919,19 +980,11 @@ log_line3:
   jsr loghexit
   iny
   iny
-  lda melody_v3_index
+  lda current_sound_effect_ticks_left
   jsr loghexit
   iny
   iny
-  lda melody_v3_dur_left
-  jsr loghexit
-  iny
-  iny
-  lda sound_effect_ticks_left
-  jsr loghexit
-  iny
-  iny
-  lda sound_effect_sweep_ticks_left
+  lda current_sound_effect_sweep_ticks_left
   jsr loghexit
   iny
   iny
@@ -2216,7 +2269,6 @@ injs:
 //   sta time
 //   rts
 
-// data area
 minx:        .byte 0,0
 maxx:        .byte 0,0
 miny:        .byte 0,0
@@ -2279,26 +2331,24 @@ collision_column_even:   .byte 0
 collision_row_even:      .byte 0
 on_ground:               .byte 0
 
-old_irq:                 .byte 0,0
+sound_started:                 .byte 0
+melody_v1_index:               .byte 0
+melody_v1_dur_left:            .byte 0
+melody_v2_index:               .byte 0
+melody_v2_dur_left:            .byte 0
+// melody_v3_index:               .byte 0
+// melody_v3_dur_left:            .byte 0
+melody_frames_until_16th:      .byte 0
 
-sound_started:                .byte 0
-melody_v1_index:              .byte 0
-melody_v1_dur_left:           .byte 0
-melody_v2_index:              .byte 0
-melody_v2_dur_left:           .byte 0
-melody_v3_index:              .byte 0
-melody_v3_dur_left:           .byte 0
-melody_frames_until_16th:     .byte 0
+current_sound_effect_ticks_left:       .byte 0
+current_sound_effect_sweep_freq_lo:    .byte 0
+current_sound_effect_sweep_freq_hi:    .byte 0
+current_sound_effect_sweep_ticks_left: .byte 0
 
-sound_effect_ticks_left:      .byte 0
-sound_effect_sweep_freq_lo:   .byte 0
-sound_effect_sweep_freq_hi:   .byte 0
-sound_effect_sweep_ticks_left:      .byte 0
-
-sound_effect_new_irq:    .byte 0
-sound_effect_new_game_loop:   .byte 0
-sound_effect_index_irq:       .byte 0
-sound_effect_index_game_loop:
+sound_effect_new_irq:          .byte 0
+sound_effect_new_game_loop:    .byte 0
+sound_effect_index_irq:        .byte 0
+sound_effect_index_game_loop:  .byte 0
 
 // sound effects table
 // indices:
@@ -2311,16 +2361,16 @@ sound_effects_attack_decay:
   .byte $16
 sound_effects_sustain_release:
   .byte $25
+sound_effects_waveform:
+  .byte %01000001
 sound_effects_freq_lo:
   .byte $16
 sound_effects_freq_hi:
   .byte $01
-sound_effects_waveform:
-  .byte %01000001
 sound_effects_num_ticks:
   .byte 60
 sound_effects_sweep_freq_lo:
-  .byte $01
+  .byte $10
 sound_effects_sweep_freq_hi:
   .byte $00
 sound_effects_sweep_num_ticks:
