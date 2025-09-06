@@ -80,6 +80,7 @@ start:
 #import "data/song-kirby.asm"
 // #import "data/song-devils-dream.asm"
 #import "screen.asm"
+#import "enemies.asm"
 #import "data/level1-enemies.asm"
 
 // Modifies X and A
@@ -429,8 +430,8 @@ no_new_sound:
   sta sound_effect_new_game_loop   // clear game loop flag
 
   jsr updanim
-  // jsr hud
-  jsr log
+  jsr hud
+  // jsr log
 
   // get input, do game logic, possibly move screen mem
   lda $dc00
@@ -673,28 +674,40 @@ initspr:
   stx $07f8 // front buffer
   stx $0bf8 // back buffer
 
+  inx
+  stx $07f9
+  stx $0bf9
+
+  inx
+  stx $07fa
+  stx $0bfa
+
   lda #%00000111
   sta $d01c
 
   lda #%00000111
   sta $d015 //spr enable
 
-  lda #$0a
+  ldx #0
+  lda spriteset_attrib_data, x
   sta $d027 //spr 0 clr
-  //sta $d028 //spr 1 clr
-  //sta $d029 //spr 2 clr
+  ldx #8
+  lda spriteset_attrib_data, x
+  sta $d028 //spr 1 clr
+  sta $d029 //spr 2 clr
 
   lda #128
   sta $d000 //spr0x
   ldx #0
-  lda enemies_minx_lo, x
-  sta $d001
-  ldx #1
-  lda enemies_minx_lo, x
+  lda enemies_posx_lo, x
+  clc
+  adc #31
   sta $d002
-  //lda #16
-  //sta $d002 //spr1x
-  //sta $d004 //spr2x
+  ldx #1
+  lda enemies_posx_lo, x
+  clc
+  adc #31
+  sta $d004
   lda #%00000000
   sta $d010 //spr msb
 
@@ -703,14 +716,14 @@ initspr:
 
   ldx #0
   lda enemies_posy, x
-  sta $d001
+  clc
+  adc #50
+  sta $d003
   ldx #1
   lda enemies_posy, x
-  sta $d002
-  //lda #58
-  //sta $d003 //spr1y
-  //lda #106
-  //sta $d005 //spr2y
+  clc
+  adc #50
+  sta $d005
 
   rts
 
@@ -1933,6 +1946,12 @@ cmru_left:
 cmru_done:
   rts
 
+// update enemy positions, sprites, etc
+upd_enemies:
+  ldx #enemies_count
+enemy:
+  lda enemies_rangex
+  rts
 
 updp1p:
   // vertical position first
@@ -2221,23 +2240,31 @@ updanim:
   cmp #30
   bne updanim_20
   copy_sprite(sprite_image_0, SCR_sprite_data)
+  copy_sprite(sprite_image_8, SCR_sprite_data+64)
+  copy_sprite(sprite_image_8, SCR_sprite_data+128)
   jmp updanim_upd_animation_frame
 updanim_20:
   lda animation_frame
   cmp #20
   bne updanim_10
   copy_sprite(sprite_image_1, SCR_sprite_data)
+  copy_sprite(sprite_image_8, SCR_sprite_data+64)
+  copy_sprite(sprite_image_8, SCR_sprite_data+128)
   jmp updanim_upd_animation_frame
 updanim_10:
   lda animation_frame
   cmp #10
   bne updanim_00
   copy_sprite(sprite_image_2, SCR_sprite_data)
+  copy_sprite(sprite_image_9, SCR_sprite_data+64)
+  copy_sprite(sprite_image_9, SCR_sprite_data+128)
   jmp updanim_upd_animation_frame
 updanim_00:
   lda animation_frame
   bne updanim_upd_animation_frame
   copy_sprite(sprite_image_3, SCR_sprite_data)
+  copy_sprite(sprite_image_10, SCR_sprite_data+64)
+  copy_sprite(sprite_image_10, SCR_sprite_data+128)
 updanim_upd_animation_frame:
   dec animation_frame
   bne updanim_done
@@ -2368,10 +2395,10 @@ sound_effects_freq_lo:
 sound_effects_freq_hi:
   .byte $01
 sound_effects_num_ticks:
-  .byte 60
+  .byte 20
 sound_effects_sweep_freq_lo:
   .byte $10
 sound_effects_sweep_freq_hi:
   .byte $00
 sound_effects_sweep_num_ticks:
-  .byte 60
+  .byte 20
