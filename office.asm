@@ -670,6 +670,7 @@ initspr:
   copy_sprite(sprite_image_0, SCR_sprite_data)
   copy_sprite(sprite_image_8, SCR_sprite_data+64)
   copy_sprite(sprite_image_8, SCR_sprite_data+128)
+  copy_sprite(sprite_image_8, SCR_sprite_data+192)
 
   // set sprite multi colors
   lda #sprmc0
@@ -692,10 +693,14 @@ initspr:
   stx $07fa
   stx $0bfa
 
-  lda #%00000111
+  inx
+  stx $07fb
+  stx $0bfb
+
+  lda #%01111111
   sta SPRITE_MC_MODE
 
-  lda #%00000111
+  lda #%00001111
   sta SPRITE_ENABLE //spr enable
 
   // TODO: don't hard-code these sprite 1 and 2 things
@@ -707,6 +712,7 @@ initspr:
   lda spriteset_attrib_data, x
   sta SPRITE_COLOR_BASE+1
   sta SPRITE_COLOR_BASE+2
+  sta SPRITE_COLOR_BASE+3
 
   lda #128
   sta SPRITE_XPOS_BASE
@@ -720,6 +726,12 @@ initspr:
   clc
   adc #31
   sta SPRITE_XPOS_BASE+4
+  ldx #2
+  lda enemies_posx_lo, x
+  clc
+  adc #31
+  sta SPRITE_XPOS_BASE+6
+
   lda #%00000000
   sta SPRITE_MSB
 
@@ -736,6 +748,11 @@ initspr:
   clc
   adc #50
   sta SPRITE_YPOS_BASE+4
+  ldx #2
+  lda enemies_posy, x
+  clc
+  adc #50
+  sta SPRITE_YPOS_BASE+6
 
   rts
 
@@ -879,10 +896,10 @@ hud_render:
 //   jsr loghexit
 //   iny
 //   iny
-//   lda SCR_first_column_beyond_screen+1
+//   lda SCR_first_column_beyond_screen_pixels+1
 //   jsr loghexit
 //   iny
-//   lda SCR_first_column_beyond_screen
+//   lda SCR_first_column_beyond_screen_pixels
 //   jsr loghexit
 //   rts
 
@@ -2346,9 +2363,8 @@ enemy_not_offscreen_left:
 
   // if here, enemy is further right than 256 pixels
   lda zpb0
-  cmp #(scrwidth-256)
+  cmp #<(scrwidth*8)
   bcs enemy_offscreen
-
 enemy_onscreen:
   // if here, enemy on screen
   // enable the sprite
@@ -2414,6 +2430,7 @@ updanim:
   copy_sprite(sprite_image_0, SCR_sprite_data)
   copy_sprite(sprite_image_8, SCR_sprite_data+64)
   copy_sprite(sprite_image_8, SCR_sprite_data+128)
+  copy_sprite(sprite_image_8, SCR_sprite_data+192)
   jmp updanim_upd_animation_frame
 updanim_20:
   lda animation_frame
@@ -2422,6 +2439,7 @@ updanim_20:
   copy_sprite(sprite_image_1, SCR_sprite_data)
   copy_sprite(sprite_image_8, SCR_sprite_data+64)
   copy_sprite(sprite_image_8, SCR_sprite_data+128)
+  copy_sprite(sprite_image_8, SCR_sprite_data+192)
   jmp updanim_upd_animation_frame
 updanim_10:
   lda animation_frame
@@ -2430,6 +2448,7 @@ updanim_10:
   copy_sprite(sprite_image_2, SCR_sprite_data)
   copy_sprite(sprite_image_9, SCR_sprite_data+64)
   copy_sprite(sprite_image_9, SCR_sprite_data+128)
+  copy_sprite(sprite_image_9, SCR_sprite_data+192)
   jmp updanim_upd_animation_frame
 updanim_00:
   lda animation_frame
@@ -2437,6 +2456,7 @@ updanim_00:
   copy_sprite(sprite_image_3, SCR_sprite_data)
   copy_sprite(sprite_image_10, SCR_sprite_data+64)
   copy_sprite(sprite_image_10, SCR_sprite_data+128)
+  copy_sprite(sprite_image_10, SCR_sprite_data+192)
 updanim_upd_animation_frame:
   dec animation_frame
   bne updanim_done

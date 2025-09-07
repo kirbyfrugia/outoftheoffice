@@ -483,9 +483,9 @@ SCR_init_screen:
   sta SCR_first_visible_column_pixels+1
 
   lda #<(scrwidth*8)
-  sta SCR_first_column_beyond_screen
+  sta SCR_first_column_beyond_screen_pixels
   lda #>(scrwidth*8)
-  sta SCR_first_column_beyond_screen+1
+  sta SCR_first_column_beyond_screen_pixels+1
 
   lda #19
   sta SCR_last_visible_tile
@@ -839,10 +839,10 @@ msl_done:
   lda SCR_first_visible_column_pixels
   clc
   adc #<(scrwidth*8)
-  sta SCR_first_column_beyond_screen
+  sta SCR_first_column_beyond_screen_pixels
   lda SCR_first_visible_column_pixels+1
   adc #>(scrwidth*8)
-  sta SCR_first_column_beyond_screen+1
+  sta SCR_first_column_beyond_screen_pixels+1
 
   lda #1
   sta SCR_buffer_ready
@@ -1103,10 +1103,10 @@ msr_loop_done:
   lda SCR_first_visible_column_pixels
   clc
   adc #<(scrwidth*8)
-  sta SCR_first_column_beyond_screen
+  sta SCR_first_column_beyond_screen_pixels
   lda SCR_first_visible_column_pixels+1
   adc #>(scrwidth*8)
-  sta SCR_first_column_beyond_screen+1
+  sta SCR_first_column_beyond_screen_pixels+1
 msr_done:
   lda #1
   sta SCR_buffer_ready
@@ -1114,10 +1114,10 @@ msr_done:
 
 
 
-SCR_first_visible_column_max:    .byte 0,0
-SCR_first_visible_column:        .byte 0,0
-SCR_first_visible_column_pixels: .byte 0,0
-SCR_first_column_beyond_screen:  .byte 0,0
+SCR_first_visible_column_max:           .byte 0,0
+SCR_first_visible_column:               .byte 0,0
+SCR_first_visible_column_pixels:        .byte 0,0
+SCR_first_column_beyond_screen_pixels:  .byte 0,0
 
 // TODO: move this to the zero page
 SCR_first_visible_tile:          .byte 0
