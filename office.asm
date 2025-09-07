@@ -425,12 +425,13 @@ game_loop:
   // TODO: the above could be faster if we use the BIT op
 no_new_sound:
   cli
+
   // end of section with disabled interrupts
   lda #0
   sta sound_effect_new_game_loop   // clear game loop flag
 
   jsr updanim
-  jsr hud
+  // jsr hud
   // jsr log
 
   // get input, do game logic, possibly move screen mem
@@ -439,6 +440,14 @@ no_new_sound:
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
+  lda frame_phase
+  eor #%00000001
+  sta frame_phase
+  bne game_loop_enemy_sprites
+  // only update enemy position every other frame
+  jsr upd_enemies_pos
+game_loop_enemy_sprites:
+  jsr upd_enemies_sprites
 
 game_loop_swap:
   // wait for buffer to swap
@@ -877,19 +886,16 @@ log_line1:
   iny
   lda SCR_scroll_offset
   jsr loghexit
-
   iny
   iny
   lda SCR_scroll_register
   jsr loghexit
-
   iny
   iny
-  lda SCR_scroll_in
+  lda SCR_first_column_beyond_screen+1
   jsr loghexit
   iny
-  iny
-  lda SCR_scroll_out
+  lda SCR_first_column_beyond_screen
   jsr loghexit
 
   
@@ -1946,12 +1952,7 @@ cmru_left:
 cmru_done:
   rts
 
-// update enemy positions, sprites, etc
-upd_enemies:
-  ldx #enemies_count
-enemy:
-  lda enemies_rangex
-  rts
+
 
 updp1p:
   // vertical position first
@@ -2231,6 +2232,130 @@ updp1pmsb:
   ora #%00000001
   sta $d010
 updp1pd:
+  rts
+
+// update enemy positions
+upd_enemies_pos:
+  ldx enemies_buffer_min
+upd_enemies_pos_enemy:
+  // TODO: let's see if we've moved any sprites off the screen and
+  // deal with that situation
+
+  // first let's update the positions of all the characters in our buffer
+  lda enemies_flags, x
+  and #%10000000
+  beq enemy_moving_left
+  // if here, enemy moving right
+  lda enemies_posx_lo, x
+  clc
+  adc #1
+  sta enemies_posx_lo, x
+  lda enemies_posx_hi, x
+  adc #0
+  sta enemies_posx_hi, x
+  cmp enemies_rangex_max_hi, x
+  bcc upd_enemies_pos_next_enemy
+  lda enemies_posx_lo, x
+  cmp enemies_rangex_max_lo, x
+  bcc upd_enemies_pos_next_enemy
+enemy_start_moving_left:
+  lda enemies_rangex_max_lo, x
+  sta enemies_posx_lo, x
+  lda enemies_rangex_max_hi, x
+  sta enemies_posx_hi, x
+  lda enemies_flags, x
+  and #%01111111
+  sta enemies_flags, x
+  jmp upd_enemies_pos_next_enemy
+enemy_moving_left:
+  lda enemies_posx_lo, x
+  sec
+  sbc #1
+  sta enemies_posx_lo, x
+  lda enemies_posx_hi, x
+  sbc #0
+  sta enemies_posx_hi, x
+  cmp enemies_rangex_min_hi, x
+  bcc enemy_start_moving_right
+  lda enemies_posx_lo, x
+  cmp enemies_rangex_min_lo, x
+  bcc enemy_start_moving_right
+  bcs upd_enemies_pos_next_enemy
+enemy_start_moving_right:
+  lda enemies_rangex_min_lo, x
+  sta enemies_posx_lo, x
+  lda enemies_rangex_min_hi, x
+  sta enemies_posx_hi, x
+  lda enemies_flags, x
+  ora #%10000000
+  sta enemies_flags, x
+upd_enemies_pos_next_enemy:
+  inx
+  cpx enemies_buffer_max
+  bcs upd_enemies_posd
+  jmp upd_enemies_pos_enemy
+upd_enemies_posd:
+  rts
+
+upd_enemies_sprites:
+  ldx enemies_buffer_min
+upd_enemies_sprites_enemy:
+  // TODO: let's see if we've moved any sprites off the screen and
+  // deal with that situation
+
+  // TODO: make sure this considers actual visibility
+  // now update the sprite if it's visible on the screen
+
+  // first let's move things to local coordds
+  ldy enemies_sprite_slots, x
+  lda enemies_posx_lo, x
+  sec
+  sbc SCR_first_visible_column_pixels
+  sta zpb0
+  lda enemies_posx_hi, x
+  sbc SCR_first_visible_column_pixels+1
+  sta zpb1
+
+  // now let's add the border offset
+  lda zpb0
+  clc
+  adc #31
+  sta zpb0
+  lda zpb1
+  adc #0
+  sta zpb1
+
+  // now let's consider the scrolling
+  lda zpb0
+  sec
+  sbc SCR_scroll_offset
+  sta zpb0
+  lda zpb1
+  sbc #0
+  sta zpb1
+  beq enemy_nomsb
+
+  // set sprite msb
+  lda $d010
+  ora enemies_sprite_slots, x
+  sta $d010
+  bne enemy_lsb
+enemy_nomsb:
+  lda enemies_sprite_slots, x
+  eor #$11111111
+  and $d010
+  sta $d010
+enemy_lsb:
+  ldy enemies_sprite_posx_offset, x
+  lda zpb0
+  sta $d000, y
+upd_enemies_sprites_next_enemy:
+  inx
+  cpx enemies_buffer_max
+  bcs upd_enemies_spritesd
+  jmp upd_enemies_sprites_enemy
+upd_enemies_spritesd:
+
   rts
 
 
