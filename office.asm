@@ -1002,19 +1002,6 @@ hud_render:
 //   rts
 
 log_enemies:
-  lda zpb6
-  jsr loghexit
-  iny
-  lda zpb7
-  jsr loghexit
-  iny
-  iny
-  lda SPRITE_MSB
-  jsr loghexit
-  iny
-  iny
-  lda zpb5
-  jsr loghexit
   rts
 
 // TODO: dont assemble for release
@@ -2338,7 +2325,23 @@ upd_enemies_sprites_enemy:
   lda enemies_posx_hi, x
   sbc SCR_first_visible_column_pixels+1
   sta zpb1
+  bpl enemy_not_offscreen_left
+  
+  // if here, the enemy may be off the screen to the left, but we haven't
+  // yet taken into account the width of the enemy character.
+  // Add back the width of the character. If the high byte is still negative,
+  // that means the enemy really is off the screen to the left.
+  lda zpb0
+  clc
+  adc enemies_width, x
+  lda zpb1
+  adc #0
   bmi enemy_offscreen
+  bpl enemy_onscreen
+enemy_not_offscreen_left:
+  // if here, the enemy is further to the right in the level than
+  // the first visible column
+  lda zpb1
   beq enemy_onscreen // < 256, so onscreen
 
   // if here, enemy is further right than 256 pixels
@@ -2352,12 +2355,6 @@ enemy_onscreen:
   lda enemies_sprite_slots, x
   ora SPRITE_ENABLE
   sta SPRITE_ENABLE
-
-  // TODO: no need to store this, just doing it for debug
-  // TODO: this will cause us to overwrite important stuff
-  // if more than 2 enemies
-  lda #0
-  sta zpb6, x
 
   // now let's add the border offset
   lda zpb0
@@ -2394,18 +2391,11 @@ enemy_lsb:
   sta SPRITE_XPOS_BASE, y
   jmp upd_enemies_sprites_next_enemy
 enemy_offscreen:
-  // TODO: no need to store this, just doing it for debug
-  // TODO: this will cause us to overwrite important stuff
-  // if more than 2 enemies
-  lda #1
-  sta zpb6, x
-
   // disable the sprite
   lda enemies_sprite_slots, x
   eor #%11111111
   and SPRITE_ENABLE
   sta SPRITE_ENABLE
-
 upd_enemies_sprites_next_enemy:
   inx
   cpx enemies_buffer_max
