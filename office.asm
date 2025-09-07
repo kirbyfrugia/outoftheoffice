@@ -144,18 +144,18 @@ irq_hud:
   pha
 
   // reset scrolling to not be scrolled for the last three lines
-  lda $d016
+  lda VIC_HCONTROL_REG
   and #%11110000
-  sta $d016
+  sta VIC_HCONTROL_REG
 
 irq_hudd:
   // ack raster irq
-  asl $d019
+  asl VIC_IRQ_FLAG
 
   // now set interrupt for the no scroll area
   // raster line where interrupt will occur
   lda #RASTER_VBLANK
-  sta $d012
+  sta VIC_RW_RASTER
 
   // set interrupt handling routine
   lda #<irq_vblank
@@ -281,12 +281,12 @@ irq_vblankd:
   sta frame_tick
 
   // ack raster irq
-  asl $d019
+  asl VIC_IRQ_FLAG
 
   // now set interrupt for the no scroll area
   // raster line where interrupt will occur
   lda #RASTER_HUD
-  sta $d012
+  sta VIC_RW_RASTER
 
   // set interrupt handling routine
   lda #<irq_hud
@@ -432,7 +432,15 @@ no_new_sound:
 
   jsr updanim
   // jsr hud
-  // jsr log
+  jsr log
+
+  lda frame_phase
+  eor #%00000001
+  sta frame_phase
+  bne game_loop_done_sprite_pos
+  // only update enemy position every other frame
+  jsr upd_enemies_pos
+game_loop_done_sprite_pos:
 
   // get input, do game logic, possibly move screen mem
   lda $dc00
@@ -440,13 +448,6 @@ no_new_sound:
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
-  lda frame_phase
-  eor #%00000001
-  sta frame_phase
-  bne game_loop_enemy_sprites
-  // only update enemy position every other frame
-  jsr upd_enemies_pos
-game_loop_enemy_sprites:
   jsr upd_enemies_sprites
 
 game_loop_swap:
@@ -463,18 +464,18 @@ swap_buffers:
   lda SCR_buffer_flag
   beq sb_screen0800
 
-  lda $d018
+  lda VIC_MEM_CONTROL_REG
   and #%00001111
   ora #%00010000 // screen location 1024, $0400
-  sta $d018
+  sta VIC_MEM_CONTROL_REG
   lda #0
   sta SCR_buffer_flag
   beq swap_buffers_swapped
 sb_screen0800:
-  lda $d018
+  lda VIC_MEM_CONTROL_REG
   and #%00001111
   ora #%00100000 // screen location 2048, $0800
-  sta $d018
+  sta VIC_MEM_CONTROL_REG
   lda #1
   sta SCR_buffer_flag
 swap_buffers_swapped:
@@ -522,21 +523,21 @@ clsl:
 
 initsys:
   // turn on multiclr char mode
-  // lda $d016
+  // lda VIC_HCONTROL_REG
   // ora #%00010000
-  // sta $d016
+  // sta VIC_HCONTROL_REG
 
   // use our in-memory charset
-  lda $d018
+  lda VIC_MEM_CONTROL_REG
   and #%11110000
   ora #%00001000 // $2000-27ff
-  sta $d018
+  sta VIC_MEM_CONTROL_REG
 
   lda #15
-  sta $d021
+  sta BG_COLOR0
 
   lda #0
-  sta $d020
+  sta BORDER_COLOR
   rts
 
 initirq:
@@ -568,17 +569,17 @@ initirq:
   lda $dd0d
 
   // clear high raster bit
-  lda $d011
+  lda VIC_VCONTROL_REG
   and #%01111111
-  sta $d011
+  sta VIC_VCONTROL_REG
 
   // clear any pending raster interrupts
   lda #$0f
-  sta $d019
+  sta VIC_IRQ_FLAG
 
   // raster line where interrupt will occur
   lda #RASTER_HUD
-  sta $d012
+  sta VIC_RW_RASTER
 
   // set interrupt handling routine
   lda #<irq_hud
@@ -588,7 +589,7 @@ initirq:
 
   // enable raster interrupt source
   lda #%00000001
-  sta $d01a
+  sta VIC_IRQ_MASK
 
   cli // re-enable interrupts
   rts
@@ -672,9 +673,9 @@ initspr:
 
   // set sprite multi colors
   lda #sprmc0
-  sta $d025
+  sta SPRITE_MC0
   lda #sprmc1
-  sta $d026
+  sta SPRITE_MC1
 
   // sprite pointers
   // location = (bank * 16384)+(sprptr*64)
@@ -692,47 +693,49 @@ initspr:
   stx $0bfa
 
   lda #%00000111
-  sta $d01c
+  sta SPRITE_MC_MODE
 
   lda #%00000111
-  sta $d015 //spr enable
+  sta SPRITE_ENABLE //spr enable
+
+  // TODO: don't hard-code these sprite 1 and 2 things
 
   ldx #0
   lda spriteset_attrib_data, x
-  sta $d027 //spr 0 clr
+  sta SPRITE_COLOR_BASE+0 //spr 0 clr
   ldx #8
   lda spriteset_attrib_data, x
-  sta $d028 //spr 1 clr
-  sta $d029 //spr 2 clr
+  sta SPRITE_COLOR_BASE+1 //spr 1 clr
+  sta SPRITE_COLOR_BASE+2 //spr 2 clr
 
   lda #128
-  sta $d000 //spr0x
+  sta SPRITE_XPOS_BASE //spr0x
   ldx #0
   lda enemies_posx_lo, x
   clc
   adc #31
-  sta $d002
+  sta SPRITE_XPOS_BASE+2
   ldx #1
   lda enemies_posx_lo, x
   clc
   adc #31
-  sta $d004
+  sta SPRITE_XPOS_BASE+4
   lda #%00000000
-  sta $d010 //spr msb
+  sta SPRITE_MSB //spr msb
 
   lda #194
-  sta $d001 //spr0y
+  sta SPRITE_YPOS_BASE //spr0y
 
   ldx #0
   lda enemies_posy, x
   clc
   adc #50
-  sta $d003
+  sta SPRITE_YPOS_BASE+2
   ldx #1
   lda enemies_posy, x
   clc
   adc #50
-  sta $d005
+  sta SPRITE_YPOS_BASE+4
 
   rts
 
@@ -826,7 +829,187 @@ hud_render:
   sta (zpb0), y
   rts
 
-// todo dont assemble for release
+// log_posx:
+//   lda p1gx+1
+//   jsr loghexit
+//   iny
+//   lda p1gx
+//   jsr loghexit
+
+//   iny
+//   iny
+//   lda p1lx+1
+//   jsr loghexit
+//   iny
+//   lda p1lx
+//   jsr loghexit
+
+//   iny
+//   iny
+//   lda p1sx+1
+//   jsr loghexit
+//   iny
+//   lda p1sx
+//   jsr loghexit
+
+//   iny
+//   iny
+//   lda p1hva+1
+//   jsr loghexit
+//   iny
+//   lda p1hva
+//   jsr loghexit
+//   rts
+
+// log_screen:
+//   lda SCR_first_visible_column+1
+//   jsr loghexit
+//   iny
+//   lda SCR_first_visible_column
+//   jsr loghexit
+//   iny
+//   lda #43
+//   sta (zpb0),y
+//   iny
+//   lda SCR_scroll_offset
+//   jsr loghexit
+//   iny
+//   iny
+//   lda SCR_scroll_register
+//   jsr loghexit
+//   iny
+//   iny
+//   lda SCR_first_column_beyond_screen+1
+//   jsr loghexit
+//   iny
+//   lda SCR_first_column_beyond_screen
+//   jsr loghexit
+//   rts
+
+// log_posy:
+//   lda p1gy+1
+//   jsr loghexit
+//   iny
+//   lda p1gy
+//   jsr loghexit
+
+//   iny
+//   iny
+//   iny
+//   iny
+//   lda p1ly
+//   jsr loghexit
+
+//   iny
+//   iny
+//   lda p1sy
+//   jsr loghexit
+
+//   iny
+//   iny
+//   lda p1vva+1
+//   jsr loghexit
+//   iny
+//   lda p1vva
+//   jsr loghexit
+
+//   rts
+
+// log_collision:
+//   lda collide_pixels_x
+//   jsr loghexit
+//   iny
+//   lda collide_pixels_y
+//   jsr loghexit
+
+//   iny
+//   iny
+//   lda p1cx2
+//   jsr loghexit
+//   iny
+//   lda p1cy2
+//   jsr loghexit
+
+//   iny
+//   iny
+//   lda on_ground
+//   jsr loghexit
+
+//   iny
+//   iny
+//   lda collision_row_even
+//   jsr loghexit
+//   iny
+//   lda collision_column_even
+//   jsr loghexit
+
+//   ldy #10
+//   ldx #0
+// log_line_collision_loop:
+//   lda collision_metadata_row0, x
+//   jsr loghexit
+//   iny
+//   lda collision_metadata_row1, x
+//   jsr loghexit
+//   iny
+//   lda collision_metadata_row2, x
+//   jsr loghexit
+//   iny
+//   lda collision_metadata_row3, x
+//   jsr loghexit
+//   iny
+//   iny
+//   inx
+//   cpx #3
+//   bne log_line_collision_loop
+//   rts
+
+// log_melody:
+//   lda melody_frames_until_16th
+//   jsr loghexit
+//   iny
+//   iny
+//   lda melody_v1_index
+//   jsr loghexit
+//   iny
+//   iny
+//   lda melody_v1_dur_left
+//   jsr loghexit
+//   iny
+//   iny
+//   lda melody_v2_index
+//   jsr loghexit
+//   iny
+//   iny
+//   lda melody_v2_dur_left
+//   jsr loghexit
+//   iny
+//   iny
+//   lda current_sound_effect_ticks_left
+//   jsr loghexit
+//   iny
+//   iny
+//   lda current_sound_effect_sweep_ticks_left
+//   jsr loghexit
+//   iny
+//   iny
+//   lda VOICE3_LF
+//   jsr loghexit
+//   iny
+//   iny
+//   lda VOICE3_HF
+//   jsr loghexit
+//   rts
+
+log_enemies:
+  lda zpb6
+  jsr loghexit
+  iny
+  lda zpb7
+  jsr loghexit
+  rts
+
+// TODO: dont assemble for release
 log:
   lda SCR_buffer_flag
   bne log_back_line1
@@ -842,61 +1025,10 @@ log_back_line1:
   sta zpb1
 log_line1:
   ldy #1
-
-  lda p1gx+1
-  jsr loghexit
-  iny
-  lda p1gx
-  jsr loghexit
-
-  iny
-  iny
-  lda p1lx+1
-  jsr loghexit
-  iny
-  lda p1lx
-  jsr loghexit
-
-  iny
-  iny
-  lda p1sx+1
-  jsr loghexit
-  iny
-  lda p1sx
-  jsr loghexit
-
-  iny
-  iny
-  lda p1hva+1
-  jsr loghexit
-  iny
-  lda p1hva
-  jsr loghexit
-
-  iny
-  iny
-  lda SCR_first_visible_column+1
-  jsr loghexit
-  iny
-  lda SCR_first_visible_column
-  jsr loghexit
-  iny
-  lda #43
-  sta (zpb0),y
-  iny
-  lda SCR_scroll_offset
-  jsr loghexit
-  iny
-  iny
-  lda SCR_scroll_register
-  jsr loghexit
-  iny
-  iny
-  lda SCR_first_column_beyond_screen+1
-  jsr loghexit
-  iny
-  lda SCR_first_column_beyond_screen
-  jsr loghexit
+  jsr log_enemies
+  // jsr log_posx
+  // jsr log_screen
+  // jsr log_melody
 
   
   // next row
@@ -913,55 +1045,10 @@ log_back_line2:
   lda #$0b
   sta zpb1
 log_line2:
-
   ldy #1
+  // jsr log_posy
+  // jsr log_collision
 
-  lda p1gy+1
-  jsr loghexit
-  iny
-  lda p1gy
-  jsr loghexit
-
-  iny
-  iny
-  iny
-  iny
-  lda p1ly
-  jsr loghexit
-
-  iny
-  iny
-  lda p1sy
-  jsr loghexit
-
-  iny
-  iny
-  lda p1vva+1
-  jsr loghexit
-  iny
-  lda p1vva
-  jsr loghexit
-
-  iny
-  iny
-  lda collide_pixels_x
-  jsr loghexit
-  iny
-  lda collide_pixels_y
-  jsr loghexit
-
-  iny
-  iny
-  lda p1cx2
-  jsr loghexit
-  iny
-  lda p1cy2
-  jsr loghexit
-
-  iny
-  iny
-  lda on_ground
-  jsr loghexit
 
   // next row
   lda SCR_buffer_flag
@@ -977,73 +1064,8 @@ log_back_line3:
   lda #$0b
   sta zpb1
 log_line3:
-
   ldy #1
-  lda melody_frames_until_16th
-  jsr loghexit
-  iny
-  iny
-  lda melody_v1_index
-  jsr loghexit
-  iny
-  iny
-  lda melody_v1_dur_left
-  jsr loghexit
-  iny
-  iny
-  lda melody_v2_index
-  jsr loghexit
-  iny
-  iny
-  lda melody_v2_dur_left
-  jsr loghexit
-  iny
-  iny
-  lda current_sound_effect_ticks_left
-  jsr loghexit
-  iny
-  iny
-  lda current_sound_effect_sweep_ticks_left
-  jsr loghexit
-  iny
-  iny
-  lda VOICE3_LF
-  jsr loghexit
-  iny
-  iny
-  lda VOICE3_HF
-  jsr loghexit
 
-  
-
-  
-
-//   ldy #1
-//   lda collision_row_even
-//   jsr loghexit
-//   iny
-//   lda collision_column_even
-//   jsr loghexit
-
-//   ldy #10
-//   ldx #0
-// log_line_3_loop:
-//   lda collision_metadata_row0, x
-//   jsr loghexit
-//   iny
-//   lda collision_metadata_row1, x
-//   jsr loghexit
-//   iny
-//   lda collision_metadata_row2, x
-//   jsr loghexit
-//   iny
-//   lda collision_metadata_row3, x
-//   jsr loghexit
-//   iny
-//   iny
-//   inx
-//   cpx #3
-//   bne log_line_3_loop
 
   rts
 
@@ -2218,19 +2240,19 @@ updp1hpsr:
   sta p1sx
 updp1psprite:
   lda p1sy
-  sta $d001
+  sta SPRITE_YPOS_BASE
   lda p1sx
-  sta $d000
+  sta SPRITE_XPOS_BASE
   lda p1sx+1
   bne updp1pmsb
-  lda $d010
+  lda SPRITE_MSB
   and #%11111110
-  sta $d010
+  sta SPRITE_MSB
   jmp updp1pd
 updp1pmsb:
-  lda $d010
+  lda SPRITE_MSB
   ora #%00000001
-  sta $d010
+  sta SPRITE_MSB
 updp1pd:
   rts
 
@@ -2300,13 +2322,7 @@ upd_enemies_posd:
 upd_enemies_sprites:
   ldx enemies_buffer_min
 upd_enemies_sprites_enemy:
-  // TODO: let's see if we've moved any sprites off the screen and
-  // deal with that situation
-
-  // TODO: make sure this considers actual visibility
-  // now update the sprite if it's visible on the screen
-
-  // first let's move things to local coordds
+  // first let's move things to local coords
   ldy enemies_sprite_slots, x
   lda enemies_posx_lo, x
   sec
@@ -2315,6 +2331,25 @@ upd_enemies_sprites_enemy:
   lda enemies_posx_hi, x
   sbc SCR_first_visible_column_pixels+1
   sta zpb1
+  bmi enemy_offscreen
+  beq enemy_onscreen // < 256, so onscreen
+
+  lda zpb0
+  cmp #<scrwidth
+  bcs enemy_offscreen
+
+enemy_onscreen:
+  // if here, enemy on screen
+  // enable the sprite
+  lda enemies_sprite_slots, x
+  ora SPRITE_ENABLE
+  sta SPRITE_ENABLE
+
+  // TODO: no need to store this, just doing it for debug
+  // TODO: this will cause us to overwrite important stuff
+  // if more than 2 enemies
+  lda #0
+  sta zpb6, x
 
   // now let's add the border offset
   lda zpb0
@@ -2336,19 +2371,33 @@ upd_enemies_sprites_enemy:
   beq enemy_nomsb
 
   // set sprite msb
-  lda $d010
+  lda SPRITE_MSB
   ora enemies_sprite_slots, x
-  sta $d010
+  sta SPRITE_MSB
   bne enemy_lsb
 enemy_nomsb:
   lda enemies_sprite_slots, x
   eor #$11111111
-  and $d010
-  sta $d010
+  and SPRITE_MSB
+  sta SPRITE_MSB
 enemy_lsb:
   ldy enemies_sprite_posx_offset, x
   lda zpb0
-  sta $d000, y
+  sta SPRITE_XPOS_BASE, y
+  jmp upd_enemies_sprites_next_enemy
+enemy_offscreen:
+  // TODO: no need to store this, just doing it for debug
+  // TODO: this will cause us to overwrite important stuff
+  // if more than 2 enemies
+  lda #1
+  sta zpb6, x
+
+  // disable the sprite
+  lda enemies_sprite_slots, x
+  eor #%11111111
+  and SPRITE_ENABLE
+  sta SPRITE_ENABLE
+
 upd_enemies_sprites_next_enemy:
   inx
   cpx enemies_buffer_max

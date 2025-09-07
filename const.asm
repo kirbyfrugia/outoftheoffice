@@ -29,6 +29,24 @@
 .const RASTER_HUD    = $e2
 .const RASTER_VBLANK   = $fa
 
+.const SPRITE_XPOS_BASE    = $d000
+.const SPRITE_YPOS_BASE    = $d001
+.const SPRITE_MSB          = $d010
+.const VIC_VCONTROL_REG    = $d011
+.const VIC_RW_RASTER       = $d012
+.const SPRITE_ENABLE       = $d015
+.const VIC_HCONTROL_REG    = $d016
+.const VIC_MEM_CONTROL_REG = $d018
+.const VIC_IRQ_FLAG        = $d019
+.const VIC_IRQ_MASK        = $d01a
+.const SPRITE_MC_MODE      = $d01c
+.const BORDER_COLOR        = $d020
+.const BG_COLOR0           = $d021
+.const BG_COLOR1           = $d022
+.const SPRITE_MC0          = $d025
+.const SPRITE_MC1          = $d026
+.const SPRITE_COLOR_BASE   = $d027
+
 .const SID_BASE        = 54272
 
 .const VOICE1          = 54272
