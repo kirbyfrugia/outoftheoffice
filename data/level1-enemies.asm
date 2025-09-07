@@ -14,10 +14,10 @@ enemies_type:
   .byte 0
 
 .const enemy0_minx = ENEMY_TILE_SIZE*5   + ENEMY_TILE_CHAR_SIZE*0
-.const enemy0_maxx = ENEMY_TILE_SIZE*15  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_WIDTH
+.const enemy0_maxx = ENEMY_TILE_SIZE*16  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_WIDTH
 .const enemy0_posy = ENEMY_TILE_SIZE*10  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_HEIGHT
 .const enemy1_minx = ENEMY_TILE_SIZE*11  + ENEMY_TILE_CHAR_SIZE*0
-.const enemy1_maxx = ENEMY_TILE_SIZE*14  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_WIDTH
+.const enemy1_maxx = ENEMY_TILE_SIZE*15  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_WIDTH
 .const enemy1_posy = ENEMY_TILE_SIZE*6   + ENEMY_TILE_CHAR_SIZE*1 - ENEMY_MOUSE_HEIGHT
 
 // rangex - how far left and right can the enemy travel, max is one greater than end of their range

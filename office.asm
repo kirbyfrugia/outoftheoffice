@@ -702,14 +702,14 @@ initspr:
 
   ldx #0
   lda spriteset_attrib_data, x
-  sta SPRITE_COLOR_BASE+0 //spr 0 clr
+  sta SPRITE_COLOR_BASE+0
   ldx #8
   lda spriteset_attrib_data, x
-  sta SPRITE_COLOR_BASE+1 //spr 1 clr
-  sta SPRITE_COLOR_BASE+2 //spr 2 clr
+  sta SPRITE_COLOR_BASE+1
+  sta SPRITE_COLOR_BASE+2
 
   lda #128
-  sta SPRITE_XPOS_BASE //spr0x
+  sta SPRITE_XPOS_BASE
   ldx #0
   lda enemies_posx_lo, x
   clc
@@ -721,10 +721,10 @@ initspr:
   adc #31
   sta SPRITE_XPOS_BASE+4
   lda #%00000000
-  sta SPRITE_MSB //spr msb
+  sta SPRITE_MSB
 
   lda #194
-  sta SPRITE_YPOS_BASE //spr0y
+  sta SPRITE_YPOS_BASE
 
   ldx #0
   lda enemies_posy, x
@@ -1006,6 +1006,14 @@ log_enemies:
   jsr loghexit
   iny
   lda zpb7
+  jsr loghexit
+  iny
+  iny
+  lda SPRITE_MSB
+  jsr loghexit
+  iny
+  iny
+  lda zpb5
   jsr loghexit
   rts
 
@@ -2260,10 +2268,6 @@ updp1pd:
 upd_enemies_pos:
   ldx enemies_buffer_min
 upd_enemies_pos_enemy:
-  // TODO: let's see if we've moved any sprites off the screen and
-  // deal with that situation
-
-  // first let's update the positions of all the characters in our buffer
   lda enemies_flags, x
   and #%10000000
   beq enemy_moving_left
@@ -2277,6 +2281,9 @@ upd_enemies_pos_enemy:
   sta enemies_posx_hi, x
   cmp enemies_rangex_max_hi, x
   bcc upd_enemies_pos_next_enemy
+  beq enemy_moving_right_check_lo // same hi byte, so check low
+  bcs enemy_start_moving_left     // hi byte of pos > hi byte of range
+enemy_moving_right_check_lo:
   lda enemies_posx_lo, x
   cmp enemies_rangex_max_lo, x
   bcc upd_enemies_pos_next_enemy
@@ -2334,8 +2341,9 @@ upd_enemies_sprites_enemy:
   bmi enemy_offscreen
   beq enemy_onscreen // < 256, so onscreen
 
+  // if here, enemy is further right than 256 pixels
   lda zpb0
-  cmp #<scrwidth
+  cmp #(scrwidth-256)
   bcs enemy_offscreen
 
 enemy_onscreen:
@@ -2377,7 +2385,7 @@ enemy_onscreen:
   bne enemy_lsb
 enemy_nomsb:
   lda enemies_sprite_slots, x
-  eor #$11111111
+  eor #%11111111
   and SPRITE_MSB
   sta SPRITE_MSB
 enemy_lsb:
