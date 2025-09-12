@@ -29,15 +29,10 @@
 .const RASTER_HUD         = $e2 // 3 char rows before bottom border
 .const RASTER_HUD_DONE    = $fa
 .const RASTER_BUFFER_SWAP = $00
-// .const RASTER_HUD         = $e2 // 3 char rows before bottom border
-// .const RASTER_BUFFER_SWAP = $0d // vblank
-// .const RASTER_MUSIC       = $fa // start of bottom border
-// .const RASTER_HUD         = $e2
-// .const RASTER_BUFFER_SWAP = $fa
-// .const RASTER_MUSIC       = $0d
-// .const RASTER_HUD         = $e2
-// .const RASTER_MUSIC       = $00
-// .const RASTER_BUFFER_SWAP = $fa
+.const RASTER_COLOR_LOWER = $4c // starts at $64, add a few rows
+// .const RASTER_COLOR_LOWER = $5c // starts at $64, add a few rows, best so far
+// .const RASTER_COLOR_LOWER = $7c // starts at $64, add a few rows, 2ndbest so far
+// .const RASTER_COLOR_LOWER = $81
 
 
 .const SPRITE_XPOS_BASE    = $d000

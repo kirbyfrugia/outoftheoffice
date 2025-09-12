@@ -102,10 +102,26 @@ irq_dispatch:
   beq call_hud_done
   cmp #RASTER_BUFFER_SWAP
   beq call_buffer
+  cmp #RASTER_COLOR_LOWER
+  beq call_color_lower
   // cmp #RASTER_MUSIC
   // beq call_music
 
   jmp irq_done // should never happen
+call_buffer:
+  jsr irq_music
+  jsr irq_buffer_swap
+  jsr irq_color_upper_shift
+  lda #RASTER_COLOR_LOWER
+  sta next_irq
+  sta VIC_RW_RASTER
+  jmp irq_done
+call_color_lower:
+  jsr irq_color_lower_shift
+  lda #RASTER_HUD
+  sta next_irq
+  sta VIC_RW_RASTER
+  jmp irq_done
 call_hud:
   lda VIC_HCONTROL_REG
   and #%11010000 // set no scroll
@@ -123,18 +139,6 @@ call_hud_done:
   sta next_irq
   sta VIC_RW_RASTER
   jmp irq_done
-call_buffer:
-  jsr irq_music
-  jsr irq_buffer_swap
-  lda #RASTER_HUD
-  sta next_irq
-  sta VIC_RW_RASTER
-  jmp irq_done
-// call_music:
-//   jsr irq_music
-//   lda #RASTER_BUFFER_SWAP
-//   sta next_irq
-//   sta VIC_RW_RASTER
 irq_done:
   asl VIC_IRQ_FLAG
 
@@ -276,6 +280,24 @@ irq_buffer_swapd:
   sta frame_tick
   rts
 
+irq_color_upper_shift:
+  lda pending_color_upper_swap
+  beq irq_color_upper_shiftd
+  jsr SCR_move_color_left_upper
+irq_color_upper_shiftd:
+  lda #0
+  sta pending_color_upper_swap
+  rts
+
+irq_color_lower_shift:
+  lda pending_color_lower_swap
+  beq irq_color_lower_shiftd
+  jsr SCR_move_color_left_lower
+irq_color_lower_shiftd:
+  lda #0
+  sta pending_color_lower_swap
+  rts
+
 init:
   lda #0
   sta ptime
@@ -387,11 +409,6 @@ game_loop:
   sta frame_tick
   sta SCR_buffer_ready
 
-game_loop_swap:
-  // wait for buffer to swap
-  lda pending_buffer_swap
-  bne game_loop_swap
-
   lda frame_phase
   eor #%00000001
   sta frame_phase
@@ -410,28 +427,44 @@ every_frame:
   jsr injs
   jsr updp1hv
   jsr updp1vv
+
+game_loop_swap:
+  // wait for buffer to swap
+  lda pending_buffer_swap
+  bne game_loop_swap
+
+game_loop_color_upper_swap:
+  lda pending_color_upper_swap
+  bne game_loop_color_upper_swap
+
+game_loop_color_lower_swap:
+  lda pending_color_lower_swap
+  bne game_loop_color_lower_swap
+
   jsr updp1p
   jsr upd_enemies_sprites
   jsr upd_sound_effects
 
   lda SCR_buffer_ready
   sta pending_buffer_swap
+  sta pending_color_upper_swap
+  sta pending_color_lower_swap
 
-// TODO: chase the raster on this?
-shift_color_mem:
-  lda SCR_color_flag
-  beq shift_color_memd // no need to shift color memory
-  cmp #%00000001
-  beq shift_color_mem_left
-  jsr SCR_move_color_right
-  lda #0
-  sta SCR_color_flag
-  jmp shift_color_memd
-shift_color_mem_left:
-  jsr SCR_move_color_left
-  lda #0
-  sta SCR_color_flag
-shift_color_memd:
+// // TODO: chase the raster on this?
+// shift_color_mem:
+//   lda SCR_color_flag
+//   beq shift_color_memd // no need to shift color memory
+//   cmp #%00000001
+//   beq shift_color_mem_left
+//   jsr SCR_move_color_right
+//   lda #0
+//   sta SCR_color_flag
+//   jmp shift_color_memd
+// shift_color_mem_left:
+//   jsr SCR_move_color_left
+//   lda #0
+//   sta SCR_color_flag
+// shift_color_memd:
   jmp game_loop
 
 
@@ -2517,6 +2550,8 @@ injs:
 //   sta time
 //   rts
 
+// TODO: make sure to initialize all variables
+
 minx:        .byte 0,0
 maxx:        .byte 0,0
 miny:        .byte 0,0
@@ -2629,6 +2664,12 @@ sound_effects_sweep_num_ticks:
   .byte 20
 
 pending_buffer_swap:
+  .byte 0
+
+pending_color_upper_swap:
+  .byte 0
+
+pending_color_lower_swap:
   .byte 0
 
 current_irq:

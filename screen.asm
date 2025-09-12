@@ -605,9 +605,9 @@ SCR_scroll_right_loopd:
 SCR_scroll_rightd:
   rts
 
-SCR_move_color_left:
+SCR_move_color_left_upper:
   ldx #0
-mcl_loop:
+mcl_upper_loop:
   lda 55297, x
   sta 55296, x
   lda 55337, x
@@ -628,6 +628,24 @@ mcl_loop:
   sta 55616, x
   lda 55657, x
   sta 55656, x
+
+  inx
+  cpx #39
+  beq mcl_upper_loop_done
+  jmp mcl_upper_loop
+mcl_upper_loop_done:
+  ldx #39
+  ldy SCR_last_visible_tile
+  SCR_draw_color_tile_half(55296, 55336, SCR_TILE_ROW_0)
+  SCR_draw_color_tile_half(55376, 55416, SCR_TILE_ROW_1)
+  SCR_draw_color_tile_half(55456, 55496, SCR_TILE_ROW_2)
+  SCR_draw_color_tile_half(55536, 55576, SCR_TILE_ROW_3)
+  SCR_draw_color_tile_half(55616, 55656, SCR_TILE_ROW_4)
+  rts
+
+SCR_move_color_left_lower:
+  ldx #0
+mcl_lower_loop:
   lda 55697, x
   sta 55696, x
   lda 55737, x
@@ -651,22 +669,16 @@ mcl_loop:
 
   inx
   cpx #39
-  beq mcl_loop_done
-  jmp mcl_loop
-mcl_loop_done:
+  beq mcl_lower_loop_done
+  jmp mcl_lower_loop
+mcl_lower_loop_done:
   ldx #39
   ldy SCR_last_visible_tile
-  SCR_draw_color_tile_half(55296, 55336, SCR_TILE_ROW_0)
-  SCR_draw_color_tile_half(55376, 55416, SCR_TILE_ROW_1)
-  SCR_draw_color_tile_half(55456, 55496, SCR_TILE_ROW_2)
-  SCR_draw_color_tile_half(55536, 55576, SCR_TILE_ROW_3)
-  SCR_draw_color_tile_half(55616, 55656, SCR_TILE_ROW_4)
   SCR_draw_color_tile_half(55696, 55736, SCR_TILE_ROW_5)
   SCR_draw_color_tile_half(55776, 55816, SCR_TILE_ROW_6) 
   SCR_draw_color_tile_half(55856, 55896, SCR_TILE_ROW_7)
   SCR_draw_color_tile_half(55936, 55976, SCR_TILE_ROW_8)
   SCR_draw_color_tile_half(56016, 56056, SCR_TILE_ROW_9)
-
   rts
 
 SCR_move_screen_left:
