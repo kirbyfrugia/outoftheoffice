@@ -26,8 +26,19 @@
 .const scrollmin    = 94
 .const scrollmax    = 226
 
-.const RASTER_HUD    = $e2
-.const RASTER_VBLANK   = $fa
+.const RASTER_HUD         = $e2 // 3 char rows before bottom border
+.const RASTER_HUD_DONE    = $fa
+.const RASTER_BUFFER_SWAP = $00
+// .const RASTER_HUD         = $e2 // 3 char rows before bottom border
+// .const RASTER_BUFFER_SWAP = $0d // vblank
+// .const RASTER_MUSIC       = $fa // start of bottom border
+// .const RASTER_HUD         = $e2
+// .const RASTER_BUFFER_SWAP = $fa
+// .const RASTER_MUSIC       = $0d
+// .const RASTER_HUD         = $e2
+// .const RASTER_MUSIC       = $00
+// .const RASTER_BUFFER_SWAP = $fa
+
 
 .const SPRITE_XPOS_BASE    = $d000
 .const SPRITE_YPOS_BASE    = $d001

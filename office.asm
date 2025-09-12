@@ -93,6 +93,53 @@ copy_sprite_data:
   bpl copy_sprite_data
 }
 
+irq_dispatch:
+  lda next_irq
+  sta current_irq
+  cmp #RASTER_HUD
+  beq call_hud
+  cmp #RASTER_HUD_DONE
+  beq call_hud_done
+  cmp #RASTER_BUFFER_SWAP
+  beq call_buffer
+  // cmp #RASTER_MUSIC
+  // beq call_music
+
+  jmp irq_done // should never happen
+call_hud:
+  lda VIC_HCONTROL_REG
+  and #%11010000 // set no scroll
+  sta VIC_HCONTROL_REG
+  lda #RASTER_HUD_DONE
+  sta next_irq
+  sta VIC_RW_RASTER
+  jmp irq_done
+call_hud_done:
+  lda VIC_HCONTROL_REG
+  and #%11010000
+  ora SCR_scroll_register
+  sta VIC_HCONTROL_REG
+  lda #RASTER_BUFFER_SWAP
+  sta next_irq
+  sta VIC_RW_RASTER
+  jmp irq_done
+call_buffer:
+  jsr irq_music
+  jsr irq_buffer_swap
+  lda #RASTER_HUD
+  sta next_irq
+  sta VIC_RW_RASTER
+  jmp irq_done
+// call_music:
+//   jsr irq_music
+//   lda #RASTER_BUFFER_SWAP
+//   sta next_irq
+//   sta VIC_RW_RASTER
+irq_done:
+  asl VIC_IRQ_FLAG
+
+  jmp $ea81
+
 .macro voice_handler(voice_control, voice_hf, voice_lf, melody_voice_control, melody_dur_left, melody_index, melody, melody_end, next_jump_point) {
   dec melody_dur_left
   bne next_jump_point // continue playing current note, still playing note
@@ -134,173 +181,100 @@ melody_play_note_played:
   sta melody_index
 }
 
-// This interrupt is called right before we get to the hud part of the screen.
-// We disable scrolling until we've rendered those three rows of characters.
-irq_hud:
-  pha
-  txa
-  pha
-  tya
-  pha
-
-  // reset scrolling to not be scrolled for the last three lines
-  lda VIC_HCONTROL_REG
-  and #%11110000
-  sta VIC_HCONTROL_REG
-
-irq_hudd:
-  // ack raster irq
-  asl VIC_IRQ_FLAG
-
-  // now set interrupt for the no scroll area
-  // raster line where interrupt will occur
-  lda #RASTER_VBLANK
-  sta VIC_RW_RASTER
-
-  // set interrupt handling routine
-  lda #<irq_vblank
-  sta $0314
-  lda #>irq_vblank
-  sta $0315
-
-  pla
-  tay
-  pla
-  tax
-  pla
-  jmp $ea81 // let the kernal do its thing 
-
-irq_vblank:
-  pha
-  txa
-  pha
-  tya
-  pha
-
+irq_music:
   lda sound_started
   bne sound_is_started
-  jmp sound_done
+  jmp music_done
 sound_is_started:
-  lda sound_effect_new_irq
-  beq sound_effect_process
-sound_effect_new:
-  // if here, we're loading a new sound from the game loop
-  
-  // Reset the oscillator so we always start from the same pitch
-  lda VOICE3_CONTROL
-  ora #%00001000  // set test bit
-  sta VOICE3_CONTROL
-  and #%11110111  // clear test bit
-  sta VOICE3_CONTROL
-
-  ldx sound_effect_index_irq
-
-  lda sound_effects_pulse_lo, x
-  sta VOICE3_PULSE_LO
-  lda sound_effects_pulse_hi, x
-  sta VOICE3_PULSE_HI
-
-  lda sound_effects_attack_decay, x
-  sta VOICE3_ENV_AD
-  lda sound_effects_sustain_release, x
-  sta VOICE3_ENV_SR
-
-  lda sound_effects_freq_lo, x
-  sta VOICE3_LF
-  lda sound_effects_freq_hi, x
-  sta VOICE3_HF
-
-  lda sound_effects_waveform, x
-  sta VOICE3_CONTROL
-
-  lda sound_effects_num_ticks, x
-  sta current_sound_effect_ticks_left
-
-  lda sound_effects_sweep_freq_lo, x
-  sta current_sound_effect_sweep_freq_lo
-
-  lda sound_effects_sweep_freq_hi, x
-  sta current_sound_effect_sweep_freq_hi
-
-  lda sound_effects_sweep_num_ticks, x
-  sta current_sound_effect_sweep_ticks_left
-
-  lda #0
-  sta sound_effect_new_irq
-  beq music
-sound_effect_process:
-  dec current_sound_effect_ticks_left
-  bne sound_effect_sweep
-  // done playing this sound effect
-  lda VOICE3_CONTROL
-  and #%11111110 // gate off
-  sta VOICE3_CONTROL
-
-  // set duration to 1 intentionally, gets decremented even if no sound is playing
-  lda #1
-  sta current_sound_effect_ticks_left
-  sta current_sound_effect_sweep_ticks_left
-  bne music
-sound_effect_sweep:
-  dec current_sound_effect_sweep_ticks_left
-  beq sound_effect_sweep_done
-  // still sweeping
-  lda VOICE3_LF
-  clc
-  adc current_sound_effect_sweep_freq_lo
-  sta VOICE3_LF
-  lda VOICE3_HF
-  adc current_sound_effect_sweep_freq_hi
-  sta VOICE3_HF
-  jmp music
-sound_effect_sweep_done:
-  lda #1
-  sta current_sound_effect_sweep_ticks_left
 music:
   // now let's deal with the music
   dec melody_frames_until_16th
   beq on_16th
-  jmp sound_done
+  jmp music_done
 on_16th:
   lda #melody_tempo
   sta melody_frames_until_16th
-
   voice_handler(VOICE1_CONTROL, VOICE1_HF, VOICE1_LF, melody_v1_control, melody_v1_dur_left, melody_v1_index, melody_v1, melody_v1_end, melody_v1_done)
 melody_v1_done:
   voice_handler(VOICE2_CONTROL, VOICE2_HF, VOICE2_LF, melody_v2_control, melody_v2_dur_left, melody_v2_index, melody_v2, melody_v2_end, melody_v2_done)
 melody_v2_done:
+music_done:
+  rts
 
-sound_done:
-  lda SCR_buffer_ready
-  beq irq_vblankd
-  jsr swap_buffers
+.macro hwscroll_left(scroll_amount) {
+  ldx scroll_amount
+  beq hwscroll_left_noscroll
+hwscroll_left_loop:
+  lda SCR_scroll_register
+  sec
+  sbc #1
+  and #%00000111
+  sta SCR_scroll_register
+  lda VIC_HCONTROL_REG
+  and #%11010000
+  ora SCR_scroll_register
+  sta VIC_HCONTROL_REG
+  dex
+  stx scroll_amount
+  bne hwscroll_left_loop
+hwscroll_left_noscroll:
+}
 
-irq_vblankd:
-  SCR_update_scroll_register()
+.macro hwscroll_right(scroll_amount) {
+  ldx scroll_amount
+  beq hwscroll_right_noscroll
+hwscroll_right_loop:
+  lda SCR_scroll_register
+  clc
+  adc #1
+  and #%00000111
+  sta SCR_scroll_register
+  lda VIC_HCONTROL_REG
+  and #%11010000
+  ora SCR_scroll_register
+  sta VIC_HCONTROL_REG
+  dex
+  stx scroll_amount
+  bne hwscroll_right_loop
+hwscroll_right_noscroll:
+}
+
+irq_buffer_swap:
+  // first let's scroll the hw register until we need to swap buffers
+  hwscroll_left(SCR_scroll_left_amounts_pre)
+  hwscroll_right(SCR_scroll_right_amounts_pre)
+
+  // now do the actual buffer swap  
+  lda pending_buffer_swap
+  beq irq_buffer_swapd
+  lda SCR_buffer_flag
+  beq sb_screen0800
+
+  lda VIC_MEM_CONTROL_REG
+  and #%00001111
+  ora #%00010000 // screen location 1024, $0400
+  sta VIC_MEM_CONTROL_REG
+  lda #0
+  sta SCR_buffer_flag
+  beq swap_buffers_swapped
+sb_screen0800:
+  lda VIC_MEM_CONTROL_REG
+  and #%00001111
+  ora #%00100000 // screen location 2048, $0800
+  sta VIC_MEM_CONTROL_REG
+  lda #1
+  sta SCR_buffer_flag
+swap_buffers_swapped:
+  // now let's do any scrolling still needed AFTER buffer swapping
+  hwscroll_left(SCR_scroll_left_amounts_post)
+  hwscroll_right(SCR_scroll_right_amounts_post)
+  lda #0
+  sta pending_buffer_swap
+
+irq_buffer_swapd:
   lda #1
   sta frame_tick
-
-  // ack raster irq
-  asl VIC_IRQ_FLAG
-
-  // now set interrupt for the no scroll area
-  // raster line where interrupt will occur
-  lda #RASTER_HUD
-  sta VIC_RW_RASTER
-
-  // set interrupt handling routine
-  lda #<irq_hud
-  sta $0314
-  lda #>irq_hud
-  sta $0315
-
-  pla
-  tay
-  pla
-  tax
-  pla
-
-  jmp $ea81 // let the kernal do its thing 
+  rts
 
 init:
   lda #0
@@ -372,7 +346,6 @@ init:
 
   jsr initui
   jsr initsys
-  jsr initirq
   jsr initsound
 
   jsr SCR_load_sprite_sheet
@@ -401,47 +374,37 @@ init:
 
   jsr initspr
 
-  
   jsr SCR_init_screen
   jsr SCR_draw_screen
   jsr startsound
 
+  jsr initirq
+
 game_loop:
   lda frame_tick
   beq game_loop
-
-  // disable interrupts and set variables used
-  // by the irq handler
-  sei
   lda #0
   sta frame_tick
-  lda sound_effect_new_game_loop
-  beq no_new_sound
-  // if here, a new sound was triggered in the game loop on the last loop
-  lda sound_effect_index_game_loop
-  sta sound_effect_index_irq       // index of new sound to play, to be read by irq
-  lda #1
-  sta sound_effect_new_irq         // flag indicating we have a new sound to load for the irq handler
-  // TODO: the above could be faster if we use the BIT op
-no_new_sound:
-  cli
+  sta SCR_buffer_ready
 
-  // end of section with disabled interrupts
-  lda #0
-  sta sound_effect_new_game_loop   // clear game loop flag
-
-  jsr updanim
-  // jsr hud
-  jsr log
+game_loop_swap:
+  // wait for buffer to swap
+  lda pending_buffer_swap
+  bne game_loop_swap
 
   lda frame_phase
   eor #%00000001
   sta frame_phase
-  bne game_loop_done_sprite_pos
+  beq odd_frame
+even_frame:
   // only update enemy position every other frame
   jsr upd_enemies_pos
-game_loop_done_sprite_pos:
-
+  jmp every_frame
+odd_frame:
+  jsr updanim
+  // jsr hud
+  jsr log
+every_frame:
   // get input, do game logic, possibly move screen mem
   lda $dc00
   jsr injs
@@ -449,55 +412,29 @@ game_loop_done_sprite_pos:
   jsr updp1vv
   jsr updp1p
   jsr upd_enemies_sprites
+  jsr upd_sound_effects
 
-game_loop_swap:
-  // wait for buffer to swap
   lda SCR_buffer_ready
-  bne game_loop_swap
+  sta pending_buffer_swap
 
-  jsr shift_color_mem
-  jmp game_loop
-
-swap_buffers:
-  lda SCR_buffer_ready
-  beq swap_buffersd // no need to swap
-  lda SCR_buffer_flag
-  beq sb_screen0800
-
-  lda VIC_MEM_CONTROL_REG
-  and #%00001111
-  ora #%00010000 // screen location 1024, $0400
-  sta VIC_MEM_CONTROL_REG
-  lda #0
-  sta SCR_buffer_flag
-  beq swap_buffers_swapped
-sb_screen0800:
-  lda VIC_MEM_CONTROL_REG
-  and #%00001111
-  ora #%00100000 // screen location 2048, $0800
-  sta VIC_MEM_CONTROL_REG
-  lda #1
-  sta SCR_buffer_flag
-swap_buffers_swapped:
-  lda #0
-  sta SCR_buffer_ready
-  // SCR_update_scroll_register()
-swap_buffersd:
-  rts
-
+// TODO: chase the raster on this?
 shift_color_mem:
   lda SCR_color_flag
   beq shift_color_memd // no need to shift color memory
   cmp #%00000001
   beq shift_color_mem_left
   jsr SCR_move_color_right
+  lda #0
+  sta SCR_color_flag
   jmp shift_color_memd
 shift_color_mem_left:
   jsr SCR_move_color_left
-shift_color_memd:
   lda #0
   sta SCR_color_flag
-  rts
+shift_color_memd:
+  jmp game_loop
+
+
 
 cls:
   ldy #0
@@ -577,15 +514,16 @@ initirq:
   lda #$0f
   sta VIC_IRQ_FLAG
 
-  // raster line where interrupt will occur
-  lda #RASTER_HUD
-  sta VIC_RW_RASTER
-
   // set interrupt handling routine
-  lda #<irq_hud
+  lda #<irq_dispatch
   sta $0314
-  lda #>irq_hud
+  lda #>irq_dispatch
   sta $0315
+
+  // raster line where interrupt will occur
+  lda #RASTER_BUFFER_SWAP
+  sta VIC_RW_RASTER
+  sta next_irq
 
   // enable raster interrupt source
   lda #%00000001
@@ -629,10 +567,10 @@ initsound_clearsid:
   // sta VOICE3_ENV_SR
 
   lda #0
-  sta sound_effect_index_irq
-  sta sound_effect_index_game_loop
-  sta sound_effect_new_irq
-  sta sound_effect_new_game_loop
+  sta sound_effect_ready
+  sta sound_effect_index
+  // sta sound_effect_new_irq
+  // sta sound_effect_new_game_loop
   sta melody_v1_index
   sta melody_v1_dur_left
   sta melody_v2_index
@@ -678,6 +616,7 @@ initspr:
   lda #sprmc1
   sta SPRITE_MC1
 
+  // TODO: maybe be smarter about sprite pointers
   // sprite pointers
   // location = (bank * 16384)+(sprptr*64)
   //          = (0*16384)+(48*64)=$0c00
@@ -762,13 +701,6 @@ initui:
 
 
 loadmap:
-  // TODO: this is where you set how far the player can go right, fix with real
-  // 256 tiles * 2 columns per tile - player width (just say 2 columns) = 510 = $01fe
-  // lda #$fe
-  // sta maxp1gx
-  // lda #$01
-  // sta maxp1gx+1
-
   lda SCR_first_visible_column_max
   clc
   adc #scrwidth
@@ -878,30 +810,47 @@ hud_render:
 //   jsr loghexit
 //   rts
 
-// log_screen:
-//   lda SCR_first_visible_column+1
-//   jsr loghexit
-//   iny
-//   lda SCR_first_visible_column
-//   jsr loghexit
-//   iny
-//   lda #43
-//   sta (zpb0),y
-//   iny
-//   lda SCR_scroll_offset
-//   jsr loghexit
-//   iny
-//   iny
-//   lda SCR_scroll_register
-//   jsr loghexit
-//   iny
-//   iny
-//   lda SCR_first_column_beyond_screen_pixels+1
-//   jsr loghexit
-//   iny
-//   lda SCR_first_column_beyond_screen_pixels
-//   jsr loghexit
-//   rts
+log_screen:
+  lda SCR_first_visible_column+1
+  jsr loghexit
+  iny
+  lda SCR_first_visible_column
+  jsr loghexit
+  iny
+  lda #43
+  sta (zpb0),y
+  iny
+  lda SCR_scroll_offset
+  jsr loghexit
+  iny
+  iny
+  lda SCR_scroll_register
+  jsr loghexit
+  iny
+  iny
+  lda VIC_HCONTROL_REG
+  jsr loghexit
+  iny
+  iny
+  lda SCR_scroll_out
+  jsr loghexit
+
+  iny
+  iny
+  lda raster_line+1
+  jsr loghexit
+  iny
+  lda raster_line
+  jsr loghexit
+  
+  iny
+  iny
+  lda SCR_first_column_beyond_screen_pixels+1
+  jsr loghexit
+  iny
+  lda SCR_first_column_beyond_screen_pixels
+  jsr loghexit
+  rts
 
 // log_posy:
 //   lda p1gy+1
@@ -1037,7 +986,7 @@ log_back_line1:
   sta zpb1
 log_line1:
   ldy #1
-  jsr log_enemies
+  jsr log_screen
   // jsr log_posx
   // jsr log_screen
   // jsr log_melody
@@ -1183,10 +1132,10 @@ updp1vv:
   bne updp1vv_on_ground
   // if here, jumping
   // Play jump sound effect
-  lda #0 // jump index
-  sta sound_effect_index_game_loop
+  lda #0
+  sta sound_effect_index
   lda #1
-  sta sound_effect_new_game_loop
+  sta sound_effect_ready
 
   lda #maxvvu
   sta p1vvi
@@ -2422,7 +2371,9 @@ upd_enemies_spritesd:
   rts
 
 
-
+// TODO: Can I store the animations in memory and just point
+// to different locations when we animate rather than copying
+// data every time?
 updanim:
   lda animation_frame
   cmp #30
@@ -2463,6 +2414,84 @@ updanim_upd_animation_frame:
   lda #20
   sta animation_frame
 updanim_done:
+  rts
+
+upd_sound_effects:
+  lda sound_effect_ready
+  beq sound_effect_process
+  // if here, we're loading a new sound
+
+  // Reset the oscillator so we always start from the same pitch
+  lda VOICE3_CONTROL
+  ora #%00001000  // set test bit
+  sta VOICE3_CONTROL
+  and #%11110111  // clear test bit
+  sta VOICE3_CONTROL
+
+  ldx sound_effect_index
+
+  lda sound_effects_pulse_lo, x
+  sta VOICE3_PULSE_LO
+  lda sound_effects_pulse_hi, x
+  sta VOICE3_PULSE_HI
+
+  lda sound_effects_attack_decay, x
+  sta VOICE3_ENV_AD
+  lda sound_effects_sustain_release, x
+  sta VOICE3_ENV_SR
+
+  lda sound_effects_freq_lo, x
+  sta VOICE3_LF
+  lda sound_effects_freq_hi, x
+  sta VOICE3_HF
+
+  lda sound_effects_waveform, x
+  sta VOICE3_CONTROL
+
+  lda sound_effects_num_ticks, x
+  sta current_sound_effect_ticks_left
+
+  lda sound_effects_sweep_freq_lo, x
+  sta current_sound_effect_sweep_freq_lo
+
+  lda sound_effects_sweep_freq_hi, x
+  sta current_sound_effect_sweep_freq_hi
+
+  lda sound_effects_sweep_num_ticks, x
+  sta current_sound_effect_sweep_ticks_left
+
+  lda #0
+  sta sound_effect_ready
+  beq upd_sound_effectsd
+sound_effect_process:
+  dec current_sound_effect_ticks_left
+  bne sound_effect_sweep
+  // done playing this sound effect
+  lda VOICE3_CONTROL
+  and #%11111110 // gate off
+  sta VOICE3_CONTROL
+
+  // set duration to 1 intentionally, gets decremented even if no sound is playing
+  lda #1
+  sta current_sound_effect_ticks_left
+  sta current_sound_effect_sweep_ticks_left
+  bne upd_sound_effectsd
+sound_effect_sweep:
+  dec current_sound_effect_sweep_ticks_left
+  beq sound_effect_sweep_done
+  // still sweeping
+  lda VOICE3_LF
+  clc
+  adc current_sound_effect_sweep_freq_lo
+  sta VOICE3_LF
+  lda VOICE3_HF
+  adc current_sound_effect_sweep_freq_hi
+  sta VOICE3_HF
+  jmp upd_sound_effectsd
+sound_effect_sweep_done:
+  lda #1
+  sta current_sound_effect_sweep_ticks_left
+upd_sound_effectsd:
   rts
 
 // read a joystick
@@ -2564,10 +2593,14 @@ current_sound_effect_sweep_freq_lo:    .byte 0
 current_sound_effect_sweep_freq_hi:    .byte 0
 current_sound_effect_sweep_ticks_left: .byte 0
 
-sound_effect_new_irq:          .byte 0
-sound_effect_new_game_loop:    .byte 0
-sound_effect_index_irq:        .byte 0
-sound_effect_index_game_loop:  .byte 0
+sound_effect_ready:
+  .byte 0
+sound_effect_index:
+  .byte 0  
+// sound_effect_new_irq:          .byte 0
+// sound_effect_new_game_loop:    .byte 0
+// sound_effect_index_irq:        .byte 0
+// sound_effect_index_game_loop:  .byte 0
 
 // sound effects table
 // indices:
@@ -2594,3 +2627,14 @@ sound_effects_sweep_freq_hi:
   .byte $00
 sound_effects_sweep_num_ticks:
   .byte 20
+
+pending_buffer_swap:
+  .byte 0
+
+current_irq:
+  .byte 0
+next_irq:
+  .byte 0
+
+raster_line:
+  .byte 0, 0

@@ -1,9 +1,16 @@
-.var SCR_tmp_var0              = $54
-.var SCR_scroll_in             = $56
-.var SCR_scroll_out            = $57
-.var SCR_scroll_register       = $58
-.var SCR_scroll_offset         = $59
-.var SCR_objects_ptr           = $43 // and $44
+.const SCR_objects_ptr               = $43 // and $44
+.const SCR_tmp_var0                  = $54 // and $55
+.const SCR_scroll_in                 = $56
+.const SCR_scroll_out                = $57
+.const SCR_scroll_register           = $58
+.const SCR_scroll_offset             = $59
+.const SCR_scroll_left_amounts       = $80
+.const SCR_scroll_left_amounts_pre   = $80 // matches the previous on purpose
+.const SCR_scroll_left_amounts_post  = $81
+.const SCR_scroll_right_amounts      = $82
+.const SCR_scroll_right_amounts_pre  = $82 // matches the previous on purpose
+.const SCR_scroll_right_amounts_post = $83
+.const SCR_scroll_redraw_flag        = $84
 
 // Memory map
 //   Addresses of tile rows:
@@ -143,10 +150,10 @@
 }
 
 .macro SCR_update_scroll_register() {
-  lda $d016
-  and #%11110000
+  lda VIC_HCONTROL_REG
+  and #%11010000
   ora SCR_scroll_register
-  sta $d016
+  sta VIC_HCONTROL_REG
 }
 
 
@@ -466,13 +473,17 @@ SCR_init_screen:
   sta SCR_color_flag
   lda #0
   sta SCR_scroll_offset
+  sta SCR_scroll_left_amounts_pre
+  sta SCR_scroll_left_amounts_post
+  sta SCR_scroll_right_amounts_pre
+  sta SCR_scroll_right_amounts_post
   lda #%00000111
   sta SCR_scroll_register
 
-  lda $d016
-  and #%11110000 // enable smooth scrolling
+  lda VIC_HCONTROL_REG
+  and #%11010000 // enable smooth scrolling
   ora SCR_scroll_register  // set initial scroll
-  sta $d016
+  sta VIC_HCONTROL_REG
 
   lda #0
   sta SCR_first_visible_tile
@@ -495,90 +506,103 @@ SCR_init_screen:
 //   You pass in the amount of pixels to scroll.
 //   Uses the hardware register to scroll that many pixels, one at a time
 //   If, during the scrolling, the scroll register maxes out,
-//     then it triggers a copy of characters one character over
+//     then it triggers a copy of characters one character over in the back buffer
 //     to the left or right depending on the direction of the scroll
 //   It will then continue scrolling pixel by pixel until it has scrolled
 //     the amount requested or reached the end or beginning of the level.
+//   None of the actual scrolling or buffer swapping happens here. It's done
+//     in the IRQ.
 
 // affects A,X,Y
 // inputs:
 //   SCR_scroll_in - the amount to scroll
 // outputs:
 //   SCR_scroll_out - the amount actually scrolled
+// other:
+//   SCR_scroll_offset - maintains amount of scroll (7 - scroll_register)
+//   SCR_scroll_left_amounts_pre - amount of pixels hw scrolled before triggering a redraw
+//   SCR_scroll_left_amounts_post - amount of pixels hw scrolled after triggering a redraw
 SCR_scroll_left:
+  ldx #0 // index into which scroll var we're using
   lda #0
+  sta SCR_scroll_redraw_flag
   sta SCR_scroll_out
-  ldx SCR_scroll_in
-  beq SCR_scroll_left_done
+  ldy SCR_scroll_in
+  beq SCR_scroll_leftd
 SCR_scroll_left_loop:
   lda SCR_scroll_offset
   clc
   adc #1
   cmp #8
-  beq SCR_scroll_left_redraw // scroll register at max, so move chars on screen
+  beq SCR_scroll_left_wrapped // scroll register at max, so move chars on screen
   sta SCR_scroll_offset
-  dec SCR_scroll_register
+  inc SCR_scroll_left_amounts, x
   jmp SCR_scroll_left_next
-SCR_scroll_left_redraw:  
+SCR_scroll_left_wrapped:  
   lda SCR_first_visible_column+1
   cmp SCR_first_visible_column_max+1
-  bcc SCR_scroll_left_redrawok
+  bcc SCR_scroll_left_will_redraw
   lda SCR_first_visible_column
   cmp SCR_first_visible_column_max
-  bcc SCR_scroll_left_redrawok
-  bcs SCR_scroll_left_done
-SCR_scroll_left_redrawok:
+  bcc SCR_scroll_left_will_redraw
+  bcs SCR_scroll_left_loopd
+SCR_scroll_left_will_redraw:
   lda #0
   sta SCR_scroll_offset
-  lda #%00000111
-  sta SCR_scroll_register
-  stx SCR_tmp_var0
-  jsr SCR_move_screen_left
-  ldx SCR_tmp_var0
+  lda #1
+  sta SCR_scroll_redraw_flag
+  tax // now start tracking scroll amounts in the post-redraw var
+  inc SCR_scroll_left_amounts, x
 SCR_scroll_left_next:
   inc SCR_scroll_out
-  dex
+  dey
   bne SCR_scroll_left_loop
-SCR_scroll_left_done:
+SCR_scroll_left_loopd:
+  lda SCR_scroll_redraw_flag
+  beq SCR_scroll_leftd
+  // must be done at end so we don't hit a race condition with scrolling
+  jsr SCR_move_screen_left
+SCR_scroll_leftd:
   rts
 
-// affects A,X,Y
-// inputs:
-//   SCR_scroll_in - the amount to scroll
-// outputs:
-//   SCR_scroll_out - the amount actually scrolled
 SCR_scroll_right:
+  ldx #0
   lda #0
+  sta SCR_scroll_redraw_flag
   sta SCR_scroll_out
-  ldx SCR_scroll_in
-  beq SCR_scroll_right_done
+  ldy SCR_scroll_in
+  beq SCR_scroll_rightd
 SCR_scroll_right_loop:
   lda SCR_scroll_offset
   sec
   sbc #1
-  bmi SCR_scroll_right_redraw
+  bmi SCR_scroll_right_wrapped
   sta SCR_scroll_offset
-  inc SCR_scroll_register
+  inc SCR_scroll_right_amounts, x
   jmp SCR_scroll_right_next
-SCR_scroll_right_redraw:  
+SCR_scroll_right_wrapped:  
   lda SCR_first_visible_column
-  bne SCR_scroll_right_redrawok
+  bne SCR_scroll_right_will_redraw
   lda SCR_first_visible_column+1
-  bne SCR_scroll_right_redrawok
-  beq SCR_scroll_right_done
-SCR_scroll_right_redrawok:
+  bne SCR_scroll_right_will_redraw
+  beq SCR_scroll_right_loopd
+SCR_scroll_right_will_redraw:
   lda #7
   sta SCR_scroll_offset
-  lda #%00000000
-  sta SCR_scroll_register
-  stx SCR_tmp_var0
-  jsr SCR_move_screen_right
-  ldx SCR_tmp_var0
+  lda #1
+  sta SCR_scroll_redraw_flag
+  tax
+  inc SCR_scroll_right_amounts, x
 SCR_scroll_right_next:
   inc SCR_scroll_out
-  dex
+  dey
   bne SCR_scroll_right_loop
-SCR_scroll_right_done:
+SCR_scroll_right_loopd:
+  lda SCR_scroll_redraw_flag
+  beq SCR_scroll_rightd
+  // must be done at end so we don't hit a race condition with scrolling
+  jsr SCR_move_screen_right
+SCR_scroll_rightd:
   rts
 
 SCR_move_color_left:
@@ -694,6 +718,7 @@ msl_char_loop_f2b_loop:
   lda 1785, x
   sta 2808, x
 
+  // TODO: this could be faster by decrementing and doing a bmi instead of this
   inx
   cpx #39
   beq msl_fill_right_side_back
