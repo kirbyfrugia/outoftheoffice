@@ -524,6 +524,7 @@ SCR_init_screen:
 //   SCR_scroll_left_amounts_post - amount of pixels hw scrolled after triggering a redraw
 SCR_scroll_left:
   ldx #0 // index into which scroll var we're using
+  stx SCR_direction // direction we're scrolling, 0 for left
   lda #0
   sta SCR_scroll_redraw_flag
   sta SCR_scroll_out
@@ -566,6 +567,8 @@ SCR_scroll_leftd:
   rts
 
 SCR_scroll_right:
+  ldx #1
+  stx SCR_direction // direction we're scrolling, 0 for left
   ldx #0
   lda #0
   sta SCR_scroll_redraw_flag
@@ -885,9 +888,9 @@ msl_done:
   sta SCR_buffer_ready
   rts
 
-SCR_move_color_right:
+SCR_move_color_right_upper:
   ldx #38
-mcr_loop:
+mcr_loop_upper:
   lda 55296, x
   sta 55297, x
   lda 55336, x
@@ -908,6 +911,22 @@ mcr_loop:
   sta 55617, x
   lda 55656, x
   sta 55657, x
+  dex
+  bmi mcr_loop_upper_done
+  jmp mcr_loop_upper
+mcr_loop_upper_done:
+  ldx #0
+  ldy SCR_first_visible_tile
+  SCR_draw_color_tile_half(55296, 55336, SCR_TILE_ROW_0)
+  SCR_draw_color_tile_half(55376, 55416, SCR_TILE_ROW_1)
+  SCR_draw_color_tile_half(55456, 55496, SCR_TILE_ROW_2)
+  SCR_draw_color_tile_half(55536, 55576, SCR_TILE_ROW_3)
+  SCR_draw_color_tile_half(55616, 55656, SCR_TILE_ROW_4)
+  rts
+
+SCR_move_color_right_lower:
+  ldx #38
+mcr_loop:
   lda 55696, x
   sta 55697, x
   lda 55736, x
@@ -934,11 +953,6 @@ mcr_loop:
 mcr_loop_done:
   ldx #0
   ldy SCR_first_visible_tile
-  SCR_draw_color_tile_half(55296, 55336, SCR_TILE_ROW_0)
-  SCR_draw_color_tile_half(55376, 55416, SCR_TILE_ROW_1)
-  SCR_draw_color_tile_half(55456, 55496, SCR_TILE_ROW_2)
-  SCR_draw_color_tile_half(55536, 55576, SCR_TILE_ROW_3)
-  SCR_draw_color_tile_half(55616, 55656, SCR_TILE_ROW_4)
   SCR_draw_color_tile_half(55696, 55736, SCR_TILE_ROW_5)
   SCR_draw_color_tile_half(55776, 55816, SCR_TILE_ROW_6) 
   SCR_draw_color_tile_half(55856, 55896, SCR_TILE_ROW_7)
@@ -1162,6 +1176,7 @@ SCR_last_visible_tile:           .byte 0
 SCR_tile_offset:                 .byte 0
 SCR_buffer_flag:                 .byte 0 // which buffer
 SCR_buffer_ready:                .byte 0 // buffer ready to be swapped
+SCR_direction:                   .byte 0 // which direction to move screen or scroll after a scroll
 SCR_color_flag:                  .byte 0
 SCR_tile_level_width:            .byte 0
 

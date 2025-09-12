@@ -112,6 +112,7 @@ call_buffer:
   jsr irq_music
   jsr irq_buffer_swap
   jsr irq_color_upper_shift
+  jsr update_max_raster_line
   lda #RASTER_COLOR_LOWER
   sta next_irq
   sta VIC_RW_RASTER
@@ -274,7 +275,6 @@ swap_buffers_swapped:
   hwscroll_right(SCR_scroll_right_amounts_post)
   lda #0
   sta pending_buffer_swap
-
 irq_buffer_swapd:
   lda #1
   sta frame_tick
@@ -283,7 +283,12 @@ irq_buffer_swapd:
 irq_color_upper_shift:
   lda pending_color_upper_swap
   beq irq_color_upper_shiftd
+  lda SCR_direction
+  bne irq_color_upper_shift_right
   jsr SCR_move_color_left_upper
+  jmp irq_color_upper_shiftd
+irq_color_upper_shift_right:
+  jsr SCR_move_color_right_upper
 irq_color_upper_shiftd:
   lda #0
   sta pending_color_upper_swap
@@ -292,10 +297,39 @@ irq_color_upper_shiftd:
 irq_color_lower_shift:
   lda pending_color_lower_swap
   beq irq_color_lower_shiftd
+  lda SCR_direction
+  bne irq_color_lower_shift_right
   jsr SCR_move_color_left_lower
+  jmp irq_color_lower_shiftd
+irq_color_lower_shift_right:
+  jsr SCR_move_color_right_lower
 irq_color_lower_shiftd:
   lda #0
   sta pending_color_lower_swap
+  rts
+
+// TODO: remove for production build, only used during test
+update_max_raster_line:
+  lda VIC_VCONTROL_REG
+  and #%10000000
+  lsr
+  lsr
+  lsr
+  lsr
+  lsr
+  lsr
+  lsr
+  sta raster_line+1
+  cmp max_raster_line+1
+  bcc update_max_raster_lined
+  lda VIC_RW_RASTER
+  sta raster_line
+  cmp max_raster_line
+  bcc update_max_raster_lined
+  sta max_raster_line
+  lda raster_line+1
+  sta max_raster_line+1
+update_max_raster_lined:
   rts
 
 init:
@@ -870,10 +904,10 @@ log_screen:
 
   iny
   iny
-  lda raster_line+1
+  lda max_raster_line+1
   jsr loghexit
   iny
-  lda raster_line
+  lda max_raster_line
   jsr loghexit
   
   iny
@@ -2678,4 +2712,7 @@ next_irq:
   .byte 0
 
 raster_line:
-  .byte 0, 0
+  .byte 0,0
+
+max_raster_line:
+  .byte 0,0
