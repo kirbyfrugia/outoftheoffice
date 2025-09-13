@@ -37,24 +37,23 @@
 //     $0800-$0be7 - video matrix 40x25
 //     $0bf8-$0bff - sprite data pointers
 //   Sprite data
-//     $0c00-$0dff - sprite data
+//     $0bfe-$0bff - just used to store the prg load location, ignored
+//     $0c00-$33ff - sprite sheet, 160 sprites
+//     $3400-$345f - sprite attrib data, 160 bytes
 //   Level data
-//     $1ffe-$1fff - just used to store the prg load location, ignored
-//     $2000-$27ff - character set, 2048 bytes
-//     $2800-$28ff - character set attribs, (material - collision info), 256 bytes
-//     $2900-$2cff - char tileset data (raw tiles), 1024 bytes
-//     $2d00-$2dff - char tileset attrib data (1 color per tile), 256 bytes
-//     $2e00-$2eff - char tileset tag data (tile collisions), 256 bytes
-//     $2f00-$38ff - map, max 2560 bytes
+//     $37fe-$37ff - just used to store the prg load location, ignored
+//     $3800-$3fff - character set, 2048 bytes
+//     $4000-$40ff - character set attribs, (material - collision info), 256 bytes
+//     $4100-$44ff - char tileset data (raw tiles), 1024 bytes
+//     $4500-$45ff - char tileset attrib data (1 color per tile), 256 bytes
+//     $4600-$46ff - char tileset tag data (tile collisions), 256 bytes
+//     $4700-$50ff - map, max 2560 bytes
 //   Scratch space
-//     $4000-$4fff
-//   Sprite sheet
-//     $4ffe-$4fff - just used to store the prg load location, ignored
-//     $5000-$77ff - sprite sheet, 160 sprites
-//     $7800-795f  - sprite attrib data, 160 bytes
+//     $5100-$60ff
+//   Actual level data
+//     $6100-$7fff
 //   More level data, tile metadata
 //     note: this uses a lot of memory, but it makes accessing the tiles faster/easier
-//     
 //     $c000-c9ff  - tile metadata, left-hand of tile
 //     $ca00-d3ff  - tile metadata, right-hand of tile
 //   Game program
@@ -74,20 +73,20 @@
 .var SCR_TILE_ROW            = $36 // temp var, careful
 .var SCR_TILE_COL            = $37 // temp var, careful
 .var SCR_sprite_data         = $0c00
-.var SCR_charset_prg         = $1ffe
-.var SCR_charset             = $2000
-.var SCR_char_attribs        = $2800
-.var SCR_raw_tiles           = $2900
-.var SCR_tiles_ul            = $2900
-.var SCR_tiles_ur            = $2a00
-.var SCR_tiles_ll            = $2b00
-.var SCR_tiles_lr            = $2c00
-.var SCR_char_tileset_attrib = $2d00
-.var SCR_char_tileset_tag    = $2e00
-.var SCR_level_tiles         = $2f00
-.var SCR_scratch             = $4000
-.var SCR_sprite_sheet_prg    = $4ffe
-.var SCR_sprite_sheet        = $5000
+.var SCR_sprite_sheet_prg    = $0bfe
+.var SCR_sprite_sheet        = $0c00
+.var SCR_charset_prg         = $37fe
+.var SCR_charset             = $3800
+.var SCR_char_attribs        = $4000
+.var SCR_raw_tiles           = $4100
+.var SCR_tiles_ul            = $4100
+.var SCR_tiles_ur            = $4200
+.var SCR_tiles_ll            = $4300
+.var SCR_tiles_lr            = $4400
+.var SCR_char_tileset_attrib = $4500
+.var SCR_char_tileset_tag    = $4600
+.var SCR_level_tiles         = $4700
+.var SCR_scratch             = $5100
 
 // Y holds the tile index
 // X holds the screen column

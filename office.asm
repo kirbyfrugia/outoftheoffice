@@ -1,9 +1,11 @@
 #import "data/level1.asm"
 #import "data/sprites.asm"
 
-.const MAX_HV_LEFT      = 100 // max velocity going left
+.const MAX_HV_LEFT      = 97  // max velocity going left
+.const HV_ZERO_LOWER    = 125 // anything between this and HV_ZERO is considered stopped
 .const HV_ZERO          = 127 // horizontal velocity when not moving
-.const MAX_HV_RIGHT     = 154 // max velocity going right
+.const HV_ZERO_UPPER    = 130 // anything between HV_ZERO and this considered stopped
+.const MAX_HV_RIGHT     = 157 // max velocity going right
 .const HORIZ_ACCEL_FAST = 2   // slower acceleration, normal
 .const HORIZ_ACCEL_SLOW = 1   // faster acceleration when switching directions
 
@@ -86,16 +88,6 @@ start:
 #import "screen.asm"
 #import "enemies.asm"
 #import "data/level1-enemies.asm"
-
-// Modifies X and A
-.macro copy_sprite(src, dest) {
-  ldx #63
-copy_sprite_data:
-  lda src, x
-  sta dest, x
-  dex
-  bpl copy_sprite_data
-}
 
 irq_dispatch:
   lda next_irq
@@ -516,7 +508,7 @@ initsys:
   // use our in-memory charset
   lda VIC_MEM_CONTROL_REG
   and #%11110000
-  ora #%00001000 // $2000-27ff
+  ora #%00001110 // $3800-3fff
   sta VIC_MEM_CONTROL_REG
 
   lda #15
@@ -654,10 +646,10 @@ startsound:
   rts
 
 initspr:
-  copy_sprite(sprite_image_0, SCR_sprite_data)
-  copy_sprite(sprite_image_8, SCR_sprite_data+64)
-  copy_sprite(sprite_image_8, SCR_sprite_data+128)
-  copy_sprite(sprite_image_8, SCR_sprite_data+192)
+  // copy_sprite(sprite_image_0, SCR_sprite_data)
+  // copy_sprite(sprite_image_8, SCR_sprite_data+64)
+  // copy_sprite(sprite_image_8, SCR_sprite_data+128)
+  // copy_sprite(sprite_image_8, SCR_sprite_data+192)
 
   // set sprite multi colors
   lda #sprmc0
@@ -665,25 +657,20 @@ initspr:
   lda #sprmc1
   sta SPRITE_MC1
 
-  // TODO: maybe be smarter about sprite pointers
   // sprite pointers
   // location = (bank * 16384)+(sprptr*64)
   //          = (0*16384)+(48*64)=$0c00
-  ldx #48 
-  stx $07f8 // front buffer
-  stx $0bf8 // back buffer
+  ldx #(SPRITE_PTR_FIRST+0)
+  stx SPRITE_PTR_BASE_FB // front buffer
+  stx SPRITE_PTR_BASE_BB // back buffer
 
-  inx
-  stx $07f9
-  stx $0bf9
-
-  inx
-  stx $07fa
-  stx $0bfa
-
-  inx
-  stx $07fb
-  stx $0bfb
+  ldx #(SPRITE_PTR_FIRST+7)
+  stx SPRITE_PTR_BASE_FB+1
+  stx SPRITE_PTR_BASE_BB+1
+  stx SPRITE_PTR_BASE_FB+2
+  stx SPRITE_PTR_BASE_BB+2
+  stx SPRITE_PTR_BASE_FB+3
+  stx SPRITE_PTR_BASE_BB+3
 
   lda #%01111111
   sta SPRITE_MC_MODE
@@ -827,79 +814,84 @@ hud_render:
   sta (zpb0), y
   rts
 
-// log_posx:
-//   lda p1gx+1
-//   jsr loghexit
-//   iny
-//   lda p1gx
-//   jsr loghexit
-
-//   iny
-//   iny
-//   lda p1lx+1
-//   jsr loghexit
-//   iny
-//   lda p1lx
-//   jsr loghexit
-
-//   iny
-//   iny
-//   lda p1sx+1
-//   jsr loghexit
-//   iny
-//   lda p1sx
-//   jsr loghexit
-
-//   iny
-//   iny
-//   lda p1hva+1
-//   jsr loghexit
-//   iny
-//   lda p1hva
-//   jsr loghexit
-//   rts
-
-log_screen:
-  lda SCR_first_visible_column+1
+log_posx:
+  lda p1gx+1
   jsr loghexit
   iny
-  lda SCR_first_visible_column
-  jsr loghexit
-  iny
-  lda #43
-  sta (zpb0),y
-  iny
-  lda SCR_scroll_offset
-  jsr loghexit
-  iny
-  iny
-  lda SCR_scroll_register
-  jsr loghexit
-  iny
-  iny
-  lda VIC_HCONTROL_REG
-  jsr loghexit
-  iny
-  iny
-  lda SCR_scroll_out
+  lda p1gx
   jsr loghexit
 
   iny
   iny
-  lda max_raster_line+1
+  lda p1lx+1
   jsr loghexit
   iny
-  lda max_raster_line
+  lda p1lx
   jsr loghexit
-  
+
   iny
   iny
-  lda SCR_first_column_beyond_screen_pixels+1
+  lda p1sx+1
   jsr loghexit
   iny
-  lda SCR_first_column_beyond_screen_pixels
+  lda p1sx
+  jsr loghexit
+
+  iny
+  iny
+  lda p1hva+1
+  jsr loghexit
+  iny
+  lda p1hva
+  jsr loghexit
+
+  iny
+  iny
+  lda player_animation_flag
   jsr loghexit
   rts
+
+// log_screen:
+//   lda SCR_first_visible_column+1
+//   jsr loghexit
+//   iny
+//   lda SCR_first_visible_column
+//   jsr loghexit
+//   iny
+//   lda #43
+//   sta (zpb0),y
+//   iny
+//   lda SCR_scroll_offset
+//   jsr loghexit
+//   iny
+//   iny
+//   lda SCR_scroll_register
+//   jsr loghexit
+//   iny
+//   iny
+//   lda VIC_HCONTROL_REG
+//   jsr loghexit
+//   iny
+//   iny
+//   lda SCR_scroll_out
+//   jsr loghexit
+
+//   iny
+//   iny
+//   lda max_raster_line+1
+//   jsr loghexit
+//   iny
+//   lda max_raster_line
+//   jsr loghexit
+  
+//   iny
+//   iny
+//   lda SCR_first_column_beyond_screen_pixels+1
+//   jsr loghexit
+//   iny
+//   lda SCR_first_column_beyond_screen_pixels
+//   jsr loghexit
+//   rts
 
 // log_posy:
 //   lda p1gy+1
@@ -1035,8 +1027,8 @@ log_back_line1:
   sta zpb1
 log_line1:
   ldy #1
-  jsr log_screen
-  // jsr log_posx
+  // jsr log_screen
+  jsr log_posx
   // jsr log_screen
   // jsr log_melody
 
@@ -1131,30 +1123,62 @@ updp1hv:
   bne updp1hvr
   lda #HV_ZERO
   sta p1hvt
+  // if we want to stop moving, let's see if we're
+  // close to stopping. If so, just stop to deal
+  // with being off by minor amounts when updating our speed
+  lda p1hvi
+  cmp #HV_ZERO_LOWER
+  bcc updp1htvd // we're more than our accel speed away from stopped, slow side
+  cmp #HV_ZERO_UPPER
+  bcs updp1htvd // we're more than our accel speed away from stopped, fast side
+
+  // just set our speed to zero since we were close enough to stopped.
+  // fixes any off by a little errors
+  lda #HV_ZERO
+  sta p1hvi
   bne updp1htvd
+updp1hv_maybe_stopped:
 updp1hvl:
   // moving left, target full speed left
+  lda player_animation_flag
+  and #%10111111  // moving left (from an animation perspective)
+  sta player_animation_flag
   lda #MAX_HV_LEFT
   sta p1hvt
   bne updp1htvd
 updp1hvr:
   // moving right, target full speed right
+  lda player_animation_flag
+  ora #%01000000  // moving right (from an animation perspective)
+  sta player_animation_flag
   lda #MAX_HV_RIGHT
   sta p1hvt
 updp1htvd:
+  // if here, we have calculated our target velocity
   lda p1hvi
   cmp p1hvt
-  beq updp1hvd                        // already at target speed, nothing to do
+  beq updp1hv_at_target_velocity      // already at target speed, nothing to do
   bcc updp1h_accel_right              // current velocity less than target, so want to be going towards right
   // if here, want to be going towards left
   cmp #HV_ZERO            
   bcs updp1h_moving_right_accel_left  // still moving right, but wanting to go left
   // if here, already moving left and want to keep going left
+  pha
+  lda player_animation_flag
+  and #%11101111 // not turning
+  ora #%00100000 // moving horizontally
+  sta player_animation_flag
+  pla
   sec
   sbc #HORIZ_ACCEL_SLOW
   sta p1hvi
   bne updp1hvd
 updp1h_moving_right_accel_left:
+  pha
+  lda player_animation_flag
+  ora #%00110000 // moving horizontally, turning
+  sta player_animation_flag
+  pla
   sec
   sbc #HORIZ_ACCEL_FAST
   sta p1hvi
@@ -1163,14 +1187,36 @@ updp1h_accel_right:
   cmp #HV_ZERO
   bcc updp1h_moving_left_accel_right  // want to go right, but moving left
   // if here, already moving right and want to keep going right
+  pha
+  lda player_animation_flag
+  and #%11101111 // not turning
+  ora #%00100000 // moving horizontally
+  sta player_animation_flag
+  pla
   clc
   adc #HORIZ_ACCEL_SLOW
   sta p1hvi
   bne updp1hvd
 updp1h_moving_left_accel_right:
+  pha
+  lda player_animation_flag
+  ora #%00110000 // moving horizontally, turning
+  sta player_animation_flag
+  pla
   clc
   adc #HORIZ_ACCEL_FAST
   sta p1hvi
+  jmp updp1hvd
+updp1hv_at_target_velocity:
+  lda p1hvi
+  cmp #HV_ZERO
+  bne updp1hvd
+  // if here, at target velocity, not moving
+  pha
+  lda player_animation_flag
+  and #%11011111 // standing still horizontally
+  sta player_animation_flag
+  pla
 updp1hvd:
   lda p1hvi
   cmp #MAX_HV_LEFT
@@ -1206,6 +1252,10 @@ updp1vv:
   cmp #%00000011
   beq updp1vv_no_jump
 
+  lda player_animation_flag
+  ora #%10000000 // jumping
+  sta player_animation_flag
+
   // lda ebl
   // and #%00000011
   // cmp #%00000011
@@ -1226,6 +1276,10 @@ updp1vv:
   jmp updp1vvd
 updp1vv_no_jump:
   // on ground, not jumping
+  lda player_animation_flag
+  and #%01111111 // not jumping
+  sta player_animation_flag
+
   lda #VV_ZERO
   sta p1vvi
   jmp updp1vvd
@@ -2452,48 +2506,87 @@ upd_enemies_spritesd:
 
   rts
 
+updanim_p1:
+// bit7 - jumping
+// bit6 - x direction         (0 = left, 1 = right)
+// bit5 - moving horizontally (0 = false, 1 = true)
+// bit4 - turning             (0 = false, 1 = true)
+  lda player_animation_flag
+  and #%10000000
+  bne updanim_p1_jumping
 
+  lda player_animation_flag
+  and #%00100000
+  beq updanim_p1_not_moving_horiz
+
+  lda player_animation_flag
+  and #%01000000
+  beq updanim_p1_moving_left
+  bne updanim_p1_moving_right 
+
+updanim_p1_jumping:
+  // TODO: replace with jumping animation
+updanim_p1_not_moving_horiz:
+  lda #(SPRITE_PTR_FIRST+0)
+  sta SPRITE_PTR_BASE_FB
+  sta SPRITE_PTR_BASE_BB
+  jmp updanim_p1_done
+updanim_p1_moving_left:
+  lda animation_index
+  clc
+  adc #(SPRITE_PTR_FIRST+4)
+  sta SPRITE_PTR_BASE_FB
+  sta SPRITE_PTR_BASE_BB
+  jmp updanim_p1_done
+updanim_p1_moving_right:
+  lda animation_index
+  clc
+  adc #(SPRITE_PTR_FIRST+1)
+  sta SPRITE_PTR_BASE_FB
+  sta SPRITE_PTR_BASE_BB
+updanim_p1_done:
+  rts
+
+updanim_enemy:
+  lda animation_index
+  clc
+  adc #(SPRITE_PTR_FIRST+7)
+  sta SPRITE_PTR_BASE_FB+1
+  sta SPRITE_PTR_BASE_BB+1
+  sta SPRITE_PTR_BASE_FB+2
+  sta SPRITE_PTR_BASE_BB+2
+  sta SPRITE_PTR_BASE_FB+3
+  sta SPRITE_PTR_BASE_BB+3
+  rts
 // TODO: Can I store the animations in memory and just point
 // to different locations when we animate rather than copying
 // data every time?
 updanim:
   lda animation_frame
+  beq updanim_0
   cmp #30
-  bne updanim_20
-  copy_sprite(sprite_image_0, SCR_sprite_data)
-  copy_sprite(sprite_image_8, SCR_sprite_data+64)
-  copy_sprite(sprite_image_8, SCR_sprite_data+128)
-  copy_sprite(sprite_image_8, SCR_sprite_data+192)
-  jmp updanim_upd_animation_frame
-updanim_20:
-  lda animation_frame
-  cmp #20
-  bne updanim_10
-  copy_sprite(sprite_image_1, SCR_sprite_data)
-  copy_sprite(sprite_image_8, SCR_sprite_data+64)
-  copy_sprite(sprite_image_8, SCR_sprite_data+128)
-  copy_sprite(sprite_image_8, SCR_sprite_data+192)
-  jmp updanim_upd_animation_frame
-updanim_10:
-  lda animation_frame
-  cmp #10
-  bne updanim_00
-  copy_sprite(sprite_image_2, SCR_sprite_data)
-  copy_sprite(sprite_image_9, SCR_sprite_data+64)
-  copy_sprite(sprite_image_9, SCR_sprite_data+128)
-  copy_sprite(sprite_image_9, SCR_sprite_data+192)
-  jmp updanim_upd_animation_frame
-updanim_00:
-  lda animation_frame
-  bne updanim_upd_animation_frame
-  copy_sprite(sprite_image_3, SCR_sprite_data)
-  copy_sprite(sprite_image_10, SCR_sprite_data+64)
-  copy_sprite(sprite_image_10, SCR_sprite_data+128)
-  copy_sprite(sprite_image_10, SCR_sprite_data+192)
-updanim_upd_animation_frame:
+  beq updanim_30
+  cmp #15
+  beq updanim_15
+  jmp updanim_index_done // no need to update animations
+updanim_30:
+  lda #0
+  sta animation_index
+  beq updanim_index_done
+updanim_15:
+  lda #1
+  sta animation_index
+  bne updanim_index_done
+updanim_0:
+  lda #2
+  sta animation_index
+updanim_index_done:
+  jsr updanim_p1
+  jsr updanim_enemy
+updanim_next_index:
   dec animation_frame
   bne updanim_done
-  lda #20
+  lda #30
   sta animation_frame
 updanim_done:
   rts
@@ -2649,6 +2742,13 @@ current_buffer:  .byte 0
 frame_phase:     .byte 0
 frame_tick:      .byte 0
 animation_frame: .byte 0
+animation_index: .byte 0
+
+// bit7 - jumping
+// bit6 - x direction         (0 = left, 1 = right)
+// bit5 - moving horizontally (0 = false, 1 = true)
+// bit4 - turning             (0 = false, 1 = true)
+player_animation_flag: .byte 0
 
 collide_pixels_x: .byte 0
 collide_pixels_y: .byte 0

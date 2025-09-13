@@ -38,7 +38,9 @@
 // .const RASTER_COLOR_LOWER = $7c // 3rd best so far
 // .const RASTER_COLOR_LOWER = $81
 
-
+.const SPRITE_PTR_FIRST    =    48 // sprite pointer at which sprite 0 starts
+.const SPRITE_PTR_BASE_FB  = $07f8 // sprite pointers for the front buffer
+.const SPRITE_PTR_BASE_BB  = $0bf8 // sprite pointers for the back buffer
 .const SPRITE_XPOS_BASE    = $d000
 .const SPRITE_YPOS_BASE    = $d001
 .const SPRITE_MSB          = $d010

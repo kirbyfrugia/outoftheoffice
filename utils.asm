@@ -37,8 +37,18 @@ copyln:
 copyld:
   pla
   tay
-  pla  
+  pla
   rts
+
+// Modifies X and A
+.macro copy_sprite(src, dest) {
+  ldx #63
+copy_sprite_data:
+  lda src, x
+  sta dest, x
+  dex
+  bpl copy_sprite_data
+}
 
 // copies address to loc in zpb
 .macro ToZPB(lo,hi,zpblo) {

@@ -18,7 +18,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo ".segment $base_name [start=\$1000]" | cat - "$level_file" > temp_file && mv temp_file "$level_file"
+echo ".segment $base_name [start=\$6100]" | cat - "$level_file" > temp_file && mv temp_file "$level_file"
 
 # Delete all lines starting with the first line containing "INSERT EXAMPLE PROGRAM HERE" to EOF
 # sed -n '/INSERT EXAMPLE PROGRAM HERE/q;p' "$level_file" > temp_file && mv temp_file "$level_file"

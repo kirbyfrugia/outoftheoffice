@@ -18,7 +18,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo ".segment $base_name [start=\$5000]" | cat - "$sprites_file" > temp_file && mv temp_file "$sprites_file"
+echo ".segment $base_name [start=\$0c00]" | cat - "$sprites_file" > temp_file && mv temp_file "$sprites_file"
 
 # Replace all semicolon characters with double forward slashes
 sed -i 's/;/\/\//g' "$sprites_file"
