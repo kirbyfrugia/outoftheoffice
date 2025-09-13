@@ -13,6 +13,7 @@
 enemies_type:
   .byte 0
   .byte 0
+  .byte 0
 
 .const enemy0_minx = ENEMY_TILE_SIZE*5   + ENEMY_TILE_CHAR_SIZE*0
 .const enemy0_maxx = ENEMY_TILE_SIZE*16  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_WIDTH

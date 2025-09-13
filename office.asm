@@ -353,6 +353,9 @@ init:
   sta p1gx+1
   sta p1lx+1
 
+  lda #%01000000 // facing right, not moving or jumping
+  sta player_animation_flag
+
   lda #$ff
   sta ebl
   sta ebr
@@ -848,6 +851,10 @@ log_posx:
   iny
   iny
   lda player_animation_flag
+  jsr loghexit
+  iny
+  iny
+  lda zpb5
   jsr loghexit
   rts
 
@@ -2576,19 +2583,34 @@ updanim_p1_done:
   rts
 
 updanim_enemy:
-  lda animation_index
+  ldx enemies_buffer_min
+updanim_enemy_loop:
+  ldy enemies_type, x
+  lda enemies_flags, x
+  and #%10000000
+  cmp #%10000000
+  beq updanim_enemy_moving_right
+  // if here, enemy is moving left
+  lda enemies_animations_left, y // get index 0 of animation
   clc
-  adc #(SPRITE_PTR_FIRST+12)
-  sta SPRITE_PTR_BASE_FB+1
-  sta SPRITE_PTR_BASE_BB+1
-  sta SPRITE_PTR_BASE_FB+2
-  sta SPRITE_PTR_BASE_BB+2
-  sta SPRITE_PTR_BASE_FB+3
-  sta SPRITE_PTR_BASE_BB+3
+  adc animation_index
+  bne updanim_enemy_sprite_selected
+updanim_enemy_moving_right:
+  lda enemies_animations_right, y // get index 0 of animation
+  clc
+  adc animation_index
+updanim_enemy_sprite_selected:
+  adc #SPRITE_PTR_FIRST
+  sta SPRITE_PTR_BASE_FB+1, x
+  sta SPRITE_PTR_BASE_BB+1, x
+updanim_enemy_next_enemy:
+  inx
+  cpx enemies_buffer_max
+  bcs updanim_enemiesd
+  jmp updanim_enemy_loop
+updanim_enemiesd:
   rts
-// TODO: Can I store the animations in memory and just point
-// to different locations when we animate rather than copying
-// data every time?
+
 updanim:
   lda animation_frame
   beq updanim_index
@@ -2598,7 +2620,7 @@ updanim:
   beq updanim_index
   cmp #10
   beq updanim_index
-  jmp updanim_index_done // no need to update animations
+  jmp updanim_index_done // no need to update sprite indices
 updanim_index:
   inc animation_index
   lda animation_index
@@ -2612,7 +2634,7 @@ updanim_index_done:
   jsr updanim_enemy
 
   dec animation_frame
-  bne updanim_done
+  bpl updanim_done
   // wrapped
   lda #30
   sta animation_frame

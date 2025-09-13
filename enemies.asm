@@ -7,5 +7,10 @@
 .const ENEMY_MOUSE_WIDTH = 16
 .const ENEMY_MOUSE_HEIGHT = 10
 
-enemies_animations:
-  .byte 8,9,10    // mouse
+// stores the offset of the first animation frame
+enemies_animations_left:
+  .byte 15
+
+// stores the offset of the first animation frame
+enemies_animations_right:
+  .byte 12
