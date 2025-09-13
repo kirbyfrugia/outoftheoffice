@@ -23,6 +23,11 @@ Run with vice:
 
 # Updating the sprites
 
-Edit data/sprites.asm in spritepad. After saving any changes, run ./data/charpad-to-kickass-sprites.sh
+Edit data/sprites.asm in spritepad. After saving any changes:
+```./charpad-to-kickass-sprites.sh sprites.asm```
+
+# Updating levels
+Edit data/level1.ctm in charpad. After saving any changes:
+```./charpad-to-kickass-level.sh level1.asm```
 
 # Some helpful tools

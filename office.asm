@@ -683,7 +683,7 @@ initspr:
   ldx #0
   lda spriteset_attrib_data, x
   sta SPRITE_COLOR_BASE+0
-  ldx #8
+  ldx #12
   lda spriteset_attrib_data, x
   sta SPRITE_COLOR_BASE+1
   sta SPRITE_COLOR_BASE+2
@@ -2507,41 +2507,69 @@ upd_enemies_spritesd:
   rts
 
 updanim_p1:
+  // sprite offsets:
+  // offset 0 - standing
+  // offset 1 - moving, first frame
+  // offset 2 - moving, second frame
+  // offset 3 - moving, third frame
+  // offset 4 - turning
+  // offset 5 - jumping
 // bit7 - jumping
 // bit6 - x direction         (0 = left, 1 = right)
 // bit5 - moving horizontally (0 = false, 1 = true)
 // bit4 - turning             (0 = false, 1 = true)
   lda player_animation_flag
-  and #%10000000
-  bne updanim_p1_jumping
+  and #%11000000
+  cmp #%10000000
+  beq updanim_p1_jumping_left
 
   lda player_animation_flag
-  and #%00100000
-  beq updanim_p1_not_moving_horiz
+  and #%11000000
+  cmp #%11000000
+  beq updanim_p1_jumping_right
 
   lda player_animation_flag
-  and #%01000000
+  and #%11100000
+  cmp #%00100000
   beq updanim_p1_moving_left
-  bne updanim_p1_moving_right 
 
-updanim_p1_jumping:
-  // TODO: replace with jumping animation
-updanim_p1_not_moving_horiz:
-  lda #(SPRITE_PTR_FIRST+0)
-  sta SPRITE_PTR_BASE_FB
-  sta SPRITE_PTR_BASE_BB
-  jmp updanim_p1_done
+  lda player_animation_flag
+  and #%11100000
+  cmp #%01100000
+  beq updanim_p1_moving_right
+
+  lda player_animation_flag
+  and #%01100000
+  cmp #%00000000
+  beq updanim_p1_standing_left
+
+  lda player_animation_flag
+  and #%01100000
+  cmp #%01000000
+  beq updanim_p1_standing_right
+
+updanim_p1_jumping_left:
+  lda #(P1_FACING_LEFT_OFFSET+5)
+  bne updanim_p1_offset_selected
+updanim_p1_jumping_right:
+  lda #(P1_FACING_RIGHT_OFFSET+5)
+  bne updanim_p1_offset_selected
 updanim_p1_moving_left:
-  lda animation_index
+  lda #(P1_FACING_LEFT_OFFSET+1)
   clc
-  adc #(SPRITE_PTR_FIRST+4)
-  sta SPRITE_PTR_BASE_FB
-  sta SPRITE_PTR_BASE_BB
-  jmp updanim_p1_done
+  adc animation_index
+  bne updanim_p1_offset_selected
 updanim_p1_moving_right:
-  lda animation_index
+  lda #(P1_FACING_RIGHT_OFFSET+1)
   clc
-  adc #(SPRITE_PTR_FIRST+1)
+  adc animation_index
+  bne updanim_p1_offset_selected
+updanim_p1_standing_left:
+  lda #(P1_FACING_LEFT_OFFSET+0)
+  bne updanim_p1_offset_selected
+updanim_p1_standing_right:
+  lda #(P1_FACING_RIGHT_OFFSET+0)
+updanim_p1_offset_selected:
   sta SPRITE_PTR_BASE_FB
   sta SPRITE_PTR_BASE_BB
 updanim_p1_done:
@@ -2550,7 +2578,7 @@ updanim_p1_done:
 updanim_enemy:
   lda animation_index
   clc
-  adc #(SPRITE_PTR_FIRST+7)
+  adc #(SPRITE_PTR_FIRST+12)
   sta SPRITE_PTR_BASE_FB+1
   sta SPRITE_PTR_BASE_BB+1
   sta SPRITE_PTR_BASE_FB+2
@@ -2563,29 +2591,29 @@ updanim_enemy:
 // data every time?
 updanim:
   lda animation_frame
-  beq updanim_0
+  beq updanim_index
   cmp #30
-  beq updanim_30
-  cmp #15
-  beq updanim_15
+  beq updanim_index
+  cmp #20
+  beq updanim_index
+  cmp #10
+  beq updanim_index
   jmp updanim_index_done // no need to update animations
-updanim_30:
-  lda #0
-  sta animation_index
-  beq updanim_index_done
-updanim_15:
-  lda #1
-  sta animation_index
+updanim_index:
+  inc animation_index
+  lda animation_index
+  cmp #3
   bne updanim_index_done
-updanim_0:
-  lda #2
+  // animation wrapped
+  lda #0
   sta animation_index
 updanim_index_done:
   jsr updanim_p1
   jsr updanim_enemy
-updanim_next_index:
+
   dec animation_frame
   bne updanim_done
+  // wrapped
   lda #30
   sta animation_frame
 updanim_done:
