@@ -38,6 +38,20 @@
 // .const RASTER_COLOR_LOWER = $7c // 3rd best so far
 // .const RASTER_COLOR_LOWER = $81
 
+.const HUD_ROW_0_FG_CLR = 11
+.const HUD_ROW_1_FG_CLR = 12
+.const HUD_ROW_2_FG_CLR = 12
+.const HUD_ROW_0_FB     = 1904
+.const HUD_ROW_0_BB     = 2928
+.const HUD_ROW_1_FB     = 1944
+.const HUD_ROW_1_BB     = 2968
+.const HUD_ROW_2_FB     = 1984
+.const HUD_ROW_2_BB     = 3008
+
+.const HUD_ROW_0_CLR    = 56176
+.const HUD_ROW_1_CLR    = 56216
+.const HUD_ROW_2_CLR    = 56256
+
 .const SPRITE_PTR_FIRST_B1    =    48  // sprite pointer at which sprite 0 starts from batch 1
 .const P1_FACING_RIGHT_OFFSET = SPRITE_PTR_FIRST_B1+0
 .const P1_FACING_LEFT_OFFSET  = SPRITE_PTR_FIRST_B1+6

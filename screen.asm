@@ -467,7 +467,7 @@ ds_loop:
   sta 1825, x
   sta 2848, x
   sta 2849, x
-  lda #66
+  lda #0
   sta 1864, x
   sta 1865, x
   sta 2888, x

@@ -8,14 +8,26 @@ p1spr:
 .byte $0c,$c0,$00,$0c,$c0,$00,$3c,$f0
 .byte $00,$fc,$fc,$00,$00,$00,$00,$8a
 
-str_level1_tiles: .text "LEVEL1TILES"
-                  .byte 0
+str_level1_tiles:
+  .text "LEVEL1TILES"
+  .byte 0
 
-str_level1: .text "LEVEL1"
-            .byte 0
+str_level1:
+  .text "LEVEL1"
+  .byte 0
 
-str_sprites1: .text "SPRITES1"
-              .byte 0
+str_sprites1:
+  .text "SPRITES1"
+  .byte 0
 
-str_sprites2: .text "SPRITES2"
-             .byte 0
+str_sprites2:
+  .text "SPRITES2"
+  .byte 0
+
+str_score:
+  .text "SCORE"
+  .byte 0
+
+str_jobs:
+  .text "JOBS"
+  .byte 0

@@ -23,11 +23,13 @@ Run with vice:
 
 # Updating the sprites
 
-Edit data/sprites.asm in spritepad. After saving any changes:
-```./charpad-to-kickass-sprites.sh sprites.asm```
+Edit data/spritesbatch1.spd in spritepad. Export All as Text from spritepad to spritesbatch1.asm. Then:
+```./charpad-to-kickass-sprites.sh spritesbatch1.asm```
+
+Do the same for spritesbatch2
 
 # Updating levels
-Edit data/level1.ctm in charpad. After saving any changes:
+Edit data/level1.ctm in charpad. Export All as Text from charpad. Then:
 ```./charpad-to-kickass-level.sh level1.asm```
 
 # Some helpful tools

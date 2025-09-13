@@ -93,6 +93,7 @@ start:
 #import "screen.asm"
 #import "enemies.asm"
 #import "data/level1-enemies.asm"
+#import "data/level1-jobs.asm"
 
 irq_dispatch:
   lda next_irq
@@ -447,6 +448,7 @@ init:
   jsr SCR_draw_screen
   jsr startsound
 
+  jsr init_hud
   jsr initirq
 
 game_loop:
@@ -477,8 +479,8 @@ even_frame:
   jmp every_frame
 odd_frame:
   jsr updanim
-  // jsr hud
-  jsr log
+  jsr hud
+  // jsr log
 every_frame:
   jsr upd_sound_effects
   jmp game_loop
@@ -797,23 +799,148 @@ loadmap:
 
   rts
 
-hud:
-  lda SCR_buffer_flag
-  bne hud_back_screen
-  lda #$70
-  sta zpb0
-  lda #$07
-  sta zpb1
-  bne hud_render
-hud_back_screen:
-  lda #$70
-  sta zpb0
-  lda #$0b
-  sta zpb1
-hud_render:
-  ldy #1
-  lda #1
+init_hud:
+  ldx #39
+init_hud_fgclr_loop:
+  lda #HUD_ROW_0_FG_CLR
+  sta HUD_ROW_0_CLR, X
+  lda #HUD_ROW_1_FG_CLR
+  sta HUD_ROW_1_CLR, X
+  lda #HUD_ROW_2_FG_CLR
+  sta HUD_ROW_2_CLR, X
+  dex
+  bpl init_hud_fgclr_loop
+
+hud_render_time_title:
+  lda #20   // T
+  sta 1905
+  sta 2929
+  lda #9    // I
+  sta 1906
+  sta 2930
+  lda #13   // M
+  sta 1907
+  sta 2931
+  lda #5    // E
+  sta 1908
+  sta 2932
+
+hud_render_jobs_title:
+  lda #10   // J
+  sta 1910
+  sta 2934
+  lda #15   // O
+  sta 1911
+  sta 2935
+  lda #2    // B
+  sta 1912
+  sta 2936
+
+hud_render_parts_title:
+  lda #16   // P
+  sta 1931
+  sta 2955
+  lda #1    // A
+  sta 1932
+  sta 2956
+  lda #18   // R
+  sta 1933
+  sta 2957
+  lda #20   // T
+  sta 1934
+  sta 2958
+  lda #19   // S
+  sta 1935
+  sta 2959
+
+hud_render_score_title:
+  lda #19   // S
+  sta 1937
+  sta 2961
+  lda #3    // C
+  sta 1938
+  sta 2962
+  lda #15   // O
+  sta 1939
+  sta 2963
+  lda #18   // R
+  sta 1940
+  sta 2964
+  lda #5    // E
+  sta 1941
+  sta 2965
+  rts
+
+// modifies: x, y, a
+// inputs:
+//   x - job id
+//   zpb0/zpb1 - front buffer screen location to print job to, lo/hi
+//   zpb2/zpb3 - back buffer screen location to print job to, lo/hi
+hud_show_job_title:
+  lda jobs_title_lo, x
+  sta zpb4
+  lda jobs_title_hi, x
+  sta zpb5
+  ldy #0
+hud_show_job_loop:
+  lda (zpb4), y
   sta (zpb0), y
+  sta (zpb2), y
+  iny
+  tya
+  cmp jobs_title_len, x
+  bne hud_show_job_loop
+  rts
+
+hud:
+  // jobs area
+  lda #7 // yellow
+  sta HUD_ROW_1_CLR+6
+  lda #71 // warning sign
+  sta HUD_ROW_1_FB+6
+  sta HUD_ROW_1_BB+6
+
+  lda #<HUD_ROW_1_FB
+  clc
+  adc #7
+  sta zpb0
+  sta zpb2
+  lda #>HUD_ROW_1_FB
+  adc #0
+  sta zpb1
+  lda #>HUD_ROW_1_BB
+  adc #0
+  sta zpb3
+  ldx #0 // job 0
+  jsr hud_show_job_title
+
+  lda #4 // yellow
+  sta HUD_ROW_2_CLR+6
+  lda #70 // ink drop
+  sta HUD_ROW_2_FB+6
+  sta HUD_ROW_2_BB+6
+
+  lda #<HUD_ROW_2_FB
+  clc
+  adc #7
+  sta zpb0
+  sta zpb2
+  lda #>HUD_ROW_2_FB
+  adc #0
+  sta zpb1
+  lda #>HUD_ROW_2_BB
+  adc #0
+  sta zpb3
+  ldx #1 // job 1
+  jsr hud_show_job_title
+
+  // supplies area
+  lda #4 // purple
+  sta HUD_ROW_1_CLR+27
+  lda #70 // ink drop
+  sta HUD_ROW_1_FB+27
+  sta HUD_ROW_1_BB+27
+
   rts
 
 log_posx:
