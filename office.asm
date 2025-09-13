@@ -1,14 +1,17 @@
 #import "data/level1.asm"
 #import "data/sprites.asm"
 
-.const MAX_HV_LEFT   = 100 // max  velocity going left
-.const HV_ZERO       = 127 // horizontal velocity when not moving
-.const MAX_HV_RIGHT  = 154 // max  velocity going right
-.const MAX_VV_UP     = 97  // vertical velocity when moving up at full speed
-.const VV_ZERO       = 127 // vertical velocity when not moving
-.const MAX_VV_DOWN   = 157 // vertical velocity when moving down at full speed
-.const FALL_ACCEL    = 4   // acceleration rate when falling
-.const RISE_ACCEL    = 2   // acceleration rate when rising
+.const MAX_HV_LEFT      = 100 // max velocity going left
+.const HV_ZERO          = 127 // horizontal velocity when not moving
+.const MAX_HV_RIGHT     = 154 // max velocity going right
+.const HORIZ_ACCEL_FAST = 2   // slower acceleration, normal
+.const HORIZ_ACCEL_SLOW = 1   // faster acceleration when switching directions
+
+.const MAX_VV_UP        = 97  // vertical velocity when moving up at full speed
+.const VV_ZERO          = 127 // vertical velocity when not moving
+.const MAX_VV_DOWN      = 157 // vertical velocity when moving down at full speed
+.const FALL_ACCEL       = 4   // acceleration rate when falling
+.const RISE_ACCEL       = 2   // acceleration rate when rising
 
 .disk [filename="office.d64", name="OFFICE", id="O1" ] {
   [name="OFFICE", type="prg", segments="StubBasic"],
@@ -1130,36 +1133,59 @@ updp1hv:
   sta p1hvt
   bne updp1htvd
 updp1hvl:
+  // moving left, target full speed left
   lda #MAX_HV_LEFT
   sta p1hvt
   bne updp1htvd
 updp1hvr:
+  // moving right, target full speed right
   lda #MAX_HV_RIGHT
   sta p1hvt
 updp1htvd:
   lda p1hvi
   cmp p1hvt
-  beq updp1hvd
-  bcc updp1haccel
-  cmp #(HV_ZERO+2)
-  bcs updp1hdecel2
-  dec p1hvi
-  bne updp1hvd
-updp1hdecel2:
+  beq updp1hvd                        // already at target speed, nothing to do
+  bcc updp1h_accel_right              // current velocity less than target, so want to be going towards right
+  // if here, want to be going towards left
+  cmp #HV_ZERO            
+  bcs updp1h_moving_right_accel_left  // still moving right, but wanting to go left
+  // if here, already moving left and want to keep going left
   sec
-  sbc #2
+  sbc #HORIZ_ACCEL_SLOW
   sta p1hvi
-  bne updp1hvd  
-updp1haccel:
-  cmp #(HV_ZERO-1)
-  bcc updp1haccel2
-  inc p1hvi
   bne updp1hvd
-updp1haccel2:
+updp1h_moving_right_accel_left:
+  sec
+  sbc #HORIZ_ACCEL_FAST
+  sta p1hvi
+  bne updp1hvd
+updp1h_accel_right:
+  cmp #HV_ZERO
+  bcc updp1h_moving_left_accel_right  // want to go right, but moving left
+  // if here, already moving right and want to keep going right
   clc
-  adc #2
+  adc #HORIZ_ACCEL_SLOW
+  sta p1hvi
+  bne updp1hvd
+updp1h_moving_left_accel_right:
+  clc
+  adc #HORIZ_ACCEL_FAST
   sta p1hvi
 updp1hvd:
+  lda p1hvi
+  cmp #MAX_HV_LEFT
+  bcc updp1hvd_cap_left
+  cmp #MAX_HV_RIGHT
+  bcc updp1hvd_nocap
+  // if here, moving too fast to the right
+  lda #MAX_HV_RIGHT
+  sta p1hvi
+  bne updp1hvd_nocap
+updp1hvd_cap_left:
+  // if here, moving too fast left
+  lda #MAX_HV_LEFT
+  sta p1hvi
+updp1hvd_nocap:
   lda p1hvi
   sec
   sbc #HV_ZERO
