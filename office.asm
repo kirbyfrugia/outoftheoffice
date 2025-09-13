@@ -1,5 +1,9 @@
 #import "data/level1.asm"
-#import "data/sprites.asm"
+
+.segment Sprites1 [start=$0c00]
+#import "data/spritesbatch1.asm"
+.segment Sprites2 [start=$2000]
+#import "data/spritesbatch2.asm"
 
 .const MAX_HV_LEFT      = 97  // max velocity going left
 .const HV_ZERO_LOWER    = 125 // anything between this and HV_ZERO is considered stopped
@@ -17,9 +21,10 @@
 
 .disk [filename="office.d64", name="OFFICE", id="O1" ] {
   [name="OFFICE", type="prg", segments="StubBasic"],
+  [name="SPRITES1", type="prg", segments="Sprites1"],
+  [name="SPRITES2", type="prg", segments="Sprites2"],
+  [name="LEVEL1", type="prg", segments="level1"],
   [name="GAME", type="prg", segments="Game"],
-  [name="SPRITES", type="prg", segments="sprites"],
-  [name="LEVEL1", type="prg", segments="level1"]
 }
 
 .segment StubBasic [start=$0801]
@@ -412,7 +417,7 @@ init:
   jsr initsys
   jsr initsound
 
-  jsr SCR_load_sprite_sheet
+  jsr SCR_load_sprite_sheets
 
   lda #level1_MAP_WID
   sta SCR_tile_level_width
@@ -649,11 +654,6 @@ startsound:
   rts
 
 initspr:
-  // copy_sprite(sprite_image_0, SCR_sprite_data)
-  // copy_sprite(sprite_image_8, SCR_sprite_data+64)
-  // copy_sprite(sprite_image_8, SCR_sprite_data+128)
-  // copy_sprite(sprite_image_8, SCR_sprite_data+192)
-
   // set sprite multi colors
   lda #sprmc0
   sta SPRITE_MC0
@@ -662,12 +662,11 @@ initspr:
 
   // sprite pointers
   // location = (bank * 16384)+(sprptr*64)
-  //          = (0*16384)+(48*64)=$0c00
-  ldx #(SPRITE_PTR_FIRST+0)
+  ldx #(SPRITE_PTR_FIRST_B1+0)
   stx SPRITE_PTR_BASE_FB // front buffer
   stx SPRITE_PTR_BASE_BB // back buffer
 
-  ldx #(SPRITE_PTR_FIRST+7)
+  ldx #(SPRITE_PTR_FIRST_B2+0)
   stx SPRITE_PTR_BASE_FB+1
   stx SPRITE_PTR_BASE_BB+1
   stx SPRITE_PTR_BASE_FB+2
@@ -684,10 +683,10 @@ initspr:
   // TODO: don't hard-code these sprite 1 and 2 things
 
   ldx #0
-  lda spriteset_attrib_data, x
+  lda spritesbatch1_spriteset_attrib_data, x
   sta SPRITE_COLOR_BASE+0
-  ldx #12
-  lda spriteset_attrib_data, x
+  ldx #0
+  lda spritesbatch2_spriteset_attrib_data, x
   sta SPRITE_COLOR_BASE+1
   sta SPRITE_COLOR_BASE+2
   sta SPRITE_COLOR_BASE+3
@@ -851,10 +850,6 @@ log_posx:
   iny
   iny
   lda player_animation_flag
-  jsr loghexit
-  iny
-  iny
-  lda zpb5
   jsr loghexit
   rts
 
@@ -2600,7 +2595,7 @@ updanim_enemy_moving_right:
   clc
   adc animation_index
 updanim_enemy_sprite_selected:
-  adc #SPRITE_PTR_FIRST
+  adc #SPRITE_PTR_FIRST_B2
   sta SPRITE_PTR_BASE_FB+1, x
   sta SPRITE_PTR_BASE_BB+1, x
 updanim_enemy_next_enemy:

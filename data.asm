@@ -14,5 +14,8 @@ str_level1_tiles: .text "LEVEL1TILES"
 str_level1: .text "LEVEL1"
             .byte 0
 
-str_sprites: .text "SPRITES"
-            .byte 0
+str_sprites1: .text "SPRITES1"
+              .byte 0
+
+str_sprites2: .text "SPRITES2"
+             .byte 0

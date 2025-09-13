@@ -36,10 +36,18 @@
 //   Back buffer:
 //     $0800-$0be7 - video matrix 40x25
 //     $0bf8-$0bff - sprite data pointers
-//   Sprite data
+//   Sprite data, Batch 1 - mostly the player sprite, max 15 sprites
 //     $0bfe-$0bff - just used to store the prg load location, ignored
-//     $0c00-$33ff - sprite sheet, 160 sprites
-//     $3400-$345f - sprite attrib data, 160 bytes
+//     $0c00-$0fbf - sprite sheet
+//     $0fc0-$0fcf - sprite attrib data
+//   ROM CHARSET
+//     $1000-$1fff - unusable
+// TODO: move this to a different memory bank so we can have more sprites
+//       could also just store sprites somewhere else and copy in when needed.
+//   Sprite data, Batch 2, max 96 sprites (to use more would require different vic bank)
+//     $1ffe-$1fff - just used to store the prg load location, ignored
+//     $2000-$37ff - sprite sheet
+//     $3780-$37fe - sprite attrib data
 //   Level data
 //     $37fe-$37ff - just used to store the prg load location, ignored
 //     $3800-$3fff - character set, 2048 bytes
@@ -72,9 +80,6 @@
 .var SCR_TILE_ROW_CURR       = $34
 .var SCR_TILE_ROW            = $36 // temp var, careful
 .var SCR_TILE_COL            = $37 // temp var, careful
-.var SCR_sprite_data         = $0c00
-.var SCR_sprite_sheet_prg    = $0bfe
-.var SCR_sprite_sheet        = $0c00
 .var SCR_charset_prg         = $37fe
 .var SCR_charset             = $3800
 .var SCR_char_attribs        = $4000
@@ -395,14 +400,14 @@ lm_copy_tile_4:
   jsr SCR_update_tile_addr
   rts
 
-SCR_load_sprite_sheet:
+.macro load_sprite_sheet(fname_ptr, prgloc_lo, prgloc_hi) {
   // TODO: don't hard-code the device number
   ldx #8
   stx fdev
 
   ldy #0
 lss_fname_loop:
-  lda str_sprites,y
+  lda fname_ptr,y
   beq lss_fname_loop_done
   sta fname,y
   iny
@@ -411,9 +416,9 @@ lss_fname_loop_done:
   sty fnamelen
 
   // load main data
-  lda #<SCR_sprite_sheet_prg
+  lda #prgloc_lo
   sta zpb0
-  lda #>SCR_sprite_sheet_prg
+  lda #prgloc_hi
   sta zpb1 
   jsr fload
   lda fstatus
@@ -424,6 +429,11 @@ lss_loadok:
 lss_loaderr:
   // TODO: something better
 lss_loadd:
+}
+
+SCR_load_sprite_sheets:
+  load_sprite_sheet(str_sprites1, $fe, $0b)
+  load_sprite_sheet(str_sprites2, $fe, $1f)
   rts
 
 SCR_draw_screen:

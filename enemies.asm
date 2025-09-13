@@ -9,8 +9,8 @@
 
 // stores the offset of the first animation frame
 enemies_animations_left:
-  .byte 15
+  .byte 3
 
 // stores the offset of the first animation frame
 enemies_animations_right:
-  .byte 12
+  .byte 0

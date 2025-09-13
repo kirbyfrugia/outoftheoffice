@@ -38,10 +38,11 @@
 // .const RASTER_COLOR_LOWER = $7c // 3rd best so far
 // .const RASTER_COLOR_LOWER = $81
 
-.const SPRITE_PTR_FIRST    =    48 // sprite pointer at which sprite 0 starts
-// sprite indices of the relevant player animations
-.const P1_FACING_RIGHT_OFFSET = SPRITE_PTR_FIRST+0
-.const P1_FACING_LEFT_OFFSET  = SPRITE_PTR_FIRST+6
+.const SPRITE_PTR_FIRST_B1    =    48  // sprite pointer at which sprite 0 starts from batch 1
+.const P1_FACING_RIGHT_OFFSET = SPRITE_PTR_FIRST_B1+0
+.const P1_FACING_LEFT_OFFSET  = SPRITE_PTR_FIRST_B1+6
+
+.const SPRITE_PTR_FIRST_B2    =    128 // sprite pointer at which sprite 0 starts from batch 2
 
 .const SPRITE_PTR_BASE_FB  = $07f8 // sprite pointers for the front buffer
 .const SPRITE_PTR_BASE_BB  = $0bf8 // sprite pointers for the back buffer
