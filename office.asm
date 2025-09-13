@@ -6,9 +6,9 @@
 .const MAX_HV_RIGHT  = 154 // max  velocity going right
 .const MAX_VV_UP     = 97  // vertical velocity when moving up at full speed
 .const VV_ZERO       = 127 // vertical velocity when not moving
-.const MAX_VV_DOWN   = 160 // vertical velocity when moving down at full speed
-.const FALL_RATE     = 5   // acceleration rate when falling
-.const RISE_RATE     = 2   // acceleration rate when rising
+.const MAX_VV_DOWN   = 157 // vertical velocity when moving down at full speed
+.const FALL_ACCEL    = 4   // acceleration rate when falling
+.const RISE_ACCEL    = 2   // acceleration rate when rising
 
 .disk [filename="office.d64", name="OFFICE", id="O1" ] {
   [name="OFFICE", type="prg", segments="StubBasic"],
@@ -351,17 +351,19 @@ init:
   sta time
   sta time+1
   sta time+2
-  sta ebl
-  sta ebr
-  sta ebu
-  sta ebd
-  sta ebp
   sta p1hva
   sta p1hva+1
   sta p1vva
   sta p1vva+1
   sta p1gx+1
   sta p1lx+1
+
+  lda #$ff
+  sta ebl
+  sta ebr
+  sta ebu
+  sta ebd
+  sta ebp
 
   lda #HV_ZERO
   sta p1hvi
@@ -449,19 +451,14 @@ game_loop:
   beq game_loop
   lda #0
   sta frame_tick
-  // sta SCR_buffer_ready
+
+  jsr injs
 
   lda frame_phase
-  // lda frame_phase
-  // eor #%00000001
-  // sta frame_phase
   bne odd_frame
 even_frame:
   lda #0
   sta SCR_buffer_ready
-  // get input, do game logic, possibly move screen mem
-  lda $dc00
-  jsr injs
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
@@ -1122,11 +1119,13 @@ log_line3:
 
 updp1hv:
   lda ebl
-  and #%00000001
-  beq updp1hvl
+  and #%00000011
+  cmp #%00000011
+  bne updp1hvl
   lda ebr
-  and #%00000001
-  beq updp1hvr
+  and #%00000011
+  cmp #%00000011
+  bne updp1hvr
   lda #HV_ZERO
   sta p1hvt
   bne updp1htvd
@@ -1175,10 +1174,18 @@ updp1vv:
   bne updp1vv_not_on_ground
 
   // only jump on new button presses and on ground
+  // if either of last two scans of joystick button are a zero, jump
   lda ebp
   and #%00000011
-  cmp #%00000010
-  bne updp1vv_no_jump
+  cmp #%00000011
+  beq updp1vv_no_jump
+
+  // lda ebl
+  // and #%00000011
+  // cmp #%00000011
+  // bne updp1hvl
+
+  // bne updp1vv_no_jump
   // if here, jumping
   // Play jump sound effect
   lda #0
@@ -1209,12 +1216,12 @@ updp1vtvd:
   bcc udp1vrising       // not yet at peak of jump, so still rising
   // if here, we're at or above the peak of the jump, so we're falling
   clc
-  adc #FALL_RATE
+  adc #FALL_ACCEL
   sta p1vvi
   jmp updp1vvd
 udp1vrising:
   clc
-  adc #RISE_RATE
+  adc #RISE_ACCEL
   sta p1vvi
 updp1vvd:
   // if here, we are past our peak fall rate, so cap it
@@ -2022,6 +2029,8 @@ updp1vpneg:
   lda #0
   sta p1gy
   sta p1gy+1
+  sta p1ly
+  sta p1ly+1
   sta p1vva
 
   lda #VV_ZERO
@@ -2541,10 +2550,9 @@ sound_effect_sweep_done:
 upd_sound_effectsd:
   rts
 
-// read a joystick
-// inputs
-//   A - joystick port value
+// read the joystick
 injs:
+  lda $dc00
   lsr
   rol ebu
   lsr
