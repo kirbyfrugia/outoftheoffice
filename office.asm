@@ -1,13 +1,14 @@
 #import "data/level1.asm"
 #import "data/sprites.asm"
 
-.var hvzero    = 127
-.var maxhvl    = 92
-.var maxhvr    = 162
-
-.var vvzero    = 127
-.var maxvvu    = 100
-.var maxvvd    = 154
+.const MAX_HV_LEFT   = 100 // max  velocity going left
+.const HV_ZERO       = 127 // horizontal velocity when not moving
+.const MAX_HV_RIGHT  = 154 // max  velocity going right
+.const MAX_VV_UP     = 97  // vertical velocity when moving up at full speed
+.const VV_ZERO       = 127 // vertical velocity when not moving
+.const MAX_VV_DOWN   = 160 // vertical velocity when moving down at full speed
+.const FALL_RATE     = 5   // acceleration rate when falling
+.const RISE_RATE     = 2   // acceleration rate when rising
 
 .disk [filename="office.d64", name="OFFICE", id="O1" ] {
   [name="OFFICE", type="prg", segments="StubBasic"],
@@ -102,27 +103,36 @@ irq_dispatch:
   beq call_hud_done
   cmp #RASTER_BUFFER_SWAP
   beq call_buffer
-  cmp #RASTER_COLOR_LOWER
-  beq call_color_lower
+  // cmp #RASTER_COLOR_LOWER
+  // beq call_color_lower
   // cmp #RASTER_MUSIC
   // beq call_music
 
   jmp irq_done // should never happen
 call_buffer:
   jsr irq_music
+  lda frame_phase
+  eor #%00000001
+  sta frame_phase
+  beq call_buffer_next_frame
   jsr irq_buffer_swap
   jsr irq_color_upper_shift
-  jsr update_max_raster_line
-  lda #RASTER_COLOR_LOWER
-  sta next_irq
-  sta VIC_RW_RASTER
-  jmp irq_done
-call_color_lower:
   jsr irq_color_lower_shift
+call_buffer_next_frame:
+  // jsr update_max_raster_line
   lda #RASTER_HUD
   sta next_irq
   sta VIC_RW_RASTER
+  lda #1
+  sta frame_tick
   jmp irq_done
+// call_color_lower:
+//   // jsr irq_color_lower_shift
+//   // jsr update_max_raster_line
+//   lda #RASTER_HUD
+//   sta next_irq
+//   sta VIC_RW_RASTER
+//   jmp irq_done
 call_hud:
   lda VIC_HCONTROL_REG
   and #%11010000 // set no scroll
@@ -276,8 +286,6 @@ swap_buffers_swapped:
   lda #0
   sta pending_buffer_swap
 irq_buffer_swapd:
-  lda #1
-  sta frame_tick
   rts
 
 irq_color_upper_shift:
@@ -355,7 +363,7 @@ init:
   sta p1gx+1
   sta p1lx+1
 
-  lda #hvzero
+  lda #HV_ZERO
   sta p1hvi
   sta p1vvi
 
@@ -441,64 +449,38 @@ game_loop:
   beq game_loop
   lda #0
   sta frame_tick
-  sta SCR_buffer_ready
+  // sta SCR_buffer_ready
 
   lda frame_phase
-  eor #%00000001
-  sta frame_phase
-  beq odd_frame
+  // lda frame_phase
+  // eor #%00000001
+  // sta frame_phase
+  bne odd_frame
 even_frame:
-  // only update enemy position every other frame
-  jsr upd_enemies_pos
-  jmp every_frame
-odd_frame:
-  jsr updanim
-  // jsr hud
-  jsr log
-every_frame:
+  lda #0
+  sta SCR_buffer_ready
   // get input, do game logic, possibly move screen mem
   lda $dc00
   jsr injs
   jsr updp1hv
   jsr updp1vv
-
-game_loop_swap:
-  // wait for buffer to swap
-  lda pending_buffer_swap
-  bne game_loop_swap
-
-game_loop_color_upper_swap:
-  lda pending_color_upper_swap
-  bne game_loop_color_upper_swap
-
-game_loop_color_lower_swap:
-  lda pending_color_lower_swap
-  bne game_loop_color_lower_swap
-
   jsr updp1p
+  jsr upd_enemies_pos
   jsr upd_enemies_sprites
-  jsr upd_sound_effects
 
   lda SCR_buffer_ready
   sta pending_buffer_swap
   sta pending_color_upper_swap
   sta pending_color_lower_swap
 
-// // TODO: chase the raster on this?
-// shift_color_mem:
-//   lda SCR_color_flag
-//   beq shift_color_memd // no need to shift color memory
-//   cmp #%00000001
-//   beq shift_color_mem_left
-//   jsr SCR_move_color_right
-//   lda #0
-//   sta SCR_color_flag
-//   jmp shift_color_memd
-// shift_color_mem_left:
-//   jsr SCR_move_color_left
-//   lda #0
-//   sta SCR_color_flag
-// shift_color_memd:
+  jsr update_max_raster_line
+  jmp every_frame
+odd_frame:
+  jsr updanim
+  // jsr hud
+  jsr log
+every_frame:
+  jsr upd_sound_effects
   jmp game_loop
 
 
@@ -803,10 +785,10 @@ loadmap:
   rol maxp1gx+1
   rol maxp1gx
   rol maxp1gx+1
-  rol maxp1gx
-  rol maxp1gx+1
+  // rol maxp1gx
+  // rol maxp1gx+1
   lda maxp1gx
-  and #%10000000
+  and #%11000000
   sta maxp1gx
 
   lda #(200-p1height-40)
@@ -1127,14 +1109,14 @@ log_line3:
 //   p1ly  - local ypos
 //   p1hvt - horiz target vel
 //   p1vvt - vert target vel
-//   maxhvl - max velocity when moving left
-//   maxhvr - max velocity when moving right
+//   MAX_HV_LEFT - max velocity when moving left
+//   MAX_HV_RIGHT - max velocity when moving right
 
 .macro set_on_ground() {
   lda #0
   sta on_ground
   sta p1vva
-  lda #vvzero
+  lda #VV_ZERO
   sta p1vvi
 }
 
@@ -1145,22 +1127,22 @@ updp1hv:
   lda ebr
   and #%00000001
   beq updp1hvr
-  lda #hvzero
+  lda #HV_ZERO
   sta p1hvt
   bne updp1htvd
 updp1hvl:
-  lda #maxhvl
+  lda #MAX_HV_LEFT
   sta p1hvt
   bne updp1htvd
 updp1hvr:
-  lda #maxhvr
+  lda #MAX_HV_RIGHT
   sta p1hvt
 updp1htvd:
   lda p1hvi
   cmp p1hvt
   beq updp1hvd
   bcc updp1haccel
-  cmp #(hvzero+2)
+  cmp #(HV_ZERO+2)
   bcs updp1hdecel2
   dec p1hvi
   bne updp1hvd
@@ -1170,7 +1152,7 @@ updp1hdecel2:
   sta p1hvi
   bne updp1hvd  
 updp1haccel:
-  cmp #(hvzero-1)
+  cmp #(HV_ZERO-1)
   bcc updp1haccel2
   inc p1hvi
   bne updp1hvd
@@ -1181,7 +1163,7 @@ updp1haccel2:
 updp1hvd:
   lda p1hvi
   sec
-  sbc #hvzero
+  sbc #HV_ZERO
   sta p1hva
   lda #0
   sbc #0
@@ -1196,7 +1178,7 @@ updp1vv:
   lda ebp
   and #%00000011
   cmp #%00000010
-  bne updp1vv_on_ground
+  bne updp1vv_no_jump
   // if here, jumping
   // Play jump sound effect
   lda #0
@@ -1204,48 +1186,46 @@ updp1vv:
   lda #1
   sta sound_effect_ready
 
-  lda #maxvvu
+  // When jumping, actual velocity is immediately set to max upwards velocity
+  // And target is set to max falling velocity
+  lda #MAX_VV_UP
   sta p1vvi
-  lda #maxvvd
-  sta p1vvt
-
+  jmp updp1vvd
+updp1vv_no_jump:
+  // on ground, not jumping
+  lda #VV_ZERO
+  sta p1vvi
   jmp updp1vvd
 updp1vv_not_on_ground:
-  // if not on the ground, target velocity is always
-  // max falling speed
-  lda #maxvvd
-  sta p1vvt
-  jmp updp1vtvd
-updp1vv_on_ground:
-  lda #vvzero
+  // if not on the ground, target velocity is always max falling speed
+  lda #MAX_VV_DOWN
   sta p1vvt
 updp1vtvd:
-  lda p1vvi
+  // if here, we're moving vertically
+  lda p1vvi             // current velocity
   cmp p1vvt
-  beq updp1vvd
-  bcc updp1vaccel
-  cmp #(vvzero+2)
-  bcs updp1vdecel2
-  dec p1vvi
-  bne updp1vvd
-updp1vdecel2:
-  sec
-  sbc #2
-  sta p1vvi
-  bne updp1vvd  
-updp1vaccel:
-  cmp #(vvzero-1)
-  bcc updp1vaccel2
-  inc p1vvi
-  bne updp1vvd
-updp1vaccel2:
+  beq updp1vvd          // at target velocity already, no need to accelerate or decelerate
+  cmp #VV_ZERO           // this is the peak of the jump
+  bcc udp1vrising       // not yet at peak of jump, so still rising
+  // if here, we're at or above the peak of the jump, so we're falling
   clc
-  adc #2
+  adc #FALL_RATE
+  sta p1vvi
+  jmp updp1vvd
+udp1vrising:
+  clc
+  adc #RISE_RATE
   sta p1vvi
 updp1vvd:
+  // if here, we are past our peak fall rate, so cap it
   lda p1vvi
+  cmp #MAX_VV_DOWN
+  bcc updp1vvd_nocap
+  lda #MAX_VV_DOWN
+  sta p1vvi        
+updp1vvd_nocap:
   sec
-  sbc #vvzero
+  sbc #VV_ZERO
   sta p1vva
   lda #0
   sbc #0
@@ -1540,7 +1520,7 @@ collision_move_out_to_left:
   sta p1hva+1
   lda #$f8
   sta p1hva
-  lda #(hvzero-8)
+  lda #(HV_ZERO-8)
   sta p1hvi
 
   lda p1cx
@@ -1571,9 +1551,9 @@ collision_move_out_to_left:
   rol p1gx+1
   rol
   rol p1gx+1
-  rol
-  rol p1gx+1
-  ora #%00001111
+  // rol
+  // rol p1gx+1
+  ora #%00000111
   sta p1gx
   rts
 
@@ -1583,7 +1563,7 @@ collision_move_out_to_right:
   sta p1hva+1
   lda #8
   sta p1hva
-  lda #(hvzero+8)
+  lda #(HV_ZERO+8)
   sta p1hvi
 
   lda p1cx
@@ -1614,9 +1594,9 @@ collision_move_out_to_right:
   rol p1gx+1
   rol
   rol p1gx+1
-  rol
-  rol p1gx+1
-  and #%11110000
+  // rol
+  // rol p1gx+1
+  and #%11111000
   //ora #%00000011 // add some subpixels so we're no longer colliding
   sta p1gx
   rts
@@ -1626,7 +1606,7 @@ collision_move_out_to_top:
   // lda #0
   // sta p1vva
   // sta p1vva+1
-  // lda #vvzero
+  // lda #VV_ZERO
   // sta p1vvi
 
   lda p1cy
@@ -1667,7 +1647,7 @@ collision_move_out_to_bottom:
   lda #0
   sta p1vva
   sta p1vva+1
-  lda #vvzero
+  lda #VV_ZERO
   sta p1vvi
 
   lda p1cy
@@ -2044,7 +2024,7 @@ updp1vpneg:
   sta p1gy+1
   sta p1vva
 
-  lda #vvzero
+  lda #VV_ZERO
   sta p1vvi
 
   //lda #50
@@ -2093,7 +2073,7 @@ updp1hp:
   lda #0
   sta p1hva
   sta p1hva+1
-  lda #hvzero
+  lda #HV_ZERO
   sta p1hvi
 
   // update player position to furthest right position possible
@@ -2115,7 +2095,7 @@ updp1hpneg:
   sta p1hva
   sta p1hva+1
 
-  lda #hvzero
+  lda #HV_ZERO
   sta p1hvi
   jmp start_collision
 updp1hpt:
@@ -2126,8 +2106,8 @@ updp1hpt:
   ror p1lx 
   ror p1lx+1
   ror p1lx 
-  ror p1lx+1
-  ror p1lx 
+  // ror p1lx+1
+  // ror p1lx 
   lda p1lx+1
   and #%00001111
   sta p1lx+1

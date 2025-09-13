@@ -29,8 +29,9 @@
 .const RASTER_HUD         = $e2 // 3 char rows before bottom border
 .const RASTER_HUD_DONE    = $fa
 .const RASTER_BUFFER_SWAP = $00
-// Lower half of screen memory starts at $82, which isn't good so far
+// Lower half of screen memory starts at $82
 // Use the update_max_raster_line routine to determine where to start this.
+// Should start soon after we've finished moving the upper screen memory
 .const RASTER_COLOR_LOWER = $4a
 // .const RASTER_COLOR_LOWER = $4c // best so far
 // .const RASTER_COLOR_LOWER = $5c // 2nd best so far

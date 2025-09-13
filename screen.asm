@@ -12,6 +12,21 @@
 .const SCR_scroll_right_amounts_post = $83
 .const SCR_scroll_redraw_flag        = $84
 
+.const SCR_first_visible_tile        = $85
+.const SCR_last_visible_tile         = $86
+.const SCR_tile_offset               = $87
+.const SCR_buffer_flag               = $88 // which buffer
+.const SCR_buffer_ready              = $89 // buffer ready to be swapped
+.const SCR_direction                 = $8a // which direction to move screen or scroll after a scroll
+.const SCR_color_flag                = $8b
+.const SCR_tile_level_width          = $8c
+
+
+.const SCR_first_visible_column_max          = $4b // and $4c
+.const SCR_first_visible_column              = $4d // and $4e
+.const SCR_first_visible_column_pixels       = $4f // and $50
+.const SCR_first_column_beyond_screen_pixels = $51 // and $52
+
 // Memory map
 //   Addresses of tile rows:
 //     $0020-$0035 - indices of tile rows
@@ -471,7 +486,7 @@ SCR_init_screen:
   sta SCR_buffer_flag
   sta SCR_buffer_ready
   sta SCR_color_flag
-  lda #0
+  sta SCR_direction
   sta SCR_scroll_offset
   sta SCR_scroll_left_amounts_pre
   sta SCR_scroll_left_amounts_post
@@ -823,7 +838,7 @@ msl_char_loop_b2f_loop:
   inx
   cpx #39
   beq msl_fill_right_side_front
-  jmp msl_char_loop_b2f_loop
+  bne msl_char_loop_b2f_loop
 msl_fill_right_side_front:
   // shifted all the screen chars, now let's draw the new right column
   ldx #39
@@ -1010,7 +1025,7 @@ msr_char_loop_f2b_loop:
   sta 2809, x
   dex
   bmi msr_fill_left_side_back
-  jmp msr_char_loop_f2b_loop
+  bpl msr_char_loop_f2b_loop
 msr_fill_left_side_back:
   // shifted all the screen chars, now let's draw the new left column
   ldx #0
@@ -1165,20 +1180,6 @@ msr_done:
 
 
 
-SCR_first_visible_column_max:           .byte 0,0
-SCR_first_visible_column:               .byte 0,0
-SCR_first_visible_column_pixels:        .byte 0,0
-SCR_first_column_beyond_screen_pixels:  .byte 0,0
-
-// TODO: move this to the zero page
-SCR_first_visible_tile:          .byte 0
-SCR_last_visible_tile:           .byte 0
-SCR_tile_offset:                 .byte 0
-SCR_buffer_flag:                 .byte 0 // which buffer
-SCR_buffer_ready:                .byte 0 // buffer ready to be swapped
-SCR_direction:                   .byte 0 // which direction to move screen or scroll after a scroll
-SCR_color_flag:                  .byte 0
-SCR_tile_level_width:            .byte 0
 
 SCR_rowptrs_lo:
   .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
