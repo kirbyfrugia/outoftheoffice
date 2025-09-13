@@ -5,7 +5,7 @@
 // 0 - mouse
 
 .const ENEMY_MOUSE_WIDTH = 16
-.const ENEMY_MOUSE_HEIGHT = 10
+.const ENEMY_MOUSE_HEIGHT = 9
 
 // stores the offset of the first animation frame
 enemies_animations_left:
