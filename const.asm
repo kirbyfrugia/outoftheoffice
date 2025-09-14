@@ -57,6 +57,8 @@
 .const P1_FACING_LEFT_OFFSET  = SPRITE_PTR_FIRST_B1+6
 .const P1_ENEMY_ATTACHED      = SPRITE_PTR_FIRST_B1+12
 
+.const MAX_ENEMY_BUFFER_SIZE  = 4
+
 .const SPRITE_PTR_FIRST_B2    =    128 // sprite pointer at which sprite 0 starts from batch 2
 
 .const SPRITE_PTR_BASE_FB  = $07f8 // sprite pointers for the front buffer

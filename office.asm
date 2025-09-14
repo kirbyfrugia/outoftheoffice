@@ -358,9 +358,20 @@ init:
   sta p1vva+1
   sta p1gx+1
   sta p1lx+1
+  sta enemies_buffer_min
 
   lda #%01000000 // facing right, not moving or jumping
   sta player_animation_flag
+
+  lda #ENEMIES_COUNT
+  sta zpb0
+  cmp #MAX_ENEMY_BUFFER_SIZE
+  bcc init_enemies_buffer_updd
+  // if here, there are at least as many enemies as max buffer size
+  lda #MAX_ENEMY_BUFFER_SIZE
+init_enemies_buffer_updd:
+  sta enemies_buffer_size
+  sta enemies_buffer_max
 
   lda #$ff
   sta ebl
@@ -498,6 +509,7 @@ game_loop_no_collisions:
   // jsr hud
   jsr log
   jsr upd_sound_effects
+  jsr upd_enemies_buffer
   jmp game_loop
 
 
@@ -690,11 +702,17 @@ initspr:
   stx SPRITE_PTR_BASE_BB+2
   stx SPRITE_PTR_BASE_FB+3
   stx SPRITE_PTR_BASE_BB+3
+  stx SPRITE_PTR_BASE_FB+4
+  stx SPRITE_PTR_BASE_BB+4
+  stx SPRITE_PTR_BASE_FB+5
+  stx SPRITE_PTR_BASE_BB+5
+  stx SPRITE_PTR_BASE_FB+6
+  stx SPRITE_PTR_BASE_BB+6
 
   lda #%01111111
   sta SPRITE_MC_MODE
 
-  lda #%00001111
+  lda #%00000001
   sta SPRITE_ENABLE //spr enable
 
   // TODO: don't hard-code these sprite 1 and 2 things
@@ -707,6 +725,9 @@ initspr:
   sta SPRITE_COLOR_BASE+1
   sta SPRITE_COLOR_BASE+2
   sta SPRITE_COLOR_BASE+3
+  sta SPRITE_COLOR_BASE+4
+  sta SPRITE_COLOR_BASE+5
+  sta SPRITE_COLOR_BASE+6
 
   lda #128
   sta SPRITE_XPOS_BASE
@@ -725,6 +746,21 @@ initspr:
   clc
   adc #31
   sta SPRITE_XPOS_BASE+6
+  ldx #2
+  lda enemies_posx_lo, x
+  clc
+  adc #31
+  sta SPRITE_XPOS_BASE+8
+  ldx #2
+  lda enemies_posx_lo, x
+  clc
+  adc #31
+  sta SPRITE_XPOS_BASE+10
+  ldx #2
+  lda enemies_posx_lo, x
+  clc
+  adc #31
+  sta SPRITE_XPOS_BASE+12
 
   lda #%00000000
   sta SPRITE_MSB
@@ -747,6 +783,21 @@ initspr:
   clc
   adc #50
   sta SPRITE_YPOS_BASE+6
+  ldx #2
+  lda enemies_posy, x
+  clc
+  adc #50
+  sta SPRITE_YPOS_BASE+8
+  ldx #2
+  lda enemies_posy, x
+  clc
+  adc #50
+  sta SPRITE_YPOS_BASE+10
+  ldx #2
+  lda enemies_posy, x
+  clc
+  adc #50
+  sta SPRITE_YPOS_BASE+12
 
   rts
 
@@ -1160,6 +1211,37 @@ log_enemies:
   lda num_shake_offs
   jsr loghexit
 
+  iny
+  iny
+  lda enemies_buffer_min
+  jsr loghexit
+  iny
+  lda enemies_buffer_max
+  jsr loghexit
+
+  iny
+  iny
+  lda p1gx_pixels+1
+  jsr loghexit
+  iny
+  lda p1gx_pixels
+  jsr loghexit
+
+  iny
+  iny
+  lda zpb4
+  jsr loghexit
+  iny
+  lda zpb5
+  jsr loghexit
+  iny
+  iny
+  lda zpb6
+  jsr loghexit
+  iny
+  lda zpb7
+  jsr loghexit
+
   rts
 
 // TODO: dont assemble for release
@@ -1223,7 +1305,6 @@ log_line3:
 
   rts
 
-
 // How player velocity and positioning works.
 // Velocity
 //   There are two velocities: indexed velocity and actual velocity.
@@ -1232,28 +1313,30 @@ log_line3:
 //     actual velocity is a signed value calculated by subtracting 127 from the indexed velocity.
 //       the actual velocity is used when updating the player's position.
 //   Player input determines target indexed velocity, which is either 0,127, or 255.
+//      Note: technically it's MAX_HV_LEFT, MAX_HV_RIGHT, etc
 // Acceleration
 //   If the player is moving one direction and is changing directions, then accel/decel
 //     rate is higher.
 // Position 
-//   Player position is calculated by adding the current position to the actual velocity.
+//   Player position is calculated by adding the actual velocity to current position.
 //     Global position is a 16 bit number stored in p1gx/+1.
-// The 4 least significant bits of the actual velocity and position are fractional
-//   and are truncated when updating the sprite's actual position on the screen.
+// The 3 least significant bits of the actual velocity and position are fractional
+//   and are rotated out when updating the sprite's actual position on the screen.
 //   This allows smoother and smaller movement, acceleration, etc.
 // Key variables:
-//   p1hvi - horiz vel,indexed
-//   p1hva - horiz vel,actual
-//   p1gx  - global xpos, including fractional portion
-//   p1lx  - local xpos (relative to column at far left of screen), minus fractional portion, pixel coordinates
-//   p1sx  - sprite xpos, pixel coordinates
-//   p1vvi - vert vel,indexed
-//   p1vva - vert vel,actual
-//   p1gy  - global ypos
-//   p1ly  - local ypos
-//   p1hvt - horiz target vel
-//   p1vvt - vert target vel
-//   MAX_HV_LEFT - max velocity when moving left
+//   p1hvi        - horiz vel,indexed
+//   p1hva        - horiz vel,actual
+//   p1gx         - global xpos, including fractional portion
+//   p1gx_pixels  - global xpos, excluding fractional portion
+//   p1lx         - local xpos (relative to column at far left of screen), minus fractional portion, pixel coordinates
+//   p1sx         - sprite xpos, pixel coordinates
+//   p1vvi        - vert vel,indexed
+//   p1vva        - vert vel,actual
+//   p1gy         - global ypos
+//   p1ly         - local ypos
+//   p1hvt        - horiz target vel
+//   p1vvt        - vert target vel
+//   MAX_HV_LEFT  - max velocity when moving left
 //   MAX_HV_RIGHT - max velocity when moving right
 
 .macro set_on_ground() {
@@ -2503,6 +2586,133 @@ updp1pmsb:
   ora #%00000001
   sta SPRITE_MSB
 updp1pd:
+  lda p1gx
+  sta p1gx_pixels
+  lda p1gx+1
+  sta p1gx_pixels+1
+  ror p1gx_pixels+1
+  ror p1gx_pixels
+  ror p1gx_pixels+1
+  ror p1gx_pixels
+  ror p1gx_pixels+1
+  ror p1gx_pixels
+  lda p1gx_pixels+1
+  and #%00011111
+  sta p1gx_pixels+1
+  rts
+
+// tests two enemy distances from the player, left enemy and right enemy.
+// inputs:
+//   zpb0, zpb1 - the left enemy pos to test against
+//   zpb2, zpb3 - the right enemy pos to test against
+// outputs:
+//   A - 0 if left side is closer to player, 1 if right side is closer, 0 if equal
+upd_enemies_buffer_test_dist:
+  lda p1gx_pixels
+  sec
+  sbc zpb0
+  sta zpb4
+  lda p1gx_pixels+1
+  sbc zpb1
+  sta zpb5
+
+  // TODO:
+  // this broke because the player may be to the left of the min
+  // or the right of the max
+  bpl player_not_left_of_left
+  // if here, the player is to the left of the left-hand enemy,
+  // therefore the player must be closer the left-hand enemy
+  lda #0
+  beq upd_enemies_buffer_test_distd
+player_not_left_of_left:
+  lda zpb2
+  sec
+  sbc p1gx_pixels
+  sta zpb6
+  lda zpb3
+  sbc p1gx_pixels+1
+  sta zpb7
+
+  bpl upd_enemies_player_in_middle
+  // if here, the player is to right of the right-hand enemy,
+  // therefore the player must be closer to the right-hand enemy 
+  lda #1
+  bne upd_enemies_buffer_test_distd
+upd_enemies_player_in_middle:
+  // if here, the player is in between enemies_min and enemies_max
+  // so we compare distances from players to each of the ends.
+  // first test the high bytes of the diffs
+  lda zpb5
+  cmp zpb7
+  bcc upd_enemies_buffer_test_dist_right_further
+  beq upd_enemies_buffer_test_lo
+  bcs upd_enemies_buffer_test_dist_left_further
+upd_enemies_buffer_test_lo:
+  lda zpb4
+  cmp zpb6
+  bcc upd_enemies_buffer_test_dist_right_further
+upd_enemies_buffer_test_dist_left_further:
+  // if here, the player is closer to the right side
+  // or they are equal
+  lda #1
+  bne upd_enemies_buffer_test_distd
+upd_enemies_buffer_test_dist_right_further:
+  // if here, the player is closer to the left side
+  lda #0
+upd_enemies_buffer_test_distd:
+  rts
+
+// This updates the buffer of enemies we care about in terms of seeing if
+//   they might be on screen, updating their positions, etc.
+// Care must be taken in how the enemies are placed on the screen such
+//   that we don't have the possibility of more enemies possibly
+//   on the screen than can fit in the buffer.
+// NOTE: only the enemies' min range value is used for this due to simplicity.
+upd_enemies_buffer:
+  // first see how far away the enemy *before* buffer_min is
+  // compared to how far away the enemy at the current max
+  // is. If we're closer, move the buffer lower
+  ldx enemies_buffer_min
+  beq upd_enemies_buffer_test_upper // already at min
+  dex
+  lda enemies_rangex_min_lo, x
+  sta zpb0
+  lda enemies_rangex_min_hi, x
+  sta zpb1
+  ldx enemies_buffer_max
+  dex // max is one beyond the end of our array
+  lda enemies_rangex_min_lo, x
+  sta zpb2
+  lda enemies_rangex_min_hi, x
+  sta zpb3
+  jsr upd_enemies_buffer_test_dist
+  // A should now contain the output of the test
+  bne upd_enemies_buffer_test_upper // player closer to max
+  // if here, let's move the buffer lower.
+  dec enemies_buffer_min
+  dec enemies_buffer_max
+  jmp upd_enemies_bufferd
+upd_enemies_buffer_test_upper:
+  ldx enemies_buffer_max
+  cpx #ENEMIES_COUNT
+  beq upd_enemies_bufferd        // end of buffer already at end of enemies
+  //dex                          // get enemy one past end of current buffer
+                                 // which is actually max since max is 1+ actual buffer
+  lda enemies_rangex_min_lo, x
+  sta zpb2
+  lda enemies_rangex_min_hi, x
+  sta zpb3
+  ldx enemies_buffer_min         // existing min
+  lda enemies_rangex_min_lo, x
+  sta zpb0
+  lda enemies_rangex_min_hi, x
+  sta zpb1
+  jsr upd_enemies_buffer_test_dist
+  beq upd_enemies_bufferd        // player closer to min, don't move max
+  // move the buffer higher
+  inc enemies_buffer_max
+  inc enemies_buffer_min
+upd_enemies_bufferd:
   rts
 
 // update enemy positions
@@ -2562,7 +2772,7 @@ enemy_start_moving_right:
 upd_enemies_pos_next_enemy:
   inx
   cpx enemies_buffer_max
-  bcs upd_enemies_posd
+  beq upd_enemies_posd
   jmp upd_enemies_pos_enemy
 upd_enemies_posd:
   rts
@@ -2657,6 +2867,14 @@ upd_enemies_sprites_next_enemy:
 upd_enemies_spritesd:
   rts
 
+// TODO in the morning:
+//   * Figure out how to go from the sprite that collided
+//     to the index of that sprite.
+//   * Stop the sprite from moving and colliding if it's
+//     in a collision
+//   * Implement some kind of respawn for enemies. Either offscreen
+//     or based on a timer or something
+
 enemy_shakeoff:
   // we're going to count it as a button press if they go
   // from 1 to 0 in the last two frames
@@ -2723,8 +2941,12 @@ enemy_shakeoffd:
   rts
 
 enemy_collisions:
+  rts
   lda SPRITE_COLLISION
-  beq enemy_collisionsd
+  beq enemy_collisionsd // no collisions
+  and #%00000001
+  cmp #%00000000
+  beq enemy_collisionsd // player not involved in collision
   // stop character horizontal movement
   lda #0
   sta p1hva+1
@@ -2999,6 +3221,7 @@ time:        .byte 0,0,0
 p1hvi:       .byte 0
 p1hva:       .byte 0,0
 p1gx:        .byte 0,0
+p1gx_pixels: .byte 0,0
 p1lx:        .byte 0,0
 p1lx_delta:  .byte 0,0
 p1lx_prev:   .byte 0,0
@@ -3135,3 +3358,12 @@ shake_flags:
 
 num_shake_offs:
   .byte 0
+
+// buffer of enemies to check when updating enemy movement,
+// scrolling the screen, or doing collision detection.
+enemies_buffer_min:       .byte 0
+enemies_buffer_max:       .byte 0
+enemies_buffer_size:      .byte 0
+
+enemies_buffer_min_dist:  .byte 0,0
+enemies_buffer_max_dist:  .byte 0,0

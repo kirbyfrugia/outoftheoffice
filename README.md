@@ -1,5 +1,7 @@
 # Out of the Office
 
+A 2D platformer game for the Commodore 64. Note, if you're reading this code, please don't judge and please don't consider this an example for how to program assembly. This was a learning exercise to learn 6502 assembly and to have fun. It was my first game and my first serious assembly program.
+
 # Pre-requisites
 
 * Install [denise](https://sourceforge.net/projects/deniseemu/) or [vice](https://vice-emu.sourceforge.io/windows.html) and add to path
