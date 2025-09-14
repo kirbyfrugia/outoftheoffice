@@ -132,7 +132,7 @@ enemies_sprite_slots:
   .byte %00100000
   .byte %01000000
 
-enemies_sprite_posx_offset:
+enemies_sprite_pos_offset:
   .byte 2
   .byte 4
   .byte 6

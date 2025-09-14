@@ -2606,7 +2606,7 @@ updp1pd:
 //   zpb0, zpb1 - the left enemy pos to test against
 //   zpb2, zpb3 - the right enemy pos to test against
 // outputs:
-//   A - 0 if left side is closer to player, 1 if right side is closer, 0 if equal
+//   A - 0 if left enemy is closer to player, 1 if right enemy is closer, 0 if equal
 upd_enemies_buffer_test_dist:
   lda p1gx_pixels
   sec
@@ -2616,9 +2616,6 @@ upd_enemies_buffer_test_dist:
   sbc zpb1
   sta zpb5
 
-  // TODO:
-  // this broke because the player may be to the left of the min
-  // or the right of the max
   bpl player_not_left_of_left
   // if here, the player is to the left of the left-hand enemy,
   // therefore the player must be closer the left-hand enemy
@@ -2641,7 +2638,6 @@ player_not_left_of_left:
 upd_enemies_player_in_middle:
   // if here, the player is in between enemies_min and enemies_max
   // so we compare distances from players to each of the ends.
-  // first test the high bytes of the diffs
   lda zpb5
   cmp zpb7
   bcc upd_enemies_buffer_test_dist_right_further
@@ -2670,7 +2666,7 @@ upd_enemies_buffer_test_distd:
 // NOTE: only the enemies' min range value is used for this due to simplicity.
 upd_enemies_buffer:
   // first see how far away the enemy *before* buffer_min is
-  // compared to how far away the enemy at the current max
+  // to the player compared to how far away the enemy at the current max
   // is. If we're closer, move the buffer lower
   ldx enemies_buffer_min
   beq upd_enemies_buffer_test_upper // already at min
@@ -2693,6 +2689,9 @@ upd_enemies_buffer:
   dec enemies_buffer_max
   jmp upd_enemies_bufferd
 upd_enemies_buffer_test_upper:
+  // now check to see if we're closer to the current max of the buffer.
+  // Check the enemy *after* the current max and compare it to our
+  // min. If we're closer to the *after*, move the buffer up.
   ldx enemies_buffer_max
   cpx #ENEMIES_COUNT
   beq upd_enemies_bufferd        // end of buffer already at end of enemies
@@ -2731,20 +2730,20 @@ upd_enemies_pos_enemy:
   adc #0
   sta enemies_posx_hi, x
   cmp enemies_rangex_max_hi, x
-  bcc upd_enemies_pos_next_enemy
+  bcc upd_enemies_pos_next_enemy  // not ready to turn back left
   beq enemy_moving_right_check_lo // same hi byte, so check low
   bcs enemy_start_moving_left     // hi byte of pos > hi byte of range
 enemy_moving_right_check_lo:
   lda enemies_posx_lo, x
   cmp enemies_rangex_max_lo, x
-  bcc upd_enemies_pos_next_enemy
+  bcc upd_enemies_pos_next_enemy  // not ready to turn back left
 enemy_start_moving_left:
   lda enemies_rangex_max_lo, x
   sta enemies_posx_lo, x
   lda enemies_rangex_max_hi, x
   sta enemies_posx_hi, x
   lda enemies_flags, x
-  and #%01111111
+  and #%01111111                  // now moving left
   sta enemies_flags, x
   jmp upd_enemies_pos_next_enemy
 enemy_moving_left:
@@ -2756,18 +2755,18 @@ enemy_moving_left:
   sbc #0
   sta enemies_posx_hi, x
   cmp enemies_rangex_min_hi, x
-  bcc enemy_start_moving_right
+  bcc enemy_start_moving_right    // ready to turn back right
   lda enemies_posx_lo, x
   cmp enemies_rangex_min_lo, x
-  bcc enemy_start_moving_right
-  bcs upd_enemies_pos_next_enemy
+  bcc enemy_start_moving_right    // ready to turn back right
+  bcs upd_enemies_pos_next_enemy  // keep moving left
 enemy_start_moving_right:
   lda enemies_rangex_min_lo, x
   sta enemies_posx_lo, x
   lda enemies_rangex_min_hi, x
   sta enemies_posx_hi, x
   lda enemies_flags, x
-  ora #%10000000
+  ora #%10000000                  // now moving right
   sta enemies_flags, x
 upd_enemies_pos_next_enemy:
   inx
@@ -2781,7 +2780,6 @@ upd_enemies_sprites:
   ldx enemies_buffer_min
 upd_enemies_sprites_enemy:
   // first let's move things to local coords
-  ldy enemies_sprite_slots, x
   lda enemies_posx_lo, x
   sec
   sbc SCR_first_visible_column_pixels
@@ -2791,8 +2789,8 @@ upd_enemies_sprites_enemy:
   sta zpb1
   bpl enemy_not_offscreen_left
   
-  // if here, the enemy may be off the screen to the left, but we haven't
-  // yet taken into account the width of the enemy character.
+  // if here, it's possible the enemy may be off the screen to the left, but we haven't
+  // yet taken into account the width of the enemy character yet.
   // Add back the width of the character. If the high byte is still negative,
   // that means the enemy really is off the screen to the left.
   lda zpb0
@@ -2800,25 +2798,23 @@ upd_enemies_sprites_enemy:
   adc enemies_width, x
   lda zpb1
   adc #0
-  bmi enemy_offscreen
+  bmi enemy_offscreen // enemy offscreen
   bpl enemy_onscreen
 enemy_not_offscreen_left:
   // if here, the enemy is further to the right in the level than
   // the first visible column
   lda zpb1
-  beq enemy_onscreen // < 256, so onscreen
+  beq enemy_onscreen  // < 256 pixels, so onscreen
+  cmp #2
+  bcs enemy_offscreen // >= 512, so definitely not on screen
 
-  // if here, enemy is further right than 256 pixels
+  // if here, enemy is further right than 256 pixels,
+  // but less than 512
   lda zpb0
   cmp #<(scrwidth*8)
-  bcs enemy_offscreen
+  bcs enemy_offscreen // off screen to the right
 enemy_onscreen:
-  // if here, enemy on screen
-  // enable the sprite
-  lda enemies_sprite_slots, x
-  ora SPRITE_ENABLE
-  sta SPRITE_ENABLE
-
+  // if here, enemy on screen, so we will want to draw it
   // now let's add the border offset
   lda zpb0
   clc
@@ -2842,27 +2838,38 @@ enemy_onscreen:
   lda SPRITE_MSB
   ora enemies_sprite_slots, x
   sta SPRITE_MSB
-  bne enemy_lsb
+  jmp enemy_lsb
 enemy_nomsb:
+  // disable msb for this sprite
   lda enemies_sprite_slots, x
-  eor #%11111111
+  eor #%11111111 // invert
   and SPRITE_MSB
   sta SPRITE_MSB
 enemy_lsb:
-  ldy enemies_sprite_posx_offset, x
+  ldy enemies_sprite_pos_offset, x
   lda zpb0
   sta SPRITE_XPOS_BASE, y
+enemy_y:
+  lda enemies_posy, x
+  clc
+  adc #50
+  sta SPRITE_YPOS_BASE, y
+enemy_enable_sprite:
+  // enable the sprite
+  lda enemies_sprite_slots, x
+  ora SPRITE_ENABLE
+  sta SPRITE_ENABLE
   jmp upd_enemies_sprites_next_enemy
 enemy_offscreen:
   // disable the sprite
   lda enemies_sprite_slots, x
-  eor #%11111111
+  eor #%11111111 // invert
   and SPRITE_ENABLE
   sta SPRITE_ENABLE
 upd_enemies_sprites_next_enemy:
   inx
   cpx enemies_buffer_max
-  bcs upd_enemies_spritesd
+  beq upd_enemies_spritesd
   jmp upd_enemies_sprites_enemy
 upd_enemies_spritesd:
   rts
