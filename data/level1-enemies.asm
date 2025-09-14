@@ -76,8 +76,9 @@ enemies_height:
 
 // flags
 //   Bit 7: direction, 0 = left, 1 = right
-//   Bit 1: alive
-//   Bit 0: onscreen
+//   Bit 6: alive
+//   Bit 5: onscreen
+//   Bit 4: moving
 enemies_flags:
   .byte %00000000
   .byte %00000000

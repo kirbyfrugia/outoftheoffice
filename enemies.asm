@@ -1,6 +1,9 @@
 .const ENEMY_TILE_SIZE           = 16
 .const ENEMY_TILE_CHAR_SIZE      = 8
 
+.const ENEMY_NUM_SHAKEOFF_TAPS    = 4
+.const ENEMY_NUM_SHAKEOFF_RELEASE = 4
+
 // Enemy types
 // 0 - mouse
 

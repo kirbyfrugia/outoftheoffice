@@ -12,13 +12,13 @@
 
 // Quantities and dimensions...
 
-.const spritesbatch1_SPRITE_COUNT = 12
+.const spritesbatch1_SPRITE_COUNT = 15
 
 
 // Data block sizes (in bytes)...
 
-.const spritesbatch1_SZ_SPRITESET_DATA = 768
-.const spritesbatch1_SZ_SPRITESET_ATTRIB_DATA = 12
+.const spritesbatch1_SZ_SPRITESET_DATA = 960
+.const spritesbatch1_SZ_SPRITESET_ATTRIB_DATA = 15
 
 
 // Data block addresses (dummy values)...
@@ -35,7 +35,7 @@
 
 
 // SpriteSet Data...
-// 12 images, 64 bytes per image, total size is 768 ($300) bytes.
+// 15 images, 64 bytes per image, total size is 960 ($3C0) bytes.
 
 spritesbatch1_spriteset_data:
 
@@ -111,15 +111,33 @@ spritesbatch1_sprite_image_11:
 .byte $00,$01,$E0,$00,$01,$48,$00,$0F,$C8,$00,$3F,$C0,$00,$3C,$C0,$00
 .byte $0D,$F0,$00,$05,$30,$00,$14,$14,$00,$00,$50,$00,$01,$40,$00,$8A
 
+spritesbatch1_sprite_image_12:
+.byte $28,$2B,$C0,$AA,$AA,$C0,$AA,$AA,$E0,$AB,$AA,$E8,$AC,$3A,$A0,$B0
+.byte $2A,$A8,$B2,$AA,$BC,$FA,$80,$AE,$CA,$2A,$AE,$88,$BA,$0E,$AA,$82
+.byte $C2,$A2,$02,$C3,$A2,$CA,$CF,$BE,$88,$02,$F0,$AA,$3A,$E8,$20,$38
+.byte $0A,$A0,$F8,$80,$03,$C8,$AA,$0F,$28,$2A,$38,$A0,$08,$2A,$80,$8B
+
+spritesbatch1_sprite_image_13:
+.byte $00,$28,$00,$0A,$A8,$00,$2A,$8A,$A8,$AB,$EA,$8A,$8B,$A2,$AE,$8A
+.byte $88,$22,$8A,$AC,$02,$8F,$BE,$A2,$8E,$EA,$A0,$3C,$2A,$AA,$38,$A8
+.byte $80,$2A,$A8,$B2,$2A,$88,$B2,$2A,$A8,$F2,$AB,$A0,$CA,$AA,$E0,$C8
+.byte $2A,$C2,$A8,$0A,$AA,$A0,$0A,$AA,$80,$0A,$A0,$00,$00,$00,$00,$82
+
+spritesbatch1_sprite_image_14:
+.byte $2A,$80,$00,$3C,$8E,$B0,$F2,$AA,$00,$C2,$28,$02,$8A,$A0,$A2,$8A
+.byte $AA,$AA,$AB,$2A,$3A,$AF,$AA,$0A,$BC,$AA,$A8,$B0,$A2,$28,$A2,$AA
+.byte $28,$A2,$28,$E8,$AA,$28,$E8,$EA,$A3,$E8,$E2,$20,$A8,$E2,$22,$AC
+.byte $E2,$2A,$AC,$AA,$8A,$BC,$BE,$F8,$B0,$8F,$C2,$80,$A0,$0A,$00,$8B
+
 
 
 // SpriteSet Attribute Data...
-// 12 attributes, 1 per image, 8 bits each, total size is 12 ($C) bytes.
+// 15 attributes, 1 per image, 8 bits each, total size is 15 ($F) bytes.
 // nb. Upper nybbles = MYXV, lower nybbles = colour (0-15).
 
 spritesbatch1_spriteset_attrib_data:
 
-.byte $8A,$8A,$8A,$8A,$8A,$8A,$8A,$8A,$8A,$8A,$8A,$8A
+.byte $8A,$8A,$8A,$8A,$8A,$8A,$8A,$8A,$8A,$8A,$8A,$8A,$8B,$82,$8B
 
 
 

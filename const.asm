@@ -55,6 +55,7 @@
 .const SPRITE_PTR_FIRST_B1    =    48  // sprite pointer at which sprite 0 starts from batch 1
 .const P1_FACING_RIGHT_OFFSET = SPRITE_PTR_FIRST_B1+0
 .const P1_FACING_LEFT_OFFSET  = SPRITE_PTR_FIRST_B1+6
+.const P1_ENEMY_ATTACHED      = SPRITE_PTR_FIRST_B1+12
 
 .const SPRITE_PTR_FIRST_B2    =    128 // sprite pointer at which sprite 0 starts from batch 2
 
@@ -71,6 +72,7 @@
 .const VIC_IRQ_FLAG        = $d019
 .const VIC_IRQ_MASK        = $d01a
 .const SPRITE_MC_MODE      = $d01c
+.const SPRITE_COLLISION    = $d01e
 .const BORDER_COLOR        = $d020
 .const BG_COLOR0           = $d021
 .const BG_COLOR1           = $d022

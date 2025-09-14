@@ -53,3 +53,12 @@ New thoughts:
 * Bad guys
   * Mice
   * Fires to be put out, have to grab the fire extinguisher.
+
+
+New thoughts again:
+* You have to finish your jobs in a certain amount of time. The faster you finish, the
+  more points you get. If you don't finish in time, you get a demerit.
+* Enough demerits, you get demoted.
+* Enough credits, you get promoted.
+* Your goal is to be the CEO.
+* For enemies, if you connect them, they stop your movement and you have to shake them off.

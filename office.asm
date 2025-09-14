@@ -464,9 +464,17 @@ game_loop:
 even_frame:
   lda #0
   sta SCR_buffer_ready
+  
+  lda player_enemy_flag
+  and #%10000000
+  cmp #%10000000
+  beq game_loop_skip_player_pos
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
+  jmp game_loop_upd_enemies
+game_loop_skip_player_pos:
+game_loop_upd_enemies:
   jsr upd_enemies_pos
   jsr upd_enemies_sprites
 
@@ -479,9 +487,16 @@ even_frame:
   jmp every_frame
 odd_frame:
   jsr updanim
-  jsr hud
-  // jsr log
 every_frame:
+  jsr enemy_collisions
+  lda player_enemy_flag
+  and #%10000000
+  cmp #%10000000
+  bne game_loop_no_collisions
+  jsr enemy_shakeoff
+game_loop_no_collisions:
+  // jsr hud
+  jsr log
   jsr upd_sound_effects
   jmp game_loop
 
@@ -1138,6 +1153,13 @@ log_posx:
 //   rts
 
 log_enemies:
+  lda player_enemy_flag
+  jsr loghexit
+  iny
+  iny
+  lda num_shake_offs
+  jsr loghexit
+
   rts
 
 // TODO: dont assemble for release
@@ -1157,7 +1179,8 @@ log_back_line1:
 log_line1:
   ldy #1
   // jsr log_screen
-  jsr log_posx
+  // jsr log_posx
+  jsr log_enemies
   // jsr log_screen
   // jsr log_melody
 
@@ -2632,10 +2655,114 @@ upd_enemies_sprites_next_enemy:
   bcs upd_enemies_spritesd
   jmp upd_enemies_sprites_enemy
 upd_enemies_spritesd:
+  rts
 
+enemy_shakeoff:
+  // we're going to count it as a button press if they go
+  // from 1 to 0 in the last two frames
+  lda ebp
+  and #%00000011
+  cmp #%00000010
+  bne no_shake
+
+  // if here, count this as a shake
+  sec
+  rol shake_flags
+  rol shake_flags+1
+  rol shake_flags+2
+  rol shake_flags+3
+
+  // count how many times we did a shake over the last
+  // n number of frames
+  lda #0
+  sta zpb0
+
+  ldx #3
+shake_next_byte:
+  lda shake_flags,x
+  ldy #8
+shake_next_bit:
+  lsr
+  bcc shake_no_inc
+  inc zpb0
+shake_no_inc:
+  dey
+  bne shake_next_bit
+  dex
+  bpl shake_next_byte
+
+  // TODO: make these random, maybe based off which frame we
+  // were on when the enemy attached
+  lda zpb0
+  cmp #ENEMY_NUM_SHAKEOFF_TAPS
+  bcc enemy_shakeoffd
+  // if here, we shook enough
+  inc num_shake_offs
+  lda num_shake_offs
+  cmp #ENEMY_NUM_SHAKEOFF_RELEASE
+  bcc enemy_shakeoff_keep_shaking
+  // if here, we've shaken it off enough times to free ourselves
+  lda player_enemy_flag
+  and #%01111111
+  sta player_enemy_flag
+enemy_shakeoff_keep_shaking:
+  // reset the shake vars to start a new one
+  lda #0
+  sta shake_flags
+  sta shake_flags+1
+  sta shake_flags+2
+  sta shake_flags+3
+  beq enemy_shakeoffd 
+no_shake:
+  clc
+  rol shake_flags
+  rol shake_flags+1
+  rol shake_flags+2
+  rol shake_flags+3
+enemy_shakeoffd:
+  rts
+
+enemy_collisions:
+  lda SPRITE_COLLISION
+  beq enemy_collisionsd
+  // stop character horizontal movement
+  lda #0
+  sta p1hva+1
+  lda #0
+  sta p1hva
+  lda #HV_ZERO
+  sta p1hvi
+
+  lda #0
+  sta shake_flags
+  sta shake_flags+1
+  sta shake_flags+2
+  sta shake_flags+3
+  sta num_shake_offs
+
+  lda spritesbatch1_spriteset_attrib_data+12
+  sta SPRITE_COLOR_BASE+0
+
+  lda #%10000000
+  ora player_enemy_flag
+  sta player_enemy_flag
+enemy_collisionsd:
   rts
 
 updanim_p1:
+  lda player_enemy_flag
+  and #%10000000
+  cmp #%10000000
+  bne updanim_p1_no_attached_enemies
+
+  // if here, we have an enemy attached
+  lda #P1_ENEMY_ATTACHED
+  clc
+  adc animation_index
+  jmp updanim_p1_offset_selected
+updanim_p1_no_attached_enemies:
+  lda spritesbatch1_spriteset_attrib_data+0
+  sta SPRITE_COLOR_BASE+0
   // sprite offsets:
   // offset 0 - standing
   // offset 1 - moving, first frame
@@ -2643,10 +2770,6 @@ updanim_p1:
   // offset 3 - moving, third frame
   // offset 4 - turning
   // offset 5 - jumping
-// bit7 - jumping
-// bit6 - x direction         (0 = left, 1 = right)
-// bit5 - moving horizontally (0 = false, 1 = true)
-// bit4 - turning             (0 = false, 1 = true)
   lda player_animation_flag
   and #%11000000
   cmp #%10000000
@@ -3002,3 +3125,13 @@ raster_line:
 
 max_raster_line:
   .byte 0,0
+
+// bit 7, enemy is attached
+player_enemy_flag:
+  .byte 0
+
+shake_flags:
+  .byte 0,0,0,0
+
+num_shake_offs:
+  .byte 0
