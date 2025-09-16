@@ -24,8 +24,8 @@ enemies_type:
 .const enemy4_minx = ENEMY_TILE_SIZE*50  + ENEMY_TILE_CHAR_SIZE*0
 .const enemy4_maxx = ENEMY_TILE_SIZE*54  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_WIDTH
 .const enemy4_posy = ENEMY_TILE_SIZE*10  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_HEIGHT
-.const enemy5_minx = ENEMY_TILE_SIZE*72  + ENEMY_TILE_CHAR_SIZE*0
-.const enemy5_maxx = ENEMY_TILE_SIZE*80  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_WIDTH
+.const enemy5_minx = ENEMY_TILE_SIZE*73  + ENEMY_TILE_CHAR_SIZE*0
+.const enemy5_maxx = ENEMY_TILE_SIZE*79  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_WIDTH
 .const enemy5_posy = ENEMY_TILE_SIZE*10  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_HEIGHT
 
 // rangex - how far left and right can the enemy travel, max is one greater than end of their range
@@ -106,7 +106,7 @@ enemies_height:
 
 // flags
 //   Bit 7: direction, 0 = left, 1 = right
-//   Bit 6: collided with player
+//   Bit 6: collided with player, attacking
 //   Bit 5: dead, 0 = false, 1 = true
 enemies_flags:
   .byte %00000000

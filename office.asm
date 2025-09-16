@@ -1598,6 +1598,40 @@ get_collision_tile_done:
   tax
 }
 
+// How collision detection works.
+//   1. First we determine which way the player is moving.
+//   2. Based on the direction (e.g. left and up), we call different routines, e.g. collision_moving_left_down
+//   3. In each of the routines, we call collide_prep to see which tiles and chars the player may
+//      be overlapping with.
+//   4. Depending on the direction the player is moving, we check the collisions in the x and y
+//      directions in different orders. This allows us to glide along ceilings, deal with
+//      hitting walls while moving up, etc.
+//   5. If the player overlaps a screen char that has collisions, we then move them back in
+//      the opposite direction by the amount of overlap in the x and y directions. We also
+//      change the velocity to the opposite direction a bit so they bounce a little.
+//      This is in the routines like collision_move_out_to_left
+
+// Other notes:
+//   * Tiles are collidable or not and so are the characters in the tile. These are set with
+//     metadata in the tile map, e.g. SCR_char_attribs. Screen chars can be collidable
+//     in any of their 4 whiles. E.g. ceiling tiles should be collidable on the bottom.
+
+// Known problems:
+//   1. There's a "tunnel too small" problem. If there's an area with a
+//     low ceiling and a floor and the player times the jump right and
+//     hits the corner of the ceiling at a fast speed, they can 
+//     get pulled into the tunnel. In some situations, moving will
+//     get them out of it. So don't design levels where this can happen.
+//     Put a wall on the left and right.
+// 
+//     Here's an example:
+//     O 
+//     | ===================================
+//     | 
+//    /\ ===================================
+//
+//   2. This could probably be a lot more efficient. Also the material checking code
+//      makes heavy use of macros and adds a lot of code.
 collide_prep:
   // now we're in global, pixel coordinates, get information needed
   // for collision detection
@@ -1670,13 +1704,6 @@ collide_prep:
   lda collision_column_even
   and #%00000001
   sta collision_column_even
-
-  // TODO:
-  //   let's have the char contain the collision information in the material
-  //   let's have the tile allow us to override it. So if the tile has a tag of #0, then
-  //   ignore the collision infoormation
-  // TODO:
-  //   store the char material data the same way we store the tile data (charset_attrib_L1_data)
 
   // now SCR_TILE_COL contains the first x tile
   lda collision_column_even
@@ -1838,7 +1865,7 @@ collision_prep_done:
 
 
 collision_move_out_to_left:
-  // stop character horizontal movement
+  // bounce back to the left
   lda #0
   sta p1hva+1
   lda #$f8
@@ -1881,7 +1908,7 @@ collision_move_out_to_left:
   rts
 
 collision_move_out_to_right:
-  // stop character horizontal movement
+  // bounce back to the right
   lda #0
   sta p1hva+1
   lda #8
@@ -2434,7 +2461,7 @@ updp1hpt:
   // ror p1lx+1
   // ror p1lx 
   lda p1lx+1
-  and #%00001111
+  and #%00011111
   sta p1lx+1
 
 start_collision:
@@ -3117,6 +3144,22 @@ updanim_enemy:
   ldx enemies_buffer_min
 updanim_enemy_loop:
   ldy enemies_type, x
+
+  lda enemies_flags, X
+  and #%01000000
+  beq updanim_enemy_not_attacking
+  // if here, the enemy is attacking, so we use the attacking sprite
+  lda #ENEMY_ATTACKING_SMOKE
+  clc
+  adc animation_index
+  sta SPRITE_PTR_BASE_FB+1, x
+  sta SPRITE_PTR_BASE_BB+1, x
+
+  // TODO: don't hardcode this
+  lda #2 // red
+  sta SPRITE_COLOR_BASE+1, x
+  bne updanim_enemy_next_enemy
+updanim_enemy_not_attacking:
   lda enemies_flags, x
   and #%10000000
   cmp #%10000000
