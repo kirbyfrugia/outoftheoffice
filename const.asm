@@ -16,8 +16,17 @@
 .const sprmc0    = $01
 .const sprmc1    = $00
 
-.const p1width      = 14
-.const p1height     = 20
+.const p1width         = 14
+.const p1height        = 20
+.const P1_STARTX       = 105
+.const P1_STARTY       = 140
+.const P1_COLLISION_X0 = 0
+.const P1_COLLISION_X1 = 8
+.const P1_COLLISION_X2 = 13
+.const P1_COLLISION_Y0 = 0
+.const P1_COLLISION_Y1 = 8
+.const P1_COLLISION_Y2 = 16
+.const P1_COLLISION_Y3 = 19
 // how many screen chars might be collidable with p1
 .const p1spanwidth  = 3
 .const p1spanheight = 4

@@ -27,6 +27,12 @@
 .const SCR_first_visible_column_pixels       = $4f // and $50
 .const SCR_first_column_beyond_screen_pixels = $51 // and $52
 
+.const SCR_COLLISION_MASK_LEFT    = %10000000
+.const SCR_COLLISION_MASK_RIGHT   = %01000000
+.const SCR_COLLISION_MASK_TOP     = %00100000
+.const SCR_COLLISION_MASK_BOTTOM  = %00010000
+
+
 // Memory map
 //   Addresses of tile rows:
 //     $0020-$0035 - indices of tile rows
@@ -77,7 +83,7 @@
 .var SCR_TILE_ROW_7          = $2e
 .var SCR_TILE_ROW_8          = $30
 .var SCR_TILE_ROW_9          = $32
-.var SCR_TILE_ROW_CURR       = $34
+.var current_tile_row        = $34
 .var SCR_TILE_ROW            = $36 // temp var, careful
 .var SCR_TILE_COL            = $37 // temp var, careful
 .var SCR_charset_prg         = $37fe
