@@ -1655,17 +1655,16 @@ test_collision:
   ldy p1gx_coll
   lda (current_tile_row), y // get the tile
   tax
-  beq tc_no_collision      // Tile zero is an empty tile, not collidable
+  beq test_collisiond      // Tile zero is an empty tile, not collidable
   lda SCR_char_tileset_tag, x
   and collision_mask
-  beq tc_no_collision
+  beq test_collisiond
 tc_tile_collision:
   // collided with tile, now check the char. the tile might be
   // collidable but the individual char might not be
   // bit 7 has the column, bit 6 has the row
   lda collision_tile_coords
   and #%11000000 // we only use 1st two bits, but others may not be zero
-  cmp #%00000000
   beq tc_tile_collision_ul
   cmp #%10000000
   beq tc_tile_collision_ur
@@ -1673,34 +1672,32 @@ tc_tile_collision:
   beq tc_tile_collision_ll
   // if here, lower right
   lda SCR_tiles_lr, x
-  beq tc_no_collision
+  beq test_collisiond
   tax
   lda SCR_char_attribs, x // get the material
   and collision_mask
   jmp test_collisiond
 tc_tile_collision_ul:
   lda SCR_tiles_ul, x
-  beq tc_no_collision
+  beq test_collisiond
   tax
   lda SCR_char_attribs, x // get the material
   and collision_mask
   jmp test_collisiond
 tc_tile_collision_ur:
   lda SCR_tiles_ur, x
-  beq tc_no_collision
+  beq test_collisiond
   tax
   lda SCR_char_attribs, x // get the material
   and collision_mask
   jmp test_collisiond
 tc_tile_collision_ll:
   lda SCR_tiles_ll, x
-  beq tc_no_collision
+  beq test_collisiond
   tax
   lda SCR_char_attribs, x // get the material
   and collision_mask
   jmp test_collisiond
-tc_no_collision:
-  // fall through, A will be zero if no collision detected, nonzero otherwise
 test_collisiond:
   // note: A should already have a zero or nonzero for collision detected
   tax
@@ -3242,7 +3239,6 @@ time:        .byte 0,0,0
 
 p1hvi:       .byte 0
 p1hva:       .byte 0,0
-p1gx:        .byte 0,0
 p1gx_pixels: .byte 0,0
 p1lx:        .byte 0,0
 p1lx_delta:  .byte 0,0
@@ -3397,12 +3393,6 @@ sprite_collisions_detected: .byte 0
 current_tile:     .byte 0
 current_material: .byte 0
 
-p1gx_coll:                   .byte 0,0
-p1gy_coll:                   .byte 0,0
-p1gx_new:                    .byte 0,0
-p1gy_new:                    .byte 0,0
-p1gx_offset:                 .byte 0,0
-p1gy_offset:                 .byte 0,0
 collision_char:              .byte 0
 collision_char_material:     .byte 0
 collision_mask:              .byte 0
