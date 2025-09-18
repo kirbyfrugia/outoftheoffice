@@ -388,7 +388,13 @@ init_enemies_buffer_updd:
   sta p1hvi
   sta p1vvi
 
-  set_on_ground()
+  lda #0
+  sta p1vva
+  lda #VV_ZERO
+  sta p1vvi
+
+  lda #1
+  sta on_ground
 
   lda #0
   sta p1gx+1
@@ -855,6 +861,7 @@ loadmap:
 
   lda #(200-p1height-40)
   sta maxp1gy
+  sta maxp1gy_px
   lda #0
   sta maxp1gy+1
 
@@ -1014,51 +1021,51 @@ hud:
 
   rts
 
-log_posx:
-  lda p1gx+1
-  jsr loghexit
-  iny
-  lda p1gx
-  jsr loghexit
+// log_posx:
+//   lda p1gx+1
+//   jsr loghexit
+//   iny
+//   lda p1gx
+//   jsr loghexit
 
-  iny
-  iny
-  lda p1lx+1
-  jsr loghexit
-  iny
-  lda p1lx
-  jsr loghexit
+//   iny
+//   iny
+//   lda p1lx+1
+//   jsr loghexit
+//   iny
+//   lda p1lx
+//   jsr loghexit
 
-  iny
-  iny
-  lda p1sx+1
-  jsr loghexit
-  iny
-  lda p1sx
-  jsr loghexit
+//   iny
+//   iny
+//   lda p1sx+1
+//   jsr loghexit
+//   iny
+//   lda p1sx
+//   jsr loghexit
 
-  iny
-  iny
-  lda p1hva+1
-  jsr loghexit
-  iny
-  lda p1hva
-  jsr loghexit
+//   iny
+//   iny
+//   lda p1hva+1
+//   jsr loghexit
+//   iny
+//   lda p1hva
+//   jsr loghexit
 
-  iny
-  iny
-  lda p1gx_coll+1
-  jsr loghexit
-  iny
-  lda p1gx_coll
-  jsr loghexit
+//   iny
+//   iny
+//   lda p1gx_coll+1
+//   jsr loghexit
+//   iny
+//   lda p1gx_coll
+//   jsr loghexit
 
-  iny
-  iny
-  lda num_collision_tests
-  jsr loghexit
+//   iny
+//   iny
+//   lda num_collision_tests
+//   jsr loghexit
 
-  rts
+//   rts
 
 // log_screen:
 //   lda SCR_first_visible_column+1
@@ -1102,34 +1109,39 @@ log_posx:
 //   jsr loghexit
 //   rts
 
-// log_posy:
-//   lda p1gy+1
-//   jsr loghexit
-//   iny
-//   lda p1gy
-//   jsr loghexit
+log_posy:
+  lda p1gy+1
+  jsr loghexit
+  iny
+  lda p1gy
+  jsr loghexit
 
-//   iny
-//   iny
-//   iny
-//   iny
-//   lda p1ly
-//   jsr loghexit
+  iny
+  iny
+  iny
+  iny
+  lda p1ly
+  jsr loghexit
 
-//   iny
-//   iny
-//   lda p1sy
-//   jsr loghexit
+  iny
+  iny
+  lda p1sy
+  jsr loghexit
 
-//   iny
-//   iny
-//   lda p1vva+1
-//   jsr loghexit
-//   iny
-//   lda p1vva
-//   jsr loghexit
+  iny
+  iny
+  lda p1vva+1
+  jsr loghexit
+  iny
+  lda p1vva
+  jsr loghexit
 
-//   rts
+  iny
+  iny
+  lda on_ground
+  jsr loghexit
+
+  rts
 
 // log_collision:
 //   lda collide_pixels_x
@@ -1275,7 +1287,8 @@ log_back_line1:
 log_line1:
   ldy #1
   // jsr log_screen
-  jsr log_posx
+  // jsr log_posx
+  jsr log_posy
   // jsr log_enemies
   // jsr log_screen
   // jsr log_melody
@@ -1353,13 +1366,6 @@ log_line3:
 //   MAX_HV_LEFT  - max velocity when moving left
 //   MAX_HV_RIGHT - max velocity when moving right
 
-.macro set_on_ground() {
-  lda #0
-  sta on_ground
-  sta p1vva
-  lda #VV_ZERO
-  sta p1vvi
-}
 
 updp1hv:
   lda ebl
@@ -1492,14 +1498,16 @@ updp1hvd_nocap:
 
 updp1vv:
   lda on_ground
-  bne updp1vv_not_on_ground
+  beq updp1vv_not_on_ground
 
-  // only jump on new button presses and on ground
+  // if  here, we are on the ground.
+
+  // only jump on new button presses
   // if either of last two scans of joystick button are a zero, jump
   lda ebp
   and #%00000011
   cmp #%00000011
-  beq updp1vv_no_jump
+  beq updp1vv_on_ground_no_jump
 
   lda player_animation_flag
   ora #%10000000 // jumping
@@ -1523,15 +1531,19 @@ updp1vv:
   lda #MAX_VV_UP
   sta p1vvi
   jmp updp1vvd
-updp1vv_no_jump:
+updp1vv_on_ground_no_jump:
   // on ground, not jumping
   lda player_animation_flag
   and #%01111111 // not jumping
   sta player_animation_flag
 
-  lda #VV_ZERO
-  sta p1vvi
-  jmp updp1vvd
+  lda #MAX_VV_DOWN
+  sta p1vvt
+  bne updp1vtvd
+
+  // lda #VV_ZERO
+  // sta p1vvi
+  // jmp updp1vvd
 updp1vv_not_on_ground:
   // if not on the ground, target velocity is always max falling speed
   lda #MAX_VV_DOWN
@@ -1849,6 +1861,12 @@ test_moving_left_up_collision:
   jmp test_player_collisionsd
 
 test_moving_left_down:
+  // let's make sure they aren't below the bottom of the level
+  lda p1gy_coll
+  cmp maxp1gy_px
+  lda #1
+  bcs test_moving_left_down_collision
+
   // test the left and bottom edges of the player collision rect
 
   // first left edge
@@ -1966,6 +1984,12 @@ test_moving_right_up_collision:
   jmp test_player_collisionsd
 
 test_moving_right_down:
+  // let's make sure they aren't below the bottom of the level
+  lda p1gy_coll
+  cmp maxp1gy_px
+  lda #1
+  bcs test_moving_right_down_collision
+
   // test the right and bottom edges of the player collision rect
 
   // first right edge
@@ -2033,6 +2057,12 @@ test_moving_up_collision:
   jmp test_player_collisionsd
 
 test_moving_down:
+  // let's make sure they aren't below the bottom of the level
+  lda p1gy_coll
+  cmp maxp1gy_px
+  lda #1
+  bcs test_moving_down_collision
+
   // test the bottom edge of the player collision rect
   // x0, y3
   lda #P1_COLLISION_X0
@@ -2093,56 +2123,6 @@ test_player_collisionsd:
 
 
 
-// TODO: THIS IS BROKEN
-// TODO: THIS IS BROKEN
-// TODO: THIS IS BROKEN
-// TODO: THIS IS BROKEN
-// TODO: THIS IS BROKEN
-// TODO: THIS IS BROKEN
-// TODO: THIS IS BROKEN
-// Should only be called after collision detection
-update_ground_status:
-  rts
-//   // first check if character is at bottom of screen
-//   lda p1ly+1
-//   cmp maxp1gy+1
-//   bcc ugs_collisions
-//   lda p1ly
-//   cmp maxp1gy
-//   bcs ugs_on_ground
-// ugs_collisions:
-//   // TODO: do we really need to do this so many times?
-//   jsr collide_prep
-
-//   lda p1cy2
-//   // player isn't on the ground if their feet aren't about
-//   // to enter the next screen char down
-//   cmp #24
-//   bne ugs_not_on_ground
-//   ldx #0
-//   lda collision_metadata_row3, x
-//   and #%00100000
-//   bne ugs_on_ground
-//   inx
-//   lda collision_metadata_row3, x
-//   and #%00100000
-//   bne ugs_on_ground
-//   lda p1cx2
-//   cmp #17
-//   bcc ugs_not_on_ground
-//   inx
-//   lda collision_metadata_row3, x
-//   and #%00100000
-//   bne ugs_on_ground
-// ugs_not_on_ground:
-//   lda #1
-//   sta on_ground
-//   bne ugs_done
-// ugs_on_ground:
-//   set_on_ground()
-// ugs_done:
-//   rts
-
 
 .const collision_deltax        = zpb0 // absval of number of subpixels to move in x direction (velocity)
 .const collision_deltay        = zpb1 // absval of number of subpixels to move in y direction (velocity)
@@ -2163,7 +2143,7 @@ bresenham_majorx:
   sta collision_detected_major
   sta collision_detected_minor
   sta num_collision_tests
-  ldx collision_subpixelsx // number of pixels to move in x direction
+  ldx collision_subpixelsx
   stx tmp0
 bresenham_majorx_major_loop:
   lda collision_detected_major
@@ -2200,6 +2180,10 @@ bresenham_majorx_major_crossed_pixel:
   // A should be zero if there was a collision after the test, nonzero otherwise
   beq bresenham_majorx_major_no_collisions
   sta collision_detected_major
+  lda #0
+  sta p1hva
+  lda #HV_ZERO
+  sta p1hvi
   bne bresenham_majorx_minor_loop // ignore this move, there was a collision
 bresenham_majorx_major_no_collisions:
   // update the position
@@ -2240,7 +2224,7 @@ bresenham_majorx_minor_step:
   lda p1gy_new
   eor p1gy
   and #%00001000 // first non subpixel, after fractional
-  beq bresenham_majorx_minor_no_collisions  
+  beq bresenham_majorx_minor_update_position  
 bresenham_majorx_minor_crossed_pixel:
   // get the latest x-value
   lda p1gx
@@ -2254,8 +2238,27 @@ bresenham_majorx_minor_crossed_pixel:
   // A should be zero if there was a collision after the test, nonzero otherwise
   beq bresenham_majorx_minor_no_collisions // no collisions
   sta collision_detected_minor
-  bne bresenham_majorx_next // ignore this move, there was a collision
+  // If here, we had a collision due to a check in the y-direction.
+  // If the collision mask is TOP, that means we were checking for
+  //   collisions while moving downwards. If that's the case, we are on
+  //   a ground surface.
+  lda collision_mask
+  and #SCR_COLLISION_MASK_TOP
+  beq bresenham_majorx_minor_not_on_ground // moving up, not on ground
+  // if here, moving down, may or may not be on ground
+
+  sta on_ground // already non-zero
+  // lda #0
+  // sta p1vva
+  // lda #VV_ZERO
+  // sta p1vvi
+  bne bresenham_majorx_next
+bresenham_majorx_minor_not_on_ground:
+  sta on_ground // already zero
+  beq bresenham_majorx_next
 bresenham_majorx_minor_no_collisions:
+  sta on_ground // already zero
+bresenham_majorx_minor_update_position:
   // update the position
   lda p1gy_new
   sta p1gy
@@ -2269,9 +2272,146 @@ bresenham_majorx_next:
 bresenham_majorx_done:
   rts
 
+bresenham_majory:
+  lda #0
+  sta collision_error_counter
+  sta collision_detected_major
+  sta collision_detected_minor
+  sta num_collision_tests
+  ldx collision_subpixelsy
+  stx tmp0
+bresenham_majory_major_loop:
+  lda collision_detected_major
+  bne bresenham_majory_minor_loop // no longer checking collisions in major
+
+  // Step position by a subpixel
+  lda p1gy
+  clc
+  adc p1gy_adder
+  sta p1gy_new
+  lda p1gy+1
+  adc p1gy_adder+1
+  sta p1gy_new+1
+
+  // If the first non-subpixel changes, we crossed the boundary
+  lda p1gy_new
+  eor p1gy
+  and #%00001000 // first non subpixel, after fractional
+  beq bresenham_majory_major_update_position
+bresenham_majory_major_crossed_pixel:
+  lda p1gy_new
+  sta p1gy_coll
+  lda p1gy_new+1
+  sta p1gy_coll+1
+
+  lda p1gx
+  sta p1gx_coll
+  lda p1gx+1
+  sta p1gx_coll+1
+
+  // test for collisions
+  inc num_collision_tests
+  jsr test_player_collisions
+  // A should be zero if there was a collision after the test, nonzero otherwise
+  beq bresenham_majory_major_no_collisions
+  sta collision_detected_major
+  // If here, we had a collision due to a check in the y-direction.
+  // If the collision mask is TOP, that means we were checking for
+  //   collisions while moving downwards. If that's the case, we are on
+  //   a ground surface.
+  lda collision_mask
+  and #SCR_COLLISION_MASK_TOP
+  beq bresenham_majory_not_on_ground // moving up, not on ground
+
+  // TODO: maybe we don't change vertical velocity here. It's just always
+  // heading downwards.
+  // TODO: Maybe we check if we're moving upwards, and if we make a collision,
+  // then we set vertical velocity to zero.
+
+  sta on_ground // already non-zero
+  // lda #0
+  // sta p1vva
+  // lda #VV_ZERO
+  // sta p1vvi
+  bne bresenham_majory_minor_loop
+bresenham_majory_not_on_ground:
+  sta on_ground // already zero
+  beq bresenham_majory_minor_loop
+bresenham_majory_major_no_collisions:
+  sta on_ground // already zero
+bresenham_majory_major_update_position:
+  // update the position
+  lda p1gy_new
+  sta p1gy
+  lda p1gy_new+1
+  sta p1gy+1
+bresenham_majory_minor_loop:
+  lda collision_detected_minor
+  beq bresenham_majory_minor_loop_continue
+  jmp bresenham_majory_next // no longer checking collisions in minor
+bresenham_majory_minor_loop_continue:
+  // add deltax to error count
+  lda collision_error_counter
+  clc
+  adc collision_deltax
+  sta collision_error_counter
+  cmp collision_deltay
+  bcs bresenham_majory_minor_step
+  jmp bresenham_majory_next
+bresenham_majory_minor_step:
+  // if here, step the minor axis
+  lda collision_error_counter
+  sec
+  sbc collision_deltay
+  sta collision_error_counter
+
+  lda p1gx
+  clc
+  adc p1gx_adder
+  sta p1gx_coll
+  sta p1gx_new
+  lda p1gx+1
+  adc p1gx_adder+1
+  sta p1gx_coll+1
+  sta p1gx_new+1
+
+  lda p1gx_new
+  eor p1gx
+  and #%00001000 // first non subpixel, after fractional
+  beq bresenham_majory_minor_no_collisions  
+bresenham_majory_minor_crossed_pixel:
+  // get the latest y-value
+  lda p1gy
+  sta p1gy_coll
+  lda p1gy+1
+  sta p1gy_coll+1
+
+  inc num_collision_tests
+  // test for collisions
+  jsr test_player_collisions
+  // A should be zero if there was a collision after the test, nonzero otherwise
+  beq bresenham_majory_minor_no_collisions // no collisions
+  sta collision_detected_minor
+  lda #0
+  sta p1hva
+  lda #HV_ZERO
+  sta p1hvi
+  bne bresenham_majory_next // ignore this move, there was a collision
+bresenham_majory_minor_no_collisions:
+  // update the position
+  lda p1gx_new
+  sta p1gx
+  lda p1gx_new+1
+  sta p1gx+1
+bresenham_majory_next:
+  dec tmp0
+  ldx tmp0
+  beq bresenham_majory_done
+  jmp bresenham_majory_major_loop
+bresenham_majory_done:
+  rts
 
 updp1p:
-  // Collision detection is done using a variation of Bresenham's line algorithm
   lda #0
   sta collision_mask
 
@@ -2365,8 +2505,7 @@ updp1p_moving:
   lda collision_subpixelsx
   cmp collision_subpixelsy
   bcs updp1p_majoraxisx
-  //jmp updp1p_majoraxisy
-  // TODO: implement the other
+  jsr bresenham_majory
   jmp updp1p_positiond
 updp1p_majoraxisx:
   jsr bresenham_majorx
@@ -3240,8 +3379,9 @@ ebu:       .byte 0
 ebd:       .byte 0
 ebp:       .byte 0
 
-maxp1gx:   .byte 0,0
-maxp1gy:   .byte 0,0
+maxp1gx:    .byte 0,0
+maxp1gy:    .byte 0,0
+maxp1gy_px: .byte 0,0
 
 // TODO: move to zero page
 current_buffer:  .byte 0
@@ -3256,7 +3396,7 @@ animation_index: .byte 0
 // bit4 - turning             (0 = false, 1 = true)
 player_animation_flag: .byte 0
 
-on_ground:               .byte 0
+on_ground:                     .byte 0
 
 sound_started:                 .byte 0
 melody_v1_index:               .byte 0
