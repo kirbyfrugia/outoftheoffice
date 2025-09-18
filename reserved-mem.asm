@@ -7,6 +7,9 @@
 .const zpb6                                  = $3b
 .const zpb7                                  = $3c
 
+.const tmp0                                  = $3d
+.const tmp1                                  = $3e
+
 .const p1gy_coll                             = $3f // and $40
 .const p1gx                                  = $41 // and $42
 .const p1gx_new                              = $43 // and $44
@@ -15,7 +18,12 @@
 .const p1gy_offset                           = $49 // and $4a
 .const p1gy                                  = $4b // and $4c
 .const p1gx_coll                             = $4d // and $4e
-
+.const p1gx_adder                            = $4f // and $50
+.const p1gy_adder                            = $51 // and $52
+.const collision_mask                        = $53
+.const collision_tile_coords                 = $54 // for collision, used to determine which char of the tile is hit
+.const collision_detected_major              = $55
+.const collision_detected_minor              = $56
 
 .const SCR_objects_ptr                       = $60 // and $61
 .const SCR_first_visible_column_max          = $62 // and $63

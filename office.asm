@@ -1902,7 +1902,6 @@ test_moving_right:
   jsr test_collision
   bne test_moving_right_collision
 
-debug2:
   // x2, y1
   lda #P1_COLLISION_Y1
   sta p1gy_offset
@@ -3241,9 +3240,6 @@ ebu:       .byte 0
 ebd:       .byte 0
 ebp:       .byte 0
 
-tmp0:      .byte 0
-tmp1:      .byte 0
-
 maxp1gx:   .byte 0,0
 maxp1gy:   .byte 0,0
 
@@ -3260,16 +3256,6 @@ animation_index: .byte 0
 // bit4 - turning             (0 = false, 1 = true)
 player_animation_flag: .byte 0
 
-collide_pixels_x: .byte 0
-collide_pixels_y: .byte 0
-
-collision_metadata_row0: .byte 0,0,0
-collision_metadata_row1: .byte 0,0,0
-collision_metadata_row2: .byte 0,0,0
-collision_metadata_row3: .byte 0,0,0
-
-collision_column_even:   .byte 0
-collision_row_even:      .byte 0
 on_ground:               .byte 0
 
 sound_started:                 .byte 0
@@ -3364,19 +3350,5 @@ enemies_buffer_min_dist:  .byte 0,0
 enemies_buffer_max_dist:  .byte 0,0
 
 sprite_collisions_detected: .byte 0
-
-current_tile:     .byte 0
-current_material: .byte 0
-
-collision_char:              .byte 0
-collision_char_material:     .byte 0
-collision_mask:              .byte 0
-collision_tile_coords:       .byte 0 // for collision, used to determine which char of the tile is hit
-collision_detected:          .byte 0
-collision_detected_major:    .byte 0
-collision_detected_minor:    .byte 0
-
-p1gx_adder:        .byte 0,0
-p1gy_adder:        .byte 0,0
 
 num_collision_tests: .byte 0
