@@ -346,6 +346,7 @@ update_max_raster_lined:
 
 init:
   lda #0
+  sta pending_buffer_swap
   sta ptime
   sta ptime+1
   sta ptime+2
@@ -464,6 +465,10 @@ game_loop:
   beq game_loop
   lda #0
   sta frame_tick
+
+game_loop_buffer:
+  lda pending_buffer_swap
+  bne game_loop_buffer
 
   jsr injs
 
@@ -1047,6 +1052,11 @@ log_posx:
   lda p1gx_coll
   jsr loghexit
 
+  iny
+  iny
+  lda num_collision_tests
+  jsr loghexit
+
   rts
 
 // log_screen:
@@ -1565,41 +1575,19 @@ updp1vvd_nocap:
 //   p1gy_offset - y offset from position to test
 //   collision_mask - mask to match the char material for a collision
 // outputs:
-//   collision_detected - 0 if no collision, 1 if co
+//   A - collision_detected - 0 if no collision, not zero otherwise
 test_collision:
-  pha
-  txa
-  pha
-  tya
-  pha
-
-  // push the locations onto the stack
-  lda p1gx_coll
-  pha
-  lda p1gx_coll+1
+  lda p1gy_coll+1
   pha
   lda p1gy_coll
   pha
-  lda p1gy_coll+1
+  lda p1gx_coll+1
   pha
-
-  // get rid of fractional
-  lsr p1gx_coll+1
-  ror p1gx_coll
-  lsr p1gx_coll+1
-  ror p1gx_coll
-  lsr p1gx_coll+1
-  ror p1gx_coll
-
-  lsr p1gy_coll+1
-  ror p1gy_coll
-  lsr p1gy_coll+1
-  ror p1gy_coll
-  lsr p1gy_coll+1
-  ror p1gy_coll
-
-  // add any potential offset from the point provided
   lda p1gx_coll
+  pha
+  
+  // add any potential offset from the point provided
+  //lda p1gx_coll // already loaded above
   clc
   adc p1gx_offset
   sta p1gx_coll
@@ -1633,11 +1621,14 @@ test_collision:
   lsr p1gy_coll+1
   ror p1gy_coll
 
+  // TODO: treat bottom of level separately. Don't check
+  // here since it's called a lot
   ldy p1gy_coll
-  cpy #10
-  bcc tc_not_at_bottom
-  jmp tc_collision // collided with bottom of level
-tc_not_at_bottom:
+//   cpy #10
+//   bcc tc_not_at_bottom
+//   lda #1
+//   jmp test_collisiond // collided with bottom of level
+// tc_not_at_bottom:
   lda SCR_rowptrs_lo, y
   sta current_tile_row
   lda SCR_rowptrs_hi, y
@@ -1686,57 +1677,66 @@ tc_tile_collision:
   tax
   lda SCR_char_attribs, x // get the material
   and collision_mask
-  beq tc_no_collision
-  bne tc_collision
+  jmp test_collisiond
 tc_tile_collision_ul:
   lda SCR_tiles_ul, x
   beq tc_no_collision
   tax
   lda SCR_char_attribs, x // get the material
   and collision_mask
-  beq tc_no_collision
-  bne tc_collision
+  jmp test_collisiond
 tc_tile_collision_ur:
   lda SCR_tiles_ur, x
   beq tc_no_collision
   tax
   lda SCR_char_attribs, x // get the material
   and collision_mask
-  beq tc_no_collision
-  bne tc_collision
+  jmp test_collisiond
 tc_tile_collision_ll:
   lda SCR_tiles_ll, x
   beq tc_no_collision
   tax
   lda SCR_char_attribs, x // get the material
   and collision_mask
-  beq tc_no_collision
-  bne tc_collision
-tc_collision:
-  lda #1
-  sta collision_detected
-  bne test_collisiond
+  jmp test_collisiond
 tc_no_collision:
-  lda #0
-  sta collision_detected
+  // fall through, A will be zero if no collision detected, nonzero otherwise
 test_collisiond:
+  // note: A should already have a zero or nonzero for collision detected
+  tax
+
   pla
-  sta p1gy_coll+1
-  pla
-  sta p1gy_coll
+  sta p1gx_coll
   pla
   sta p1gx_coll+1
   pla
-  sta p1gx_coll
+  sta p1gy_coll
+  pla
+  sta p1gy_coll+1
 
-  pla
-  tay
-  pla
-  tax
-  pla
+  txa
   rts
 
+// tests if the player collides with any collidable tiles/characters
+// outputs:
+//   A - collision_detected, zero if no collision, non-zero if collision
 test_player_collisions:
+
+  // get rid of fractional
+  lsr p1gx_coll+1
+  ror p1gx_coll
+  lsr p1gx_coll+1
+  ror p1gx_coll
+  lsr p1gx_coll+1
+  ror p1gx_coll
+
+  lsr p1gy_coll+1
+  ror p1gy_coll
+  lsr p1gy_coll+1
+  ror p1gy_coll
+  lsr p1gy_coll+1
+  ror p1gy_coll
+
   // how this routine works: Depending on the collision mask,
   // it will call test_collision using relevant points
   // from the player rectangle
@@ -1773,7 +1773,8 @@ collision_mask_test7:
   bne collision_mask_test8
   jmp test_moving_down
 collision_mask_test8:
-  // shouldn't happen  
+  // shouldn't happen
+  lda #0
   jmp test_player_collisionsd
 
 test_moving_left:
@@ -1784,29 +1785,24 @@ test_moving_left:
   lda #P1_COLLISION_Y0
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_collision
 
   // x0, y1
   lda #P1_COLLISION_Y1
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_collision
 
   // x0, y2
   lda #P1_COLLISION_Y2
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_collision
 
   // x0, y3
   lda #P1_COLLISION_Y3
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
-  bne test_moving_left_collision
 test_moving_left_collision:
   jmp test_player_collisionsd
 
@@ -1820,28 +1816,24 @@ test_moving_left_up:
   lda #P1_COLLISION_Y3
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_up_collision
 
   // x0, y2
   lda #P1_COLLISION_Y2
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_up_collision
 
   // x0, y1
   lda #P1_COLLISION_Y1
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_up_collision
 
   // x0, y0
   lda #P1_COLLISION_Y0
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_up_collision
 
   // now rest of top edge
@@ -1849,15 +1841,12 @@ test_moving_left_up:
   lda #P1_COLLISION_X1
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_up_collision
 
   // x2, y0
   lda #P1_COLLISION_X2
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
-  bne test_moving_left_up_collision
 test_moving_left_up_collision:
   jmp test_player_collisionsd
 
@@ -1871,28 +1860,24 @@ test_moving_left_down:
   lda #P1_COLLISION_Y0
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_down_collision
 
   // x0, y1
   lda #P1_COLLISION_Y1
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_down_collision
 
   // x0, y2
   lda #P1_COLLISION_Y2
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_down_collision
 
   // x0, y3
   lda #P1_COLLISION_Y3
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_down_collision
 
   // now rest of bottom edge
@@ -1900,15 +1885,12 @@ test_moving_left_down:
   lda #P1_COLLISION_X1
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_left_down_collision
 
   // x2, y3
   lda #P1_COLLISION_X2
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
-  bne test_moving_left_down_collision
 test_moving_left_down_collision:
   jmp test_player_collisionsd
 
@@ -1920,29 +1902,25 @@ test_moving_right:
   lda #P1_COLLISION_Y0
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_collision
 
+debug2:
   // x2, y1
   lda #P1_COLLISION_Y1
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_collision
 
   // x2, y2
   lda #P1_COLLISION_Y2
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_collision
 
   // x2, y3
   lda #P1_COLLISION_Y3
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
-  bne test_moving_right_collision
 test_moving_right_collision:
   jmp test_player_collisionsd
 
@@ -1956,28 +1934,24 @@ test_moving_right_up:
   lda #P1_COLLISION_Y3
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_up_collision
 
   // x2, y2
   lda #P1_COLLISION_Y2
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_up_collision
 
   // x2, y1
   lda #P1_COLLISION_Y1
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_up_collision
 
   // x2, y0
   lda #P1_COLLISION_Y0
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_up_collision
 
   // now rest of top edge
@@ -1985,15 +1959,12 @@ test_moving_right_up:
   lda #P1_COLLISION_X1
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_up_collision
 
   // x0, y0
   lda #P1_COLLISION_X0
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
-  bne test_moving_right_up_collision
 test_moving_right_up_collision:
   jmp test_player_collisionsd
 
@@ -2007,28 +1978,24 @@ test_moving_right_down:
   lda #P1_COLLISION_Y0
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_down_collision
 
   // x2, y1
   lda #P1_COLLISION_Y1
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_down_collision
 
   // x2, y2
   lda #P1_COLLISION_Y2
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_down_collision
 
   // x2, y3
   lda #P1_COLLISION_Y3
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_down_collision
 
   // now rest of bottom edge
@@ -2036,15 +2003,12 @@ test_moving_right_down:
   lda #P1_COLLISION_X1
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_right_down_collision
 
   // x0, y3
   lda #P1_COLLISION_X0
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
-  bne test_moving_right_down_collision
 test_moving_right_down_collision:
   jmp test_player_collisionsd
 
@@ -2056,22 +2020,18 @@ test_moving_up:
   lda #P1_COLLISION_Y0
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_up_collision
 
   // x1, y0
   lda #P1_COLLISION_X1
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_up_collision
 
   // x2, y0
   lda #P1_COLLISION_X2
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
-  bne test_moving_up_collision
 test_moving_up_collision:
   jmp test_player_collisionsd
 
@@ -2083,25 +2043,19 @@ test_moving_down:
   lda #P1_COLLISION_Y3
   sta p1gy_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_down_collision
 
   // x1, y3
   lda #P1_COLLISION_X1
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
   bne test_moving_down_collision
 
   // x2, y3
   lda #P1_COLLISION_X2
   sta p1gx_offset
   jsr test_collision
-  lda collision_detected
-  bne test_moving_down_collision
 test_moving_down_collision:
-  jmp test_player_collisionsd
-
 test_player_collisionsd:
   rts
 
@@ -2211,8 +2165,9 @@ bresenham_majorx:
   sta collision_error_counter
   sta collision_detected_major
   sta collision_detected_minor
-
+  sta num_collision_tests
   ldx collision_subpixelsx // number of pixels to move in x direction
+  stx tmp0
 bresenham_majorx_major_loop:
   lda collision_detected_major
   bne bresenham_majorx_minor_loop // no longer checking collisions in major
@@ -2221,62 +2176,68 @@ bresenham_majorx_major_loop:
   lda p1gx
   clc
   adc p1gx_adder
-  sta p1gx_coll
+  sta p1gx_new
   lda p1gx+1
   adc p1gx_adder+1
-  sta p1gx_coll+1
+  sta p1gx_new+1
 
   // If the first non-subpixel changes, we crossed the boundary
-  lda p1gx_coll
+  lda p1gx_new
   eor p1gx
   and #%00001000 // first non subpixel, after fractional
-  bne bresenham_majorx_major_crossed_pixel
-  // didn't cross pixel boundary, just update position
-debug1:
-  lda p1gx_coll
-  sta p1gx
-  lda p1gx_coll+1
-  sta p1gx+1
-  jmp bresenham_majorx_minor_loop
+  beq bresenham_majorx_major_no_collisions
 bresenham_majorx_major_crossed_pixel:
-  // get the latest y-value
+  lda p1gx_new
+  sta p1gx_coll
+  lda p1gx_new+1
+  sta p1gx_coll+1
+
   lda p1gy
   sta p1gy_coll
   lda p1gy+1
   sta p1gy_coll+1
 
   // test for collisions
+  inc num_collision_tests
   jsr test_player_collisions
-  lda collision_detected
-  beq bresenham_majorx_major_no_collisions // no collisions
-  // there's a collision
-  lda #1
+  // A should be zero if there was a collision after the test, nonzero otherwise
+  beq bresenham_majorx_major_no_collisions
   sta collision_detected_major
-  // undo the move
-  lda p1gx
-  sec
-  sbc p1gx_adder
-  sta p1gx
-  lda p1gx+1
-  sbc p1gx_adder+1
-  sta p1gx+1
-  jmp bresenham_majorx_minor_loop
+debug1:
+  bne bresenham_majorx_minor_loop
+
+
+  // ignore this move, there was a collision
+
+  // // undo the move
+  // lda p1gx
+  // sec
+  // sbc p1gx_adder
+  // sta p1gx
+  // lda p1gx+1
+  // sbc p1gx_adder+1
+  // sta p1gx+1
+  // jmp
+  
 bresenham_majorx_major_no_collisions:
   // update the position
-  lda p1gx_coll
+  lda p1gx_new
   sta p1gx
-  lda p1gx_coll+1
+  lda p1gx_new+1
   sta p1gx+1
 bresenham_majorx_minor_loop:
   lda collision_detected_minor
-  bne bresenham_majorx_next // no longer checking collisions in minor
+  beq bresenham_majorx_minor_loop_continue
+  jmp bresenham_majorx_next // no longer checking collisions in minor
+bresenham_majorx_minor_loop_continue:
   // add deltay to error count
   lda collision_error_counter
   clc
   adc collision_deltay
   sta collision_error_counter
   cmp collision_deltax
-  bcc bresenham_majorx_next
+  bcs bresenham_majorx_minor_step
+  jmp bresenham_majorx_next
 bresenham_majorx_minor_step:
   // if here, step the minor axis
   lda collision_error_counter
@@ -2288,20 +2249,16 @@ bresenham_majorx_minor_step:
   clc
   adc p1gy_adder
   sta p1gy_coll
+  sta p1gy_new
   lda p1gy+1
   adc p1gy_adder+1
   sta p1gy_coll+1
+  sta p1gy_new+1
 
-  lda p1gy_coll
+  lda p1gy_new
   eor p1gy
   and #%00001000 // first non subpixel, after fractional
-  bne bresenham_majorx_minor_crossed_pixel
-  // didn't cross pixel boundary, just update position
-  lda p1gy_coll
-  sta p1gy
-  lda p1gy_coll+1
-  sta p1gy+1
-  jmp bresenham_majorx_next
+  beq bresenham_majorx_minor_no_collisions  
 bresenham_majorx_minor_crossed_pixel:
   // get the latest x-value
   lda p1gx
@@ -2309,31 +2266,32 @@ bresenham_majorx_minor_crossed_pixel:
   lda p1gx+1
   sta p1gx_coll+1
 
+  inc num_collision_tests
   // test for collisions
   jsr test_player_collisions
-  lda collision_detected
+  // A should be zero if there was a collision after the test, nonzero otherwise
   beq bresenham_majorx_minor_no_collisions // no collisions
-  // there's a collision
-  lda #1
   sta collision_detected_minor
+  bne bresenham_majorx_next // collision
 
-  // undo the move
-  lda p1gy
-  sec
-  sbc p1gy_adder
-  sta p1gy
-  lda p1gy+1
-  sbc p1gy_adder+1
-  sta p1gy+1
-  jmp bresenham_majorx_next
+  // // undo the move
+  // lda p1gy
+  // sec
+  // sbc p1gy_adder
+  // sta p1gy
+  // lda p1gy+1
+  // sbc p1gy_adder+1
+  // sta p1gy+1
+  // jmp bresenham_majorx_next
 bresenham_majorx_minor_no_collisions:
   // update the position
-  lda p1gy_coll
+  lda p1gy_new
   sta p1gy
-  lda p1gy_coll+1
+  lda p1gy_new+1
   sta p1gy+1
 bresenham_majorx_next:
-  dex
+  dec tmp0
+  ldx tmp0
   beq bresenham_majorx_done
   jmp bresenham_majorx_major_loop
 bresenham_majorx_done:
@@ -2534,11 +2492,9 @@ updp1hpsl:
   sec
   sbc SCR_scroll_out
   sta p1sx
-  // note: we don't update p1sx+1 because we scroll before sprite gets
-  //   far enough along for msb to be set
-  // lda p1sx+1
-  // sbc #0
-  // sta p1sx+1
+  lda p1sx+1
+  sbc #0
+  sta p1sx+1
   jmp updp1psprite
 updp1hpsr:
   // less than scrollmin, scroll right if moving left
@@ -2556,11 +2512,9 @@ updp1hpsr:
   clc
   adc SCR_scroll_out
   sta p1sx
-  // note: we don't update p1sx+1 because we scroll before sprite gets
-  //   far enough along for msb to be set
-  // lda p1sx+1
-  // sbc #0
-  // sta p1sx+1
+  lda p1sx+1
+  adc #0
+  sta p1sx+1
 updp1psprite:
   lda p1sy
   sta SPRITE_YPOS_BASE+0
@@ -3445,6 +3399,8 @@ current_material: .byte 0
 
 p1gx_coll:                   .byte 0,0
 p1gy_coll:                   .byte 0,0
+p1gx_new:                    .byte 0,0
+p1gy_new:                    .byte 0,0
 p1gx_offset:                 .byte 0,0
 p1gy_offset:                 .byte 0,0
 collision_char:              .byte 0
@@ -3457,3 +3413,5 @@ collision_detected_minor:    .byte 0
 
 p1gx_adder:        .byte 0,0
 p1gy_adder:        .byte 0,0
+
+num_collision_tests: .byte 0
