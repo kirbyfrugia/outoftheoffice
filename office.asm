@@ -89,6 +89,7 @@ start:
   jmp init
 
 #import "data.asm"
+#import "reserved-mem.asm"
 #import "const.asm"
 #import "utils.asm"
 #import "data/song-kirby.asm"
@@ -2200,22 +2201,7 @@ bresenham_majorx_major_crossed_pixel:
   // A should be zero if there was a collision after the test, nonzero otherwise
   beq bresenham_majorx_major_no_collisions
   sta collision_detected_major
-debug1:
-  bne bresenham_majorx_minor_loop
-
-
-  // ignore this move, there was a collision
-
-  // // undo the move
-  // lda p1gx
-  // sec
-  // sbc p1gx_adder
-  // sta p1gx
-  // lda p1gx+1
-  // sbc p1gx_adder+1
-  // sta p1gx+1
-  // jmp
-  
+  bne bresenham_majorx_minor_loop // ignore this move, there was a collision
 bresenham_majorx_major_no_collisions:
   // update the position
   lda p1gx_new
@@ -2269,17 +2255,7 @@ bresenham_majorx_minor_crossed_pixel:
   // A should be zero if there was a collision after the test, nonzero otherwise
   beq bresenham_majorx_minor_no_collisions // no collisions
   sta collision_detected_minor
-  bne bresenham_majorx_next // collision
-
-  // // undo the move
-  // lda p1gy
-  // sec
-  // sbc p1gy_adder
-  // sta p1gy
-  // lda p1gy+1
-  // sbc p1gy_adder+1
-  // sta p1gy+1
-  // jmp bresenham_majorx_next
+  bne bresenham_majorx_next // ignore this move, there was a collision
 bresenham_majorx_minor_no_collisions:
   // update the position
   lda p1gy_new
@@ -3248,7 +3224,6 @@ p1cx:        .byte 0,0
 p1cx2:       .byte 0
 p1vvi:       .byte 0
 p1vva:       .byte 0,0
-p1gy:        .byte 0,0
 p1ly:        .byte 0,0 // 2 bytes due to a quirk in calculation
 p1ly_delta:  .byte 0,0
 p1ly_prev:   .byte 0,0

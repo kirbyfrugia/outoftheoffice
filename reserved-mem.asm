@@ -1,0 +1,44 @@
+.const zpb0                                  = $fb
+.const zpb1                                  = $fc
+.const zpb2                                  = $fd
+.const zpb3                                  = $fe
+.const zpb4                                  = $39
+.const zpb5                                  = $3a
+.const zpb6                                  = $3b
+.const zpb7                                  = $3c
+
+.const p1gy_coll                             = $3f // and $40
+.const p1gx                                  = $41 // and $42
+.const p1gx_new                              = $43 // and $44
+.const p1gy_new                              = $45 // and $46
+.const p1gx_offset                           = $47 // and $48
+.const p1gy_offset                           = $49 // and $4a
+.const p1gy                                  = $4b // and $4c
+.const p1gx_coll                             = $4d // and $4e
+
+
+.const SCR_objects_ptr                       = $60 // and $61
+.const SCR_first_visible_column_max          = $62 // and $63
+.const SCR_first_visible_column              = $64 // and $65
+.const SCR_first_visible_column_pixels       = $66 // and $67
+.const SCR_first_column_beyond_screen_pixels = $68 // and $69
+.const SCR_tmp_var0                          = $6a // and $6b
+.const SCR_scroll_in                         = $6c
+.const SCR_scroll_out                        = $6d
+.const SCR_scroll_register                   = $6e
+.const SCR_scroll_offset                     = $6f
+.const SCR_scroll_left_amounts               = $80
+.const SCR_scroll_left_amounts_pre           = $80 // matches the previous on purpose
+.const SCR_scroll_left_amounts_post          = $81
+.const SCR_scroll_right_amounts              = $82
+.const SCR_scroll_right_amounts_pre          = $82 // matches the previous on purpose
+.const SCR_scroll_right_amounts_post         = $83
+.const SCR_scroll_redraw_flag                = $84
+.const SCR_first_visible_tile                = $85
+.const SCR_last_visible_tile                 = $86
+.const SCR_tile_offset                       = $87
+.const SCR_buffer_flag                       = $88 // which buffer
+.const SCR_buffer_ready                      = $89 // buffer ready to be swapped
+.const SCR_direction                         = $8a // which direction to move screen or scroll after a scroll
+.const SCR_color_flag                        = $8b
+.const SCR_tile_level_width                  = $8c

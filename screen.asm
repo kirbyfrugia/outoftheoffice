@@ -1,30 +1,3 @@
-.const SCR_objects_ptr                       = $43 // and $44
-.const SCR_first_visible_column_max          = $4b // and $4c
-.const SCR_first_visible_column              = $4d // and $4e
-.const SCR_first_visible_column_pixels       = $4f // and $50
-.const SCR_first_column_beyond_screen_pixels = $51 // and $52
-.const SCR_tmp_var0                          = $54 // and $55
-.const SCR_scroll_in                         = $56
-.const SCR_scroll_out                        = $57
-.const SCR_scroll_register                   = $58
-.const SCR_scroll_offset                     = $59
-.const SCR_scroll_left_amounts               = $80
-.const SCR_scroll_left_amounts_pre           = $80 // matches the previous on purpose
-.const SCR_scroll_left_amounts_post          = $81
-.const SCR_scroll_right_amounts              = $82
-.const SCR_scroll_right_amounts_pre          = $82 // matches the previous on purpose
-.const SCR_scroll_right_amounts_post         = $83
-.const SCR_scroll_redraw_flag                = $84
-.const SCR_first_visible_tile                = $85
-.const SCR_last_visible_tile                 = $86
-.const SCR_tile_offset                       = $87
-.const SCR_buffer_flag                       = $88 // which buffer
-.const SCR_buffer_ready                      = $89 // buffer ready to be swapped
-.const SCR_direction                         = $8a // which direction to move screen or scroll after a scroll
-.const SCR_color_flag                        = $8b
-.const SCR_tile_level_width                  = $8c
-
-
 .const SCR_COLLISION_MASK_LEFT    = %10000000
 .const SCR_COLLISION_MASK_RIGHT   = %01000000
 .const SCR_COLLISION_MASK_TOP     = %00100000

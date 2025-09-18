@@ -1,21 +1,3 @@
-.const zpb0 = $fb
-.const zpb1 = $fc
-.const zpb2 = $fd
-.const zpb3 = $fe
-
-.const zpb4 = $39
-.const zpb5 = $3a
-.const zpb6 = $3b
-.const zpb7 = $3c
-
-.const p1gx_coll   = $3d // and $3e
-.const p1gy_coll   = $3f // and $40
-.const p1gx        = $41 // and $42
-.const p1gx_new    = $43 // and $44
-.const p1gy_new    = $45 // and $46
-.const p1gx_offset = $47 // and $48
-.const p1gy_offset = $49 // and $4a
-
 
 .const scrcol0   = 0
 .const scrwidth  = 40
