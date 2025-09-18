@@ -5,13 +5,16 @@
 .segment Sprites2 [start=$2000]
 #import "data/spritesbatch2.asm"
 
+// Note: max velocities can't be super large. Need to be less than 8 pixels
+//   of movement per frame. Which would be a velocity of 71 (subpixels are included)
+//   e.g. HV_ZERO-MAX_HV_LEFT must be less than 71. Should make it a lot less.
 .const MAX_HV_LEFT      = 97  // max velocity going left
 .const HV_ZERO_LOWER    = 125 // anything between this and HV_ZERO is considered stopped
 .const HV_ZERO          = 127 // horizontal velocity when not moving
 .const HV_ZERO_UPPER    = 130 // anything between HV_ZERO and this considered stopped
 .const MAX_HV_RIGHT     = 157 // max velocity going right
-.const HORIZ_ACCEL_FAST = 2   // slower acceleration, normal
-.const HORIZ_ACCEL_SLOW = 1   // faster acceleration when switching directions
+.const HORIZ_ACCEL_FAST = 4   // faster acceleration when switching directions
+.const HORIZ_ACCEL_SLOW = 1   // slower acceleration, normal
 
 .const MAX_VV_UP        = 97  // vertical velocity when moving up at full speed
 .const VV_ZERO          = 127 // vertical velocity when not moving
@@ -493,7 +496,7 @@ game_loop_upd_enemies:
 odd_frame:
   jsr updanim
 every_frame:
-  jsr enemy_collisions
+  // jsr enemy_collisions
   lda player_enemy_flag
   and #%10000000
   cmp #%10000000
@@ -1038,10 +1041,10 @@ log_posx:
 
   iny
   iny
-  lda tmp_globalx_px+1
+  lda p1gx_coll+1
   jsr loghexit
   iny
-  lda tmp_globalx_px
+  lda p1gx_coll
   jsr loghexit
 
   rts
@@ -1556,10 +1559,10 @@ updp1vvd_nocap:
 
 // checks if there is a screen collision at the given pixel coordinate
 // inputs:
-//   tmp_globalx_px - x position in pixel coords
-//   tmp_globaly_px - y position in pixel coords
-//   tmp_globalx_offset_px - x offset from position to test
-//   tmp_globaly_offset_px - y offset from position to test
+//   p1gx_coll - x position in pixel coords
+//   p1gy_coll - y position in pixel coords
+//   p1gx_offset - x offset from position to test
+//   p1gy_offset - y offset from position to test
 //   collision_mask - mask to match the char material for a collision
 // outputs:
 //   collision_detected - 0 if no collision, 1 if co
@@ -1570,46 +1573,67 @@ test_collision:
   tya
   pha
 
-  // add any potential offset from the point provided
-  lda tmp_globalx_px
+  // push the locations onto the stack
+  lda p1gx_coll
   pha
-  clc
-  adc tmp_globalx_offset_px
-  sta tmp_globalx_px
-  lda tmp_globalx_px+1
+  lda p1gx_coll+1
   pha
-  adc #0
-  sta tmp_globalx_px+1
+  lda p1gy_coll
+  pha
+  lda p1gy_coll+1
+  pha
 
-  lda tmp_globaly_px
-  pha
+  // get rid of fractional
+  lsr p1gx_coll+1
+  ror p1gx_coll
+  lsr p1gx_coll+1
+  ror p1gx_coll
+  lsr p1gx_coll+1
+  ror p1gx_coll
+
+  lsr p1gy_coll+1
+  ror p1gy_coll
+  lsr p1gy_coll+1
+  ror p1gy_coll
+  lsr p1gy_coll+1
+  ror p1gy_coll
+
+  // add any potential offset from the point provided
+  lda p1gx_coll
   clc
-  adc tmp_globaly_offset_px
-  sta tmp_globaly_px
-  lda tmp_globaly_px+1
-  pha
+  adc p1gx_offset
+  sta p1gx_coll
+  lda p1gx_coll+1
   adc #0
-  sta tmp_globaly_px+1
+  sta p1gx_coll+1
+
+  lda p1gy_coll
+  clc
+  adc p1gy_offset
+  sta p1gy_coll
+  lda p1gy_coll+1
+  adc #0
+  sta p1gy_coll+1
 
   // rotate to go from pixels to screen chars
-  lsr tmp_globaly_px+1
-  ror tmp_globaly_px
-  lsr tmp_globaly_px+1
-  ror tmp_globaly_px
-  lsr tmp_globaly_px+1
-  ror tmp_globaly_px
+  lsr p1gy_coll+1
+  ror p1gy_coll
+  lsr p1gy_coll+1
+  ror p1gy_coll
+  lsr p1gy_coll+1
+  ror p1gy_coll
 
   // grab the final bit since it indicates if we're
-  // on and odd or even row, thus top or bottom of tile 
-  lda tmp_globaly_px
+  // on an odd or even row, thus top or bottom of tile 
+  lda p1gy_coll
   ror
   ror collision_tile_coords
 
   // divide by 2 to get tile row
-  lsr tmp_globaly_px+1
-  ror tmp_globaly_px
+  lsr p1gy_coll+1
+  ror p1gy_coll
 
-  ldy tmp_globaly_px
+  ldy p1gy_coll
   cpy #10
   bcc tc_not_at_bottom
   jmp tc_collision // collided with bottom of level
@@ -1620,24 +1644,24 @@ tc_not_at_bottom:
   sta current_tile_row+1
 
   // rotate to go from pixels to screen chars
-  lsr tmp_globalx_px+1
-  ror tmp_globalx_px
-  lsr tmp_globalx_px+1
-  ror tmp_globalx_px
-  lsr tmp_globalx_px+1
-  ror tmp_globalx_px
+  lsr p1gx_coll+1
+  ror p1gx_coll
+  lsr p1gx_coll+1
+  ror p1gx_coll
+  lsr p1gx_coll+1
+  ror p1gx_coll
 
   // grab the final bit since it indicates if we're
   // on and odd or even column, thus left or right of tile 
-  lda tmp_globalx_px
+  lda p1gx_coll
   ror
   ror collision_tile_coords
 
   // divide by 2 to get tile column
-  lsr tmp_globalx_px+1
-  ror tmp_globalx_px
+  lsr p1gx_coll+1
+  ror p1gx_coll
 
-  ldy tmp_globalx_px
+  ldy p1gx_coll
   lda (current_tile_row), y // get the tile
   tax
   beq tc_no_collision      // Tile zero is an empty tile, not collidable
@@ -1697,13 +1721,13 @@ tc_no_collision:
   sta collision_detected
 test_collisiond:
   pla
-  sta tmp_globaly_px+1
+  sta p1gy_coll+1
   pla
-  sta tmp_globaly_px
+  sta p1gy_coll
   pla
-  sta tmp_globalx_px+1
+  sta p1gx_coll+1
   pla
-  sta tmp_globalx_px
+  sta p1gx_coll
 
   pla
   tay
@@ -1756,30 +1780,30 @@ test_moving_left:
   // test the left edge of the player collision rect
   // x0, y0
   lda #P1_COLLISION_X0
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   lda #P1_COLLISION_Y0
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_collision
 
   // x0, y1
   lda #P1_COLLISION_Y1
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_collision
 
   // x0, y2
   lda #P1_COLLISION_Y2
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_collision
 
   // x0, y3
   lda #P1_COLLISION_Y3
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_collision
@@ -1792,30 +1816,30 @@ test_moving_left_up:
   // left edge first
   // x0, y3
   lda #P1_COLLISION_X0
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   lda #P1_COLLISION_Y3
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_up_collision
 
   // x0, y2
   lda #P1_COLLISION_Y2
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_up_collision
 
   // x0, y1
   lda #P1_COLLISION_Y1
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_up_collision
 
   // x0, y0
   lda #P1_COLLISION_Y0
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_up_collision
@@ -1823,14 +1847,14 @@ test_moving_left_up:
   // now rest of top edge
   // x1, y0
   lda #P1_COLLISION_X1
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_up_collision
 
   // x2, y0
   lda #P1_COLLISION_X2
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_up_collision
@@ -1843,30 +1867,30 @@ test_moving_left_down:
   // first left edge
   // x0, y0
   lda #P1_COLLISION_X0
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   lda #P1_COLLISION_Y0
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_down_collision
 
   // x0, y1
   lda #P1_COLLISION_Y1
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_down_collision
 
   // x0, y2
   lda #P1_COLLISION_Y2
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_down_collision
 
   // x0, y3
   lda #P1_COLLISION_Y3
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_down_collision
@@ -1874,14 +1898,14 @@ test_moving_left_down:
   // now rest of bottom edge
   // x1, y3
   lda #P1_COLLISION_X1
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_down_collision
 
   // x2, y3
   lda #P1_COLLISION_X2
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_left_down_collision
@@ -1892,30 +1916,30 @@ test_moving_right:
   // test the right edge of the player collision rect
   // x2, y0
   lda #P1_COLLISION_X2
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   lda #P1_COLLISION_Y0
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_collision
 
   // x2, y1
   lda #P1_COLLISION_Y1
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_collision
 
   // x2, y2
   lda #P1_COLLISION_Y2
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_collision
 
   // x2, y3
   lda #P1_COLLISION_Y3
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_collision
@@ -1928,30 +1952,30 @@ test_moving_right_up:
   // first right edge
   // x2, y3
   lda #P1_COLLISION_X2
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   lda #P1_COLLISION_Y3
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_up_collision
 
   // x2, y2
   lda #P1_COLLISION_Y2
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_up_collision
 
   // x2, y1
   lda #P1_COLLISION_Y1
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_up_collision
 
   // x2, y0
   lda #P1_COLLISION_Y0
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_up_collision
@@ -1959,14 +1983,14 @@ test_moving_right_up:
   // now rest of top edge
   // x1, y0
   lda #P1_COLLISION_X1
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_up_collision
 
   // x0, y0
   lda #P1_COLLISION_X0
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_up_collision
@@ -1979,30 +2003,30 @@ test_moving_right_down:
   // first right edge
   // x2, y0
   lda #P1_COLLISION_X2
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   lda #P1_COLLISION_Y0
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_down_collision
 
   // x2, y1
   lda #P1_COLLISION_Y1
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_down_collision
 
   // x2, y2
   lda #P1_COLLISION_Y2
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_down_collision
 
   // x2, y3
   lda #P1_COLLISION_Y3
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_down_collision
@@ -2010,14 +2034,14 @@ test_moving_right_down:
   // now rest of bottom edge
   // x1, y3
   lda #P1_COLLISION_X1
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_down_collision
 
   // x0, y3
   lda #P1_COLLISION_X0
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_right_down_collision
@@ -2028,23 +2052,23 @@ test_moving_up:
   // test the top edge of the player collision rect
   // x0, y0
   lda #P1_COLLISION_X0
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   lda #P1_COLLISION_Y0
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_up_collision
 
   // x1, y0
   lda #P1_COLLISION_X1
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_up_collision
 
   // x2, y0
   lda #P1_COLLISION_X2
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_up_collision
@@ -2055,23 +2079,23 @@ test_moving_down:
   // test the bottom edge of the player collision rect
   // x0, y3
   lda #P1_COLLISION_X0
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   lda #P1_COLLISION_Y3
-  sta tmp_globaly_offset_px
+  sta p1gy_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_down_collision
 
   // x1, y3
   lda #P1_COLLISION_X1
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_down_collision
 
   // x2, y3
   lda #P1_COLLISION_X2
-  sta tmp_globalx_offset_px
+  sta p1gx_offset
   jsr test_collision
   lda collision_detected
   bne test_moving_down_collision
@@ -2182,6 +2206,139 @@ update_ground_status:
 .const collision_subpixelsx    = zpb4 // copy of collision_deltax, used as counter
 .const collision_subpixelsy    = zpb5 // copy of collision_deltay, used as counter
 
+bresenham_majorx:
+  lda #0
+  sta collision_error_counter
+  sta collision_detected_major
+  sta collision_detected_minor
+
+  ldx collision_subpixelsx // number of pixels to move in x direction
+bresenham_majorx_major_loop:
+  lda collision_detected_major
+  bne bresenham_majorx_minor_loop // no longer checking collisions in major
+
+  // Step position by a subpixel
+  lda p1gx
+  clc
+  adc p1gx_adder
+  sta p1gx_coll
+  lda p1gx+1
+  adc p1gx_adder+1
+  sta p1gx_coll+1
+
+  // If the first non-subpixel changes, we crossed the boundary
+  lda p1gx_coll
+  eor p1gx
+  and #%00001000 // first non subpixel, after fractional
+  bne bresenham_majorx_major_crossed_pixel
+  // didn't cross pixel boundary, just update position
+debug1:
+  lda p1gx_coll
+  sta p1gx
+  lda p1gx_coll+1
+  sta p1gx+1
+  jmp bresenham_majorx_minor_loop
+bresenham_majorx_major_crossed_pixel:
+  // get the latest y-value
+  lda p1gy
+  sta p1gy_coll
+  lda p1gy+1
+  sta p1gy_coll+1
+
+  // test for collisions
+  jsr test_player_collisions
+  lda collision_detected
+  beq bresenham_majorx_major_no_collisions // no collisions
+  // there's a collision
+  lda #1
+  sta collision_detected_major
+  // undo the move
+  lda p1gx
+  sec
+  sbc p1gx_adder
+  sta p1gx
+  lda p1gx+1
+  sbc p1gx_adder+1
+  sta p1gx+1
+  jmp bresenham_majorx_minor_loop
+bresenham_majorx_major_no_collisions:
+  // update the position
+  lda p1gx_coll
+  sta p1gx
+  lda p1gx_coll+1
+  sta p1gx+1
+bresenham_majorx_minor_loop:
+  lda collision_detected_minor
+  bne bresenham_majorx_next // no longer checking collisions in minor
+  // add deltay to error count
+  lda collision_error_counter
+  clc
+  adc collision_deltay
+  sta collision_error_counter
+  cmp collision_deltax
+  bcc bresenham_majorx_next
+bresenham_majorx_minor_step:
+  // if here, step the minor axis
+  lda collision_error_counter
+  sec
+  sbc collision_deltax
+  sta collision_error_counter
+
+  lda p1gy
+  clc
+  adc p1gy_adder
+  sta p1gy_coll
+  lda p1gy+1
+  adc p1gy_adder+1
+  sta p1gy_coll+1
+
+  lda p1gy_coll
+  eor p1gy
+  and #%00001000 // first non subpixel, after fractional
+  bne bresenham_majorx_minor_crossed_pixel
+  // didn't cross pixel boundary, just update position
+  lda p1gy_coll
+  sta p1gy
+  lda p1gy_coll+1
+  sta p1gy+1
+  jmp bresenham_majorx_next
+bresenham_majorx_minor_crossed_pixel:
+  // get the latest x-value
+  lda p1gx
+  sta p1gx_coll
+  lda p1gx+1
+  sta p1gx_coll+1
+
+  // test for collisions
+  jsr test_player_collisions
+  lda collision_detected
+  beq bresenham_majorx_minor_no_collisions // no collisions
+  // there's a collision
+  lda #1
+  sta collision_detected_minor
+
+  // undo the move
+  lda p1gy
+  sec
+  sbc p1gy_adder
+  sta p1gy
+  lda p1gy+1
+  sbc p1gy_adder+1
+  sta p1gy+1
+  jmp bresenham_majorx_next
+bresenham_majorx_minor_no_collisions:
+  // update the position
+  lda p1gy_coll
+  sta p1gy
+  lda p1gy_coll+1
+  sta p1gy+1
+bresenham_majorx_next:
+  dex
+  beq bresenham_majorx_done
+  jmp bresenham_majorx_major_loop
+bresenham_majorx_done:
+  rts
+
 
 updp1p:
   // Collision detection is done using a variation of Bresenham's line algorithm
@@ -2202,9 +2359,9 @@ updp1p:
   sta collision_deltax
   sta collision_subpixelsx
   lda #1
-  sta collision_adderx
+  sta p1gx_adder
   lda #0
-  sta collision_adderx+1
+  sta p1gx_adder+1
   beq updp1p_vadder
 updp1p_hl:
   // moving left
@@ -2217,14 +2374,14 @@ updp1p_hl:
   sta collision_deltax
   sta collision_subpixelsx
   lda #$ff // will effectively end up being a subtraction
-  sta collision_adderx
-  sta collision_adderx+1
+  sta p1gx_adder
+  sta p1gx_adder+1
   bne updp1p_vadder
 updp1p_hz:
   // not moving horizontally
   lda #0
-  sta collision_adderx
-  sta collision_adderx+1
+  sta p1gx_adder
+  sta p1gx_adder+1
   sta collision_deltax
   sta collision_subpixelsx
 updp1p_vadder:
@@ -2241,9 +2398,9 @@ updp1p_vadder:
   sta collision_deltay
   sta collision_subpixelsy
   lda #1
-  sta collision_addery
+  sta p1gy_adder
   lda #0
-  sta collision_addery+1
+  sta p1gy_adder+1
   beq updp1p_setup_done
 updp1p_vu:
   // moving up
@@ -2256,15 +2413,15 @@ updp1p_vu:
   sta collision_deltay
   sta collision_subpixelsy
   lda #$ff // will effectively be a subtraction
-  sta collision_addery
-  sta collision_addery+1
+  sta p1gy_adder
+  sta p1gy_adder+1
   bne updp1p_setup_done
 updp1p_vz:
   // not moving vertically
   lda #0
   sta collision_subpixelsy
-  sta collision_addery
-  sta collision_addery+1
+  sta p1gy_adder
+  sta p1gy_adder+1
   sta collision_deltay
 updp1p_setup_done:
   lda collision_subpixelsx
@@ -2275,126 +2432,14 @@ updp1p_setup_done:
   jmp updp1p_positiond // player didn't move
 
 updp1p_moving:
-  lda p1gx
-  sta p1gx_new
-  lda p1gx+1
-  sta p1gx_new+1
-  lda p1gy
-  sta p1gy_new
-  lda p1gy+1
-  sta p1gy_new+1
-
-  lda #0
-  sta collision_error_counter
-
   lda collision_subpixelsx
   cmp collision_subpixelsy
   bcs updp1p_majoraxisx
-  jmp updp1p_majoraxisy
-updp1p_majoraxisx:
-  // if here, the major axis is the x-axis
-  ldx collision_subpixelsx // number of pixels to move in x direction
-updp1p_majoraxisx_loop:
-  // step x by one subpixel
-  lda p1gx_new
-  clc
-  adc collision_adderx
-  sta p1gx_new
-  lda p1gx_new+1
-  adc collision_adderx+1
-  sta p1gx_new+1
-
-  // add deltay to error count
-  lda collision_error_counter
-  clc
-  adc collision_deltay
-  sta collision_error_counter
-  cmp collision_deltax
-  bcc updp1p_majoraxisx_loop_subpixel_stepped // if error count < deltax
-  // step y by one subpixel
-  lda p1gy_new
-  clc
-  adc collision_addery
-  sta p1gy_new
-  lda p1gy_new+1
-  adc collision_addery+1
-  sta p1gy_new+1
-
-  lda collision_error_counter
-  sec
-  sbc collision_deltax
-  sta collision_error_counter
-updp1p_majoraxisx_loop_subpixel_stepped:
-  // Check if we crossed a pixel boundary.
-  // If the first real pixel changes, we crossed the boundary
-  lda p1gx_new
-  eor p1gx
-  and #%00001000 // first non subpixel, after fractional
-  bne updp1p_majoraxisx_loop_crossed_pixel
-
-  lda p1gy_new
-  eor p1gy
-  and #%00001000 // first non subpixel, after fractional
-  bne updp1p_majoraxisx_loop_crossed_pixel
-
-  // didn't cross boundary
-  lda p1gx
-
-  jmp updp1p_majoraxisx_loop_next 
-
-updp1p_majoraxisx_loop_crossed_pixel:
-  // if here, we've crossed a pixel boundary 
-  // now that we are here, let's see if there's a collision using our
-  // new potential position.
-
-  lda p1gx_new
-  sta tmp_globalx_px
-  lda p1gx_new+1
-  sta tmp_globalx_px+1
-
-  // remove the fractional bit
-  lsr tmp_globalx_px+1
-  ror tmp_globalx_px
-  lsr tmp_globalx_px+1
-  ror tmp_globalx_px
-  lsr tmp_globalx_px+1
-  ror tmp_globalx_px
-
-  lda p1gy_new
-  sta tmp_globaly_px
-  lda p1gy_new+1
-  sta tmp_globaly_px+1
-
-  // remove the fractional bit
-  lsr tmp_globaly_px+1
-  ror tmp_globaly_px
-  lsr tmp_globaly_px+1
-  ror tmp_globaly_px
-  lsr tmp_globaly_px+1
-  ror tmp_globaly_px
-
-  jsr test_player_collisions
-  lda collision_detected
-  beq collision_no_collision
-  // there was a collision, ignore latest move
+  //jmp updp1p_majoraxisy
+  // TODO: implement the other
   jmp updp1p_positiond
-collision_no_collision:
-  // if here, no collision
-  lda p1gx_new
-  sta p1gx
-  lda p1gx_new+1
-  sta p1gx+1
-  lda p1gy_new
-  sta p1gy
-  lda p1gy_new+1
-  sta p1gy+1
-updp1p_majoraxisx_loop_next:
-  dex
-  beq updp1p_majoraxisx_loopd
-  jmp updp1p_majoraxisx_loop
-updp1p_majoraxisx_loopd:
-
-updp1p_majoraxisy:
+updp1p_majoraxisx:
+  jsr bresenham_majorx
 updp1p_positiond:
   // now let's update the player sprite
 
@@ -2423,6 +2468,8 @@ updp1p_positiond:
   ror p1ly
   lsr p1ly+1
   ror p1ly
+
+  // p1lx/p1ly are now in pixel coords, global position
 
   // subtract the first column visible from the global position to get the local 
   // position relative to left side of screen, in pixel coordinates
@@ -2464,7 +2511,7 @@ updp1p_positiond:
   // sprite position is now calculated and stored in p1sx/p1sy, but we might
   // need to scroll which will impact the sprite position
   lda p1sx+1
-  bne updp1psprite // no need to scroll if well past scroll point
+  bne updp1psprite // no need to scroll if past scroll point
   lda p1sx
   cmp #scrollmax
   bcs updp1hpsl
@@ -2492,7 +2539,7 @@ updp1hpsl:
   // lda p1sx+1
   // sbc #0
   // sta p1sx+1
-  bne updp1psprite
+  jmp updp1psprite
 updp1hpsr:
   // less than scrollmin, scroll right if moving left
   lda p1hva
@@ -3393,21 +3440,20 @@ enemies_buffer_max_dist:  .byte 0,0
 
 sprite_collisions_detected: .byte 0
 
-p1gx_new: .byte 0,0
-p1gy_new: .byte 0,0
-
 current_tile:     .byte 0
 current_material: .byte 0
 
-tmp_globalx_px:          .byte 0,0
-tmp_globaly_px:          .byte 0,0
-tmp_globalx_offset_px:   .byte 0,0
-tmp_globaly_offset_px:   .byte 0,0
-collision_char:          .byte 0
-collision_char_material: .byte 0
-collision_mask:          .byte 0
-collision_tile_coords:   .byte 0 // for collision, used to determine which char of the tile is hit
-collision_detected:      .byte 0
+p1gx_coll:                   .byte 0,0
+p1gy_coll:                   .byte 0,0
+p1gx_offset:                 .byte 0,0
+p1gy_offset:                 .byte 0,0
+collision_char:              .byte 0
+collision_char_material:     .byte 0
+collision_mask:              .byte 0
+collision_tile_coords:       .byte 0 // for collision, used to determine which char of the tile is hit
+collision_detected:          .byte 0
+collision_detected_major:    .byte 0
+collision_detected_minor:    .byte 0
 
-collision_adderx:        .byte 0,0
-collision_addery:        .byte 0,0
+p1gx_adder:        .byte 0,0
+p1gy_adder:        .byte 0,0
