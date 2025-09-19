@@ -512,8 +512,8 @@ game_loop_upd_enemies:
   jsr update_max_raster_line
   jsr upd_enemies_buffer
   jsr updanim
-  // jsr hud
-  jsr log
+  jsr hud
+  // jsr log
 every_frame:
   // jsr enemy_collisions
   lda player_enemy_flag
@@ -2165,42 +2165,16 @@ test_player_collisionsd:
   rts
 
 // How collision detection works.
-//   1. First we determine which way the player is moving.
-//   2. Based on the direction (e.g. left and up), we call different routines, e.g. collision_moving_left_down
-//   3. In each of the routines, we call collide_prep to see which tiles and chars the player may
-//      be overlapping with.
-//   4. Depending on the direction the player is moving, we check the collisions in the x and y
-//      directions in different orders. This allows us to glide along ceilings, deal with
-//      hitting walls while moving up, etc.
-//   5. If the player overlaps a screen char that has collisions, we then move them back in
-//      the opposite direction by the amount of overlap in the x and y directions. We also
-//      change the velocity to the opposite direction a bit so they bounce a little.
-//      This is in the routines like collision_move_out_to_left
-
-// Other notes:
-//   * Tiles are collidable or not and so are the characters in the tile. These are set with
-//     metadata in the tile map, e.g. SCR_char_attribs. Screen chars can be collidable
-//     in any of their 4 whiles. E.g. ceiling tiles should be collidable on the bottom.
-
-// Known problems:
-//   1. There's a "tunnel too small" problem. If there's an area with a
-//     low ceiling and a floor and the player times the jump right and
-//     hits the corner of the ceiling at a fast speed, they can 
-//     get pulled into the tunnel. In some situations, moving will
-//     get them out of it. So don't design levels where this can happen.
-//     Put a wall on the left and right.
-// 
-//     Here's an example:
-//     O 
-//     | ===================================
-//     | 
-//    /\ ===================================
-//
-//   2. This could probably be a lot more efficient. Also the material checking code
-//      makes heavy use of macros and adds a lot of code.
-
-
-
+//   We use a modified version of Breseham's line drawing algorithm. As we iterate
+//   over the major and minor axis, any time we cross over a subpixel to pixel
+//   boundary, we check for collisions. If there's a collision, we stop
+//   the character movement at that point.
+//   
+// Note:
+//   This is really slow, especially if the player can cross a bunch of subpixels every
+//   frame. But it's much more accurate than my previous attempts at collision detection
+//   which suffered from small tunnel problems. So we trade speed for accuracy and
+//   the game seems fine at 30fps.
 
 .const collision_deltax        = zpb0 // absval of number of subpixels to move in x direction (velocity)
 .const collision_deltay        = zpb1 // absval of number of subpixels to move in y direction (velocity)
@@ -2316,6 +2290,18 @@ bresenham_majorx_minor_crossed_pixel:
   // A should be zero if there was a collision after the test, nonzero otherwise
   beq bresenham_majorx_minor_no_collisions // no collisions
   sta collision_detected_minor
+
+  lda collision_mask
+  and #SCR_COLLISION_MASK_BOTTOM
+  beq bresenham_majorx_test_top
+  // hit head on bottom of something, stop movement
+  lda #VV_ZERO
+  sta p1vvi
+  lda #0
+  sta p1vva
+  beq bresenham_majorx_minor_not_on_ground
+
+bresenham_majorx_test_top:
   // If here, we had a collision due to a check in the y-direction.
   // If the collision mask is TOP, that means we were checking for
   //   collisions while moving downwards. If that's the case, we are on
@@ -2323,13 +2309,7 @@ bresenham_majorx_minor_crossed_pixel:
   lda collision_mask
   and #SCR_COLLISION_MASK_TOP
   beq bresenham_majorx_minor_not_on_ground // moving up, not on ground
-  // if here, moving down, may or may not be on ground
-
   sta on_ground // already non-zero
-  // lda #0
-  // sta p1vva
-  // lda #VV_ZERO
-  // sta p1vvi
   bne bresenham_majorx_next
 bresenham_majorx_minor_not_on_ground:
   sta on_ground // already zero
@@ -2393,6 +2373,17 @@ bresenham_majory_major_crossed_pixel:
   // A should be zero if there was a collision after the test, nonzero otherwise
   beq bresenham_majory_major_no_collisions
   sta collision_detected_major
+
+  lda collision_mask
+  and #SCR_COLLISION_MASK_BOTTOM
+  beq bresenham_majory_test_top
+  // hit head on bottom of something, stop movement
+  lda #VV_ZERO
+  sta p1vvi
+  lda #0
+  sta p1vva
+  beq bresenham_majory_not_on_ground
+bresenham_majory_test_top:
   // If here, we had a collision due to a check in the y-direction.
   // If the collision mask is TOP, that means we were checking for
   //   collisions while moving downwards. If that's the case, we are on
@@ -2400,17 +2391,7 @@ bresenham_majory_major_crossed_pixel:
   lda collision_mask
   and #SCR_COLLISION_MASK_TOP
   beq bresenham_majory_not_on_ground // moving up, not on ground
-
-  // TODO: maybe we don't change vertical velocity here. It's just always
-  // heading downwards.
-  // TODO: Maybe we check if we're moving upwards, and if we make a collision,
-  // then we set vertical velocity to zero.
-
   sta on_ground // already non-zero
-  // lda #0
-  // sta p1vva
-  // lda #VV_ZERO
-  // sta p1vvi
   bne bresenham_majory_minor_loop
 bresenham_majory_not_on_ground:
   sta on_ground // already zero
@@ -3498,10 +3479,6 @@ sound_effect_ready:
   .byte 0
 sound_effect_index:
   .byte 0  
-// sound_effect_new_irq:          .byte 0
-// sound_effect_new_game_loop:    .byte 0
-// sound_effect_index_irq:        .byte 0
-// sound_effect_index_game_loop:  .byte 0
 
 // sound effects table
 // indices:
