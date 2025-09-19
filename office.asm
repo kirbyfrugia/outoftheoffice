@@ -112,6 +112,7 @@ irq_dispatch:
   jmp irq_done // should never happen
 call_buffer:
   jsr irq_music
+  jsr upd_sound_effects
   lda frame_phase
   eor #%00000001
   sta frame_phase
@@ -518,7 +519,6 @@ every_frame:
   bne no_player_enemy_collisions
   jsr enemy_shakeoff
 no_player_enemy_collisions:
-  jsr upd_sound_effects
   jmp game_loop
 
 
@@ -648,24 +648,16 @@ initsound_clearsid:
   sta VOICE2_ENV_AD
   lda #melody_v2_sustain_release
   sta VOICE2_ENV_SR
-  // lda #melody_v3_attack_decay
-  // sta VOICE3_ENV_AD
-  // lda #melody_v3_sustain_release
-  // sta VOICE3_ENV_SR
 
   lda #0
   sta sound_effect_ready
   sta sound_effect_index
-  // sta sound_effect_new_irq
-  // sta sound_effect_new_game_loop
   sta melody_v1_index
   sta melody_v1_dur_left
   sta melody_v2_index
   sta melody_v2_dur_left
-  // sta melody_v3_index
-  // sta melody_v3_dur_left
-  sta current_sound_effect_sweep_freq_lo
-  sta current_sound_effect_sweep_freq_hi
+  sta current_sound_effect_sweep_adder_lo
+  sta current_sound_effect_sweep_adder_hi
   sta sound_started
   lda #melody_tempo
   sta melody_frames_until_16th
@@ -682,9 +674,10 @@ startsound:
   // lda #(melody_v3_end - melody_v3)
   // sta melody_v3_index
 
-  lda #1
+  lda #0
   sta current_sound_effect_ticks_left
   sta current_sound_effect_sweep_ticks_left
+  lda #1
   sta melody_v1_dur_left
   sta melody_v2_dur_left
   // sta melody_v3_dur_left
@@ -2296,6 +2289,9 @@ bresenham_majorx_minor_crossed_pixel:
   and #SCR_COLLISION_MASK_BOTTOM
   beq bresenham_majorx_test_top
   // hit head on bottom of something, stop movement
+  lda #1
+  sta sound_effect_index
+  sta sound_effect_ready
   lda #VV_ZERO
   sta p1vvi
   lda #0
@@ -2379,6 +2375,9 @@ bresenham_majory_major_crossed_pixel:
   and #SCR_COLLISION_MASK_BOTTOM
   beq bresenham_majory_test_top
   // hit head on bottom of something, stop movement
+  lda #1
+  sta sound_effect_index
+  sta sound_effect_ready
   lda #VV_ZERO
   sta p1vvi
   lda #0
@@ -3304,17 +3303,32 @@ updanim_index_done:
 updanim_done:
   rts
 
+clear_sound_effect:
+  // lda #0
+  // sta VOICE3_LF
+  // sta VOICE3_HF
+  // sta VOICE3_CONTROL
+  // sta VOICE3_ENV_AD
+  // sta VOICE3_ENV_SR
+
+  // done playing this sound effect
+  lda VOICE3_CONTROL
+  and #%11111110 // gate off
+  sta VOICE3_CONTROL
+
+  rts
+
 upd_sound_effects:
   lda sound_effect_ready
-  beq sound_effect_process
-  // if here, we're loading a new sound
+  bne sound_effect_new
 
-  // Reset the oscillator so we always start from the same pitch
-  lda VOICE3_CONTROL
-  ora #%00001000  // set test bit
-  sta VOICE3_CONTROL
-  and #%11110111  // clear test bit
-  sta VOICE3_CONTROL
+  ldx current_sound_effect_ticks_left
+  bne sound_effect_next_tick
+  jmp upd_sound_effectsd
+
+sound_effect_new:
+  jsr clear_sound_effect
+
 
   ldx sound_effect_index
 
@@ -3329,56 +3343,61 @@ upd_sound_effects:
   sta VOICE3_ENV_SR
 
   lda sound_effects_freq_lo, x
+  sta current_sound_effect_freq_lo
   sta VOICE3_LF
   lda sound_effects_freq_hi, x
+  sta current_sound_effect_freq_hi
   sta VOICE3_HF
 
-  lda sound_effects_waveform, x
+  // Reset the oscillator so we always start from the same pitch
+  lda VOICE3_CONTROL
+  ora #%00001000  // set test bit
+  sta VOICE3_CONTROL
+  and #%00000000  // clear test bit
+  sta VOICE3_CONTROL
+  ora sound_effects_waveform, x
   sta VOICE3_CONTROL
 
   lda sound_effects_num_ticks, x
   sta current_sound_effect_ticks_left
 
-  lda sound_effects_sweep_freq_lo, x
-  sta current_sound_effect_sweep_freq_lo
-
-  lda sound_effects_sweep_freq_hi, x
-  sta current_sound_effect_sweep_freq_hi
-
   lda sound_effects_sweep_num_ticks, x
   sta current_sound_effect_sweep_ticks_left
 
+  lda sound_effects_sweep_adder_lo, x
+  sta current_sound_effect_sweep_adder_lo
+
+  lda sound_effects_sweep_adder_hi, x
+  sta current_sound_effect_sweep_adder_hi
+
   lda #0
   sta sound_effect_ready
-  beq upd_sound_effectsd
-sound_effect_process:
-  dec current_sound_effect_ticks_left
-  bne sound_effect_sweep
-  // done playing this sound effect
-  lda VOICE3_CONTROL
-  and #%11111110 // gate off
-  sta VOICE3_CONTROL
 
-  // set duration to 1 intentionally, gets decremented even if no sound is playing
-  lda #1
+  jmp upd_sound_effectsd  // no sweep on first tick
+sound_effect_next_tick:
+  dex
+  stx current_sound_effect_ticks_left
+  beq sound_effect_done
+sound_effect_sweep:
+  ldx current_sound_effect_sweep_ticks_left
+  beq sound_effect_sweep_done
+  dex
+  stx current_sound_effect_sweep_ticks_left
+  // still sweeping
+  lda current_sound_effect_freq_lo
+  clc
+  adc current_sound_effect_sweep_adder_lo
+  sta VOICE3_LF
+  lda current_sound_effect_freq_hi
+  adc current_sound_effect_sweep_adder_hi
+  sta VOICE3_HF
+  jmp sound_effect_sweep_done
+sound_effect_done:
+  lda #0
   sta current_sound_effect_ticks_left
   sta current_sound_effect_sweep_ticks_left
-  bne upd_sound_effectsd
-sound_effect_sweep:
-  dec current_sound_effect_sweep_ticks_left
-  beq sound_effect_sweep_done
-  // still sweeping
-  lda VOICE3_LF
-  clc
-  adc current_sound_effect_sweep_freq_lo
-  sta VOICE3_LF
-  lda VOICE3_HF
-  adc current_sound_effect_sweep_freq_hi
-  sta VOICE3_HF
-  jmp upd_sound_effectsd
+  jsr clear_sound_effect
 sound_effect_sweep_done:
-  lda #1
-  sta current_sound_effect_sweep_ticks_left
 upd_sound_effectsd:
   rts
 
@@ -3471,9 +3490,11 @@ melody_v2_dur_left:            .byte 0
 // melody_v3_dur_left:            .byte 0
 melody_frames_until_16th:      .byte 0
 
+current_sound_effect_freq_lo:          .byte 0
+current_sound_effect_freq_hi:          .byte 0
 current_sound_effect_ticks_left:       .byte 0
-current_sound_effect_sweep_freq_lo:    .byte 0
-current_sound_effect_sweep_freq_hi:    .byte 0
+current_sound_effect_sweep_adder_lo:   .byte 0
+current_sound_effect_sweep_adder_hi:   .byte 0
 current_sound_effect_sweep_ticks_left: .byte 0
 
 sound_effect_ready:
@@ -3485,28 +3506,39 @@ sound_effect_index:
 // indices:
 //   0 - jump
 sound_effects_pulse_lo:
-  .byte $00
+  .byte $00, $00
 sound_effects_pulse_hi:
-  .byte $08
+  .byte $08, $05
 sound_effects_attack_decay:
-  .byte $16
+  .byte $15, $08
 sound_effects_sustain_release:
-  .byte $25
+  .byte $14, $03
 sound_effects_waveform:
-  .byte %01000001
+  .byte %01000001, %01000001
 sound_effects_freq_lo:
-  .byte $16
+  .byte $18, $00
 sound_effects_freq_hi:
-  .byte $01
+  .byte $0e, $07
 sound_effects_num_ticks:
-  .byte 20
-sound_effects_sweep_freq_lo:
-  .byte $10
-sound_effects_sweep_freq_hi:
-  .byte $00
+  .byte $14, $14
+sound_effects_sweep_adder_lo:
+  .byte $a0, $f4
+sound_effects_sweep_adder_hi:
+  .byte $01, $ff
 sound_effects_sweep_num_ticks:
-  .byte 20
+  .byte $0f, $0f
 
+// VICE testing:
+// Jump
+// > .sound_effects_pulse_lo $00 $08 $15 $14 $41 $18 $0e $10 $a0 $01 $0f *
+// > .sound_effects_pulse_lo $00 $08 $24 $06 $21 $00 $02 $14 $4c $00 $13
+// > .sound_effects_pulse_lo $00 $08 $24 $88 $41 $00 $03 $20 $10 $00 $1f
+// > .sound_effects_pulse_lo $00 $08 $25 $26 $41 $8f $0a $10 $a0 $00 $0f
+// > .sound_effects_pulse_lo $00 $08 $25 $26 $41 $c3 $10 $10 $a0 $00 $0f
+// > .sound_effects_pulse_lo $00 $08 $14 $14 $41 $18 $0e $10 $a0 $00 $0f
+// > .sound_effects_pulse_lo $00 $08 $14 $18 $41 $18 $0e $14 $f0 $03 $13
+
+//> .sound_effects_pulse_lo $00 $08 $15 $1f $41 $18 $0e $10 $a0 $00 $0f
 pending_buffer_swap:
   .byte 0
 
