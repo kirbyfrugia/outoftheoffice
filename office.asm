@@ -17,7 +17,7 @@
 .const HORIZ_ACCEL_FAST = 3   // faster acceleration when switching directions
 .const HORIZ_ACCEL_SLOW = 1   // slower acceleration, normal
 
-.const MAX_VV_UP        = 102  // vertical velocity when moving up at full speed
+.const MAX_VV_UP        = 97  // vertical velocity when moving up at full speed
 .const VV_ZERO          = 127 // vertical velocity when not moving
 .const MAX_VV_DOWN      = 145 // vertical velocity when moving down at full speed
 .const FALL_ACCEL       = 3   // acceleration rate when falling
@@ -474,25 +474,30 @@ game_loop:
   lda #0
   sta frame_tick
 
-game_loop_buffer:
-  lda pending_buffer_swap
-  bne game_loop_buffer
-
   jsr injs
 
   lda frame_phase
   bne odd_frame
-even_frame:
+even_frame:  
+  jsr updp1hv
+  jsr updp1vv
+  jsr updp1p
+  jmp every_frame
+
+
+odd_frame:
   lda #0
   sta SCR_buffer_ready
-  
+
+game_loop_buffer:
+  lda pending_buffer_swap
+  bne game_loop_buffer
+
   lda player_enemy_flag
   and #%10000000
   cmp #%10000000
   beq game_loop_skip_player_pos
-  jsr updp1hv
-  jsr updp1vv
-  jsr updp1p
+  jsr updp1p_sprite
   jmp game_loop_upd_enemies
 game_loop_skip_player_pos:
 game_loop_upd_enemies:
@@ -505,8 +510,6 @@ game_loop_upd_enemies:
   sta pending_color_lower_swap
 
   jsr update_max_raster_line
-  jmp every_frame
-odd_frame:
   jsr upd_enemies_buffer
   jsr updanim
   // jsr hud
@@ -2585,6 +2588,9 @@ updp1p_moving:
 updp1p_majoraxisx:
   jsr bresenham_majorx
 updp1p_positiond:
+  rts
+
+updp1p_sprite:
   // now let's update the player sprite
 
   // we're going to set p1lx, p1ly to the location relative
@@ -3568,3 +3574,8 @@ enemies_buffer_max_dist:  .byte 0,0
 sprite_collisions_detected: .byte 0
 
 num_collision_tests: .byte 0
+
+bresenham_crossed_boundary:       .byte 0
+bresenham_pixel_boundaries_count: .byte 0
+bresenham_pixel_boundariesx:      .fill 64,0
+bresenham_pixel_boundariesy:      .fill 64,0
