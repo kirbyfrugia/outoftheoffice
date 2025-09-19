@@ -10,12 +10,12 @@
 //   e.g. HV_ZERO-MAX_HV_LEFT must be less than 71. Should make it a lot less.
 // Note also: the faster we move, the more expensive collision detection will be.
 .const MAX_HV_LEFT      = 97  // max velocity going left
-.const HV_ZERO_LOWER    = 125 // anything between this and HV_ZERO is considered stopped
 .const HV_ZERO          = 127 // horizontal velocity when not moving
-.const HV_ZERO_UPPER    = 130 // anything between HV_ZERO and this considered stopped
 .const MAX_HV_RIGHT     = 157 // max velocity going right
 .const HORIZ_ACCEL_FAST = 3   // faster acceleration when switching directions
-.const HORIZ_ACCEL_SLOW = 1   // slower acceleration, normal
+.const HORIZ_ACCEL_SLOW = 2   // slower acceleration, normal
+.const HV_ZERO_LOWER    = HV_ZERO-HORIZ_ACCEL_FAST-1 // anything between this and HV_ZERO is considered stopped
+.const HV_ZERO_UPPER    = HV_ZERO+HORIZ_ACCEL_FAST+1 // anything between HV_ZERO and this considered stopped
 
 .const MAX_VV_UP        = 97  // vertical velocity when moving up at full speed
 .const VV_ZERO          = 127 // vertical velocity when not moving
@@ -372,9 +372,10 @@ init_enemies_buffer_updd:
   sta ebd
   sta ebp
 
+  lda #0
+  sta p1hva
   lda #HV_ZERO
   sta p1hvi
-  sta p1vvi
 
   lda #0
   sta p1vva
@@ -1502,7 +1503,7 @@ updp1hvd_nocap:
   sec
   sbc #HV_ZERO
   sta p1hva
-  lda #0
+  lda p1hva+1
   sbc #0
   sta p1hva+1
   rts
@@ -1551,16 +1552,12 @@ updp1vv_on_ground_no_jump:
   lda #MAX_VV_DOWN
   sta p1vvt
   bne updp1vtvd
-
-  // lda #VV_ZERO
-  // sta p1vvi
-  // jmp updp1vvd
 updp1vv_not_on_ground:
   // if not on the ground, target velocity is always max falling speed
   lda #MAX_VV_DOWN
   sta p1vvt
 updp1vtvd:
-  // if here, we're moving vertically
+  // target velocity calculated, calculate new actual
   lda p1vvi             // current velocity
   cmp p1vvt
   beq updp1vvd          // at target velocity already, no need to accelerate or decelerate
@@ -1580,13 +1577,14 @@ updp1vvd:
   lda p1vvi
   cmp #MAX_VV_DOWN
   bcc updp1vvd_nocap
+  beq updp1vvd_nocap
   lda #MAX_VV_DOWN
   sta p1vvi        
 updp1vvd_nocap:
   sec
   sbc #VV_ZERO
   sta p1vva
-  lda #0
+  lda p1vva+1
   sbc #0
   sta p1vva+1
   rts
@@ -1895,8 +1893,11 @@ test_moving_left_down:
   // let's make sure they aren't below the bottom of the level
   lda p1gy_coll
   cmp maxp1gy_px
+  bcc test_moving_left_down_not_below
+  beq test_moving_left_down_not_below
   lda #1
-  bcs test_moving_left_down_collision
+  jmp test_moving_right_down_collision
+test_moving_left_down_not_below:
 
   // test the left and bottom edges of the player collision rect
 
@@ -2051,12 +2052,14 @@ test_moving_right_down:
   bcc test_moving_right_down_in_bounds
   bne test_moving_right_down_collision
 test_moving_right_down_in_bounds:
-
   // let's make sure they aren't below the bottom of the level
   lda p1gy_coll
   cmp maxp1gy_px
+  bcc test_moving_right_down_not_below
+  beq test_moving_right_down_not_below
   lda #1
   bcs test_moving_right_down_collision
+test_moving_right_down_not_below:
 
   // test the right and bottom edges of the player collision rect
 
@@ -2133,8 +2136,11 @@ test_moving_down:
   // let's make sure they aren't below the bottom of the level
   lda p1gy_coll
   cmp maxp1gy_px
+  bcc test_moving_down_not_below
+  beq test_moving_down_not_below
   lda #1
-  bcs test_moving_down_collision
+  bcs test_moving_right_down_collision
+test_moving_down_not_below:
 
   // test the bottom edge of the player collision rect
   // x0, y3

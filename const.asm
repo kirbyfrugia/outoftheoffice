@@ -9,8 +9,8 @@
 
 .const p1width         = 14
 .const p1height        = 20
-.const P1_STARTX       = 105
-// .const P1_STARTX       = 8
+// .const P1_STARTX       = 105
+.const P1_STARTX       = 8
 .const P1_STARTY       = 140
 .const P1_COLLISION_X0 = 0
 .const P1_COLLISION_X1 = 8
