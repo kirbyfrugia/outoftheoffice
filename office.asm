@@ -19,7 +19,7 @@
 
 .const MAX_VV_UP        = 97  // vertical velocity when moving up at full speed
 .const VV_ZERO          = 127 // vertical velocity when not moving
-.const MAX_VV_DOWN      = 145 // vertical velocity when moving down at full speed
+.const MAX_VV_DOWN      = 157 // vertical velocity when moving down at full speed
 .const FALL_ACCEL       = 3   // acceleration rate when falling
 .const RISE_ACCEL       = 2   // acceleration rate when rising
 
@@ -109,11 +109,6 @@ irq_dispatch:
   beq call_hud_done
   cmp #RASTER_BUFFER_SWAP
   beq call_buffer
-  // cmp #RASTER_COLOR_LOWER
-  // beq call_color_lower
-  // cmp #RASTER_MUSIC
-  // beq call_music
-
   jmp irq_done // should never happen
 call_buffer:
   jsr irq_music
@@ -125,20 +120,12 @@ call_buffer:
   jsr irq_color_upper_shift
   jsr irq_color_lower_shift
 call_buffer_next_frame:
-  // jsr update_max_raster_line
   lda #RASTER_HUD
   sta next_irq
   sta VIC_RW_RASTER
   lda #1
   sta frame_tick
   jmp irq_done
-// call_color_lower:
-//   // jsr irq_color_lower_shift
-//   // jsr update_max_raster_line
-//   lda #RASTER_HUD
-//   sta next_irq
-//   sta VIC_RW_RASTER
-//   jmp irq_done
 call_hud:
   lda VIC_HCONTROL_REG
   and #%11010000 // set no scroll
@@ -465,7 +452,7 @@ init_enemies_buffer_updd:
   jsr SCR_draw_screen
   jsr startsound
 
-  // jsr init_hud
+  jsr init_hud
   jsr initirq
 
 game_loop:
@@ -478,31 +465,41 @@ game_loop:
 
   lda frame_phase
   bne odd_frame
-even_frame:  
-  jsr updp1hv
-  jsr updp1vv
-  jsr updp1p
-  jmp every_frame
-
-
-odd_frame:
-  lda #0
-  sta SCR_buffer_ready
-
-game_loop_buffer:
-  lda pending_buffer_swap
-  bne game_loop_buffer
-
+even_frame:
+  // if an enemy is attacking, don't move the player
   lda player_enemy_flag
   and #%10000000
   cmp #%10000000
-  beq game_loop_skip_player_pos
-  jsr updp1p_sprite
-  jmp game_loop_upd_enemies
-game_loop_skip_player_pos:
-game_loop_upd_enemies:
+  beq skip_player_pos
+
+  // collision detection is really expensive, so we do all the positioning
+  // on the even frame and all the screen updates on the odd.
+  jsr updp1hv
+  jsr updp1vv
+  jsr updp1p
+skip_player_pos:
   jsr upd_enemies_pos
+  jmp every_frame
+
+odd_frame:
+  // we only update the back buffer after we try to move
+  // the player sprite
+  lda #0
+  sta SCR_buffer_ready
+
+// wait until the buffer has been swapped from last time
+// in case it hasn't yet, just in case.
+buffer_wait:
+  lda pending_buffer_swap
+  bne buffer_wait
+
+  // if here, any screen buffer updates from previous frame
+  // have completed.
+  jsr updp1p_sprite
   jsr upd_enemies_sprites
+  jsr upd_enemies_buffer
+  jsr updanim
+  jsr hud
 
   lda SCR_buffer_ready
   sta pending_buffer_swap
@@ -510,18 +507,16 @@ game_loop_upd_enemies:
   sta pending_color_lower_swap
 
   jsr update_max_raster_line
-  jsr upd_enemies_buffer
-  jsr updanim
-  jsr hud
+
   // jsr log
 every_frame:
-  // jsr enemy_collisions
+  jsr enemy_collisions
   lda player_enemy_flag
   and #%10000000
   cmp #%10000000
-  bne game_loop_no_collisions
+  bne no_player_enemy_collisions
   jsr enemy_shakeoff
-game_loop_no_collisions:
+no_player_enemy_collisions:
   jsr upd_sound_effects
   jmp game_loop
 
