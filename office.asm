@@ -8,18 +8,19 @@
 // Note: max velocities can't be super large. Need to be less than 8 pixels
 //   of movement per frame. Which would be a velocity of 71 (subpixels are included)
 //   e.g. HV_ZERO-MAX_HV_LEFT must be less than 71. Should make it a lot less.
+// Note also: the faster we move, the more expensive collision detection will be.
 .const MAX_HV_LEFT      = 97  // max velocity going left
 .const HV_ZERO_LOWER    = 125 // anything between this and HV_ZERO is considered stopped
 .const HV_ZERO          = 127 // horizontal velocity when not moving
 .const HV_ZERO_UPPER    = 130 // anything between HV_ZERO and this considered stopped
 .const MAX_HV_RIGHT     = 157 // max velocity going right
-.const HORIZ_ACCEL_FAST = 4   // faster acceleration when switching directions
+.const HORIZ_ACCEL_FAST = 3   // faster acceleration when switching directions
 .const HORIZ_ACCEL_SLOW = 1   // slower acceleration, normal
 
-.const MAX_VV_UP        = 97  // vertical velocity when moving up at full speed
+.const MAX_VV_UP        = 102  // vertical velocity when moving up at full speed
 .const VV_ZERO          = 127 // vertical velocity when not moving
-.const MAX_VV_DOWN      = 157 // vertical velocity when moving down at full speed
-.const FALL_ACCEL       = 4   // acceleration rate when falling
+.const MAX_VV_DOWN      = 145 // vertical velocity when moving down at full speed
+.const FALL_ACCEL       = 3   // acceleration rate when falling
 .const RISE_ACCEL       = 2   // acceleration rate when rising
 
 .disk [filename="office.d64", name="OFFICE", id="O1" ] {
@@ -506,7 +507,10 @@ game_loop_upd_enemies:
   jsr update_max_raster_line
   jmp every_frame
 odd_frame:
+  jsr upd_enemies_buffer
   jsr updanim
+  // jsr hud
+  jsr log
 every_frame:
   // jsr enemy_collisions
   lda player_enemy_flag
@@ -515,10 +519,7 @@ every_frame:
   bne game_loop_no_collisions
   jsr enemy_shakeoff
 game_loop_no_collisions:
-  // jsr hud
-  jsr log
   jsr upd_sound_effects
-  jsr upd_enemies_buffer
   jmp game_loop
 
 
@@ -849,6 +850,13 @@ loadmap:
   rol maxp1gx+1
   rol maxp1gx
   rol maxp1gx+1
+
+  // grab the pixel value here
+  lda maxp1gx
+  sta maxp1gx_px
+  lda maxp1gx+1
+  sta maxp1gx_px+1
+
   rol maxp1gx
   rol maxp1gx+1
   rol maxp1gx
@@ -1139,6 +1147,11 @@ log_posy:
   iny
   iny
   lda on_ground
+  jsr loghexit
+
+  iny
+  iny
+  lda num_collision_tests
   jsr loghexit
 
   rts
@@ -1553,7 +1566,7 @@ updp1vtvd:
   lda p1vvi             // current velocity
   cmp p1vvt
   beq updp1vvd          // at target velocity already, no need to accelerate or decelerate
-  cmp #VV_ZERO           // this is the peak of the jump
+  cmp #VV_ZERO          // this is the peak of the jump
   bcc udp1vrising       // not yet at peak of jump, so still rising
   // if here, we're at or above the peak of the jump, so we're falling
   clc
@@ -1788,6 +1801,11 @@ collision_mask_test8:
   jmp test_player_collisionsd
 
 test_moving_left:
+  // test if to left of level
+  lda p1gx_coll+1
+  and #%00010000 // would have had a negative position prior to rotating out fractional
+  bne test_moving_left_collision
+
   // test the left edge of the player collision rect
   // x0, y0
   lda #P1_COLLISION_X0
@@ -1817,6 +1835,16 @@ test_moving_left_collision:
   jmp test_player_collisionsd
 
 test_moving_left_up:
+  // test if to left of level
+  lda p1gx_coll+1
+  and #%00010000 // would have had a negative position prior to rotating out fractional
+  bne test_moving_left_up_collision
+
+  // test if above of level
+  lda p1gy_coll+1
+  and #%00010000 // would have had a negative position prior to rotating out fractional
+  bne test_moving_left_up_collision
+
   // test the left and top edges of the player collision rect
 
   // left edge first
@@ -1861,6 +1889,11 @@ test_moving_left_up_collision:
   jmp test_player_collisionsd
 
 test_moving_left_down:
+  // test if to left of level
+  lda p1gx_coll+1
+  and #%00010000 // would have had a negative position prior to rotating out fractional
+  bne test_moving_left_down_collision
+
   // let's make sure they aren't below the bottom of the level
   lda p1gy_coll
   cmp maxp1gy_px
@@ -1911,6 +1944,16 @@ test_moving_left_down_collision:
   jmp test_player_collisionsd
 
 test_moving_right:
+  lda p1gx_coll+1
+  cmp maxp1gx_px+1
+  bcc test_moving_right_in_bounds
+  bne test_moving_right_collision
+
+  lda p1gx_coll
+  cmp maxp1gx_px
+  bcc test_moving_right_in_bounds
+  bne test_moving_right_collision
+test_moving_right_in_bounds:
   // test the right edge of the player collision rect
   // x2, y0
   lda #P1_COLLISION_X2
@@ -1940,6 +1983,22 @@ test_moving_right_collision:
   jmp test_player_collisionsd
 
 test_moving_right_up:
+  lda p1gx_coll+1
+  cmp maxp1gx_px+1
+  bcc test_moving_right_up_in_bounds
+  bne test_moving_right_up_collision
+
+  lda p1gx_coll
+  cmp maxp1gx_px
+  bcc test_moving_right_up_in_bounds
+  bne test_moving_right_up_collision
+test_moving_right_up_in_bounds:
+
+  // test if above of level
+  lda p1gy_coll+1
+  and #%00010000 // would have had a negative position prior to rotating out fractional
+  bne test_moving_right_up_collision
+
   // test the right and top edges of the player collision rect
 
   // first right edge
@@ -1984,6 +2043,17 @@ test_moving_right_up_collision:
   jmp test_player_collisionsd
 
 test_moving_right_down:
+  lda p1gx_coll+1
+  cmp maxp1gx_px+1
+  bcc test_moving_right_down_in_bounds
+  bne test_moving_right_down_collision
+
+  lda p1gx_coll
+  cmp maxp1gx_px
+  bcc test_moving_right_down_in_bounds
+  bne test_moving_right_down_collision
+test_moving_right_down_in_bounds:
+
   // let's make sure they aren't below the bottom of the level
   lda p1gy_coll
   cmp maxp1gy_px
@@ -2034,6 +2104,11 @@ test_moving_right_down_collision:
   jmp test_player_collisionsd
 
 test_moving_up:
+  // test if above of level
+  lda p1gy_coll+1
+  and #%00010000 // would have had a negative position prior to rotating out fractional
+  bne test_moving_up_collision
+
   // test the top edge of the player collision rect
   // x0, y0
   lda #P1_COLLISION_X0
@@ -3381,6 +3456,7 @@ ebp:       .byte 0
 
 maxp1gx:    .byte 0,0
 maxp1gy:    .byte 0,0
+maxp1gx_px: .byte 0,0
 maxp1gy_px: .byte 0,0
 
 // TODO: move to zero page
