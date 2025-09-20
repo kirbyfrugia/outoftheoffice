@@ -4,6 +4,8 @@
 .const ENEMY_NUM_SHAKEOFF_TAPS    = 4
 .const ENEMY_NUM_SHAKEOFF_RELEASE = 4
 
+.const ENEMY_KILLBOX_HEIGHT       = 2
+
 // Enemy types
 // 0 - mouse
 
@@ -17,3 +19,15 @@ enemies_animations_left:
 // stores the offset of the first animation frame
 enemies_animations_right:
   .byte 0
+
+enemies_killbox_offsetx:
+  .byte 2
+
+enemies_killbox_width:
+  .byte 14
+
+enemies_killbox_offsety:
+  .byte 3
+
+enemies_killbox_height:
+  .byte 2

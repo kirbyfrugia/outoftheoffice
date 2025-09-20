@@ -20,6 +20,12 @@
 .const P1_COLLISION_Y1 = 8
 .const P1_COLLISION_Y2 = 16
 .const P1_COLLISION_Y3 = 19
+
+.const P1_COLLISION_FEET_OFFSETX = 2
+.const P1_COLLISION_FEET_WIDTH   = 11
+.const P1_COLLISION_FEET_OFFSETY = 18
+.const P1_COLLISION_FEET_HEIGHT  = 3
+
 // how many screen chars might be collidable with p1
 .const p1spanwidth  = 3
 .const p1spanheight = 4

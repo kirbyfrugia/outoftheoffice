@@ -505,7 +505,7 @@ buffer_wait:
   jsr upd_enemies_sprites
   jsr upd_enemies_buffer
   jsr updanim
-  jsr hud
+  // jsr hud
 
   lda SCR_buffer_ready
   sta pending_buffer_swap
@@ -514,9 +514,10 @@ buffer_wait:
 
   jsr update_max_raster_line
 
-  // jsr log
+  jsr log
 every_frame:
-  jsr enemy_collisions
+  // jsr enemy_collisions
+  jsr enemy_collisions_kill
   lda player_enemy_flag
   and #%10000000
   cmp #%10000000
@@ -1146,11 +1147,6 @@ log_posy:
   lda on_ground
   jsr loghexit
 
-  iny
-  iny
-  lda num_collision_tests
-  jsr loghexit
-
   rts
 
 // log_collision:
@@ -1265,17 +1261,7 @@ log_enemies:
 
   iny
   iny
-  lda zpb4
-  jsr loghexit
-  iny
-  lda zpb5
-  jsr loghexit
-  iny
-  iny
-  lda zpb6
-  jsr loghexit
-  iny
-  lda zpb7
+  lda enemy_collided_temp
   jsr loghexit
 
   rts
@@ -1298,8 +1284,8 @@ log_line1:
   ldy #1
   // jsr log_screen
   // jsr log_posx
-  jsr log_posy
-  // jsr log_enemies
+  // jsr log_posy
+  jsr log_enemies
   // jsr log_screen
   // jsr log_melody
 
@@ -2198,7 +2184,6 @@ bresenham_majorx:
   sta collision_error_counter
   sta collision_detected_major
   sta collision_detected_minor
-  sta num_collision_tests
   ldx collision_subpixelsx
   stx tmp0
 bresenham_majorx_major_loop:
@@ -2231,7 +2216,6 @@ bresenham_majorx_major_crossed_pixel:
   sta p1gy_coll+1
 
   // test for collisions
-  inc num_collision_tests
   jsr test_player_collisions
   // A should be zero if there was a collision after the test, nonzero otherwise
   beq bresenham_majorx_major_no_collisions
@@ -2288,7 +2272,6 @@ bresenham_majorx_minor_crossed_pixel:
   lda p1gx+1
   sta p1gx_coll+1
 
-  inc num_collision_tests
   // test for collisions
   jsr test_player_collisions
   // A should be zero if there was a collision after the test, nonzero otherwise
@@ -2342,7 +2325,6 @@ bresenham_majory:
   sta collision_error_counter
   sta collision_detected_major
   sta collision_detected_minor
-  sta num_collision_tests
   ldx collision_subpixelsy
   stx tmp0
 bresenham_majory_major_loop:
@@ -2375,7 +2357,6 @@ bresenham_majory_major_crossed_pixel:
   sta p1gx_coll+1
 
   // test for collisions
-  inc num_collision_tests
   jsr test_player_collisions
   // A should be zero if there was a collision after the test, nonzero otherwise
   beq bresenham_majory_major_no_collisions
@@ -2455,7 +2436,6 @@ bresenham_majory_minor_crossed_pixel:
   lda p1gy+1
   sta p1gy_coll+1
 
-  inc num_collision_tests
   // test for collisions
   jsr test_player_collisions
   // A should be zero if there was a collision after the test, nonzero otherwise
@@ -3109,6 +3089,151 @@ no_shake:
 enemy_shakeoffd:
   rts
 
+
+enemy_collisions_kill:
+  lda SPRITE_COLLISION
+  sta sprite_collisions_detected // store since reading clears the collision detect
+  beq enemy_collisions_kill_no_sprite_collision // no collisions
+  and #%00000001
+  bne enemy_collisions_kill_collision // player not in collision
+enemy_collisions_kill_no_sprite_collision:
+  jmp enemy_not_collided
+
+enemy_collisions_kill_collision:
+  ldx enemies_buffer_min
+enemies_collisions_kill_loop:
+  lda enemies_sprite_slots, x
+  and sprite_collisions_detected
+  bne enemies_collisions_kill_loop_found
+  inx
+  cpx enemies_buffer_max
+  bne enemies_collisions_kill_loop
+  jmp enemy_not_collided
+enemies_collisions_kill_loop_found:
+  // first compare right side of player to left side of enemy
+  lda p1gx
+  sta zpb0
+  lda p1gx+1
+  sta zpb1
+
+  lsr zpb1
+  ror zpb0
+  lsr zpb1
+  ror zpb0
+  lsr zpb1
+  ror zpb0
+
+  lda zpb0
+  clc
+  adc #P1_COLLISION_FEET_OFFSETX
+  adc #P1_COLLISION_FEET_WIDTH
+  sta zpb0
+  lda zpb1
+  adc #0
+  sta zpb1
+
+  ldy enemies_type, x
+  lda enemies_posx_lo, x
+  clc
+  adc enemies_killbox_offsetx, y
+  sta zpb2
+  lda enemies_posx_hi, x
+  adc #0
+  sta zpb3
+
+  lda zpb1
+  cmp zpb3
+  bcc enemy_not_collided
+  lda zpb0
+  cmp zpb2
+  bcc enemy_not_collided
+
+  // now compare left side of player to right side of enemy
+  lda zpb0
+  sec
+  sbc #P1_COLLISION_FEET_WIDTH
+  sta zpb0
+  lda zpb1
+  sbc #0
+  sta zpb1
+
+  lda zpb2
+  clc
+  adc enemies_killbox_width, y
+  sta zpb2
+  lda zpb3
+  adc #0
+  sta zpb3
+
+  lda zpb3
+  cmp zpb1
+  bcc enemy_not_collided
+  lda zpb2
+  cmp zpb0
+  bcc enemy_not_collided
+
+  // TODO: we rotate for subpixels so often, do it elsewhere and store
+
+  // now compare the bottom of the player's feet to the top of the enemy
+  lda p1gy
+  sta zpb0
+  lda p1gy+1
+  sta zpb1
+
+  lsr zpb1
+  ror zpb0
+  lsr zpb1
+  ror zpb0
+  lsr zpb1
+  ror zpb0
+
+  lda zpb0
+  clc
+  adc #P1_COLLISION_FEET_OFFSETY
+  adc #P1_COLLISION_FEET_HEIGHT
+  sta zpb0    
+
+  lda enemies_posy, x
+  clc
+  adc enemies_killbox_offsety, y
+  sta zpb2
+
+  lda zpb0
+  cmp zpb2
+  bcc enemy_not_collided
+
+  // now compare the top of the player's feet to the bottom of the enemy
+
+  lda zpb0
+  sec
+  sbc #P1_COLLISION_FEET_HEIGHT
+  sta zpb0
+
+  lda zpb2
+  clc
+  adc enemies_killbox_height, y
+  sta zpb2
+
+  lda zpb2
+  cmp zpb0
+  bcc enemy_not_collided
+
+  lda #1
+  sta enemy_collided_temp
+  bne enemy_collisions_done
+
+  // lda enemies_flags, x
+  // ora #%01000000
+  // sta enemies_flags, x
+  // stx collided_enemy_index
+
+enemies_collisions_kill_loop_die:
+enemy_not_collided:
+  lda #0
+  sta enemy_collided_temp
+enemy_collisions_done:
+  rts
+
 enemy_collisions:
   lda player_enemy_flag
   and #%10000000
@@ -3591,9 +3716,9 @@ enemies_buffer_size:      .byte 0
 enemies_buffer_min_dist:  .byte 0,0
 enemies_buffer_max_dist:  .byte 0,0
 
-sprite_collisions_detected: .byte 0
+enemy_collided_temp:      .byte 0
 
-num_collision_tests: .byte 0
+sprite_collisions_detected: .byte 0
 
 bresenham_crossed_boundary:       .byte 0
 bresenham_pixel_boundaries_count: .byte 0
