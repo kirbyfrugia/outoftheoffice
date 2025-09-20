@@ -13,6 +13,7 @@
 .const P1_STARTX       = 8
 .const P1_STARTY       = 140
 
+// collision rect for world
 .const P1_COLLISION_X0 = 2
 .const P1_COLLISION_X1 = 7
 .const P1_COLLISION_X2 = 11
@@ -21,10 +22,11 @@
 .const P1_COLLISION_Y2 = 16
 .const P1_COLLISION_Y3 = 19
 
-.const P1_COLLISION_FEET_OFFSETX = 2
-.const P1_COLLISION_FEET_WIDTH   = 11
-.const P1_COLLISION_FEET_OFFSETY = 18
-.const P1_COLLISION_FEET_HEIGHT  = 3
+// collision rect for enemies
+.const P1_COLLISION_OFFSETX = P1_COLLISION_X0
+.const P1_COLLISION_WIDTH   = (P1_COLLISION_X2-P1_COLLISION_X0+1)
+.const P1_COLLISION_OFFSETY = P1_COLLISION_Y0
+.const P1_COLLISION_HEIGHT  = (P1_COLLISION_Y3-P1_COLLISION_Y0+1)
 
 // how many screen chars might be collidable with p1
 .const p1spanwidth  = 3

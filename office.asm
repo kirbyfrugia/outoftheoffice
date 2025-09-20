@@ -472,18 +472,11 @@ game_loop:
   lda frame_phase
   bne odd_frame
 even_frame:
-  // if an enemy is attacking, don't move the player
-  lda player_enemy_flag
-  and #%10000000
-  cmp #%10000000
-  beq skip_player_pos
-
   // collision detection is really expensive, so we do all the positioning
   // on the even frame and all the screen updates on the odd.
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
-skip_player_pos:
   jsr upd_enemies_pos
   jmp every_frame
 
@@ -499,13 +492,24 @@ buffer_wait:
   lda pending_buffer_swap
   bne buffer_wait
 
+  // grab old player sprite position before updating to a new position
+  lda p1sx
+  sta p1sx_old
+  lda p1sx+1
+  sta p1sx_old+1
+  lda p1sy
+  sta p1sy_old
+  lda p1sy+1
+  sta p1sy_old+1
+
   // if here, any screen buffer updates from previous frame
   // have completed.
   jsr updp1p_sprite
-  jsr upd_enemies_sprites
   jsr upd_enemies_buffer
+  jsr upd_enemies_sprites
+  jsr enemy_collisions_kill
   jsr updanim
-  // jsr hud
+  jsr hud
 
   lda SCR_buffer_ready
   sta pending_buffer_swap
@@ -513,11 +517,8 @@ buffer_wait:
   sta pending_color_lower_swap
 
   jsr update_max_raster_line
-
   jsr log
 every_frame:
-  // jsr enemy_collisions
-  jsr enemy_collisions_kill
   lda player_enemy_flag
   and #%10000000
   cmp #%10000000
@@ -1253,15 +1254,39 @@ log_enemies:
 
   iny
   iny
-  lda p1gx_pixels+1
+  lda p1sx_old+1
   jsr loghexit
   iny
-  lda p1gx_pixels
+  lda p1sx_old
+  clc
+  adc #P1_COLLISION_OFFSETY
+  adc #P1_COLLISION_HEIGHT
+  jsr loghexit
+
+  iny
+  iny
+  lda p1sx+1
+  jsr loghexit
+  iny
+  lda p1sx
+  clc
+  adc #P1_COLLISION_OFFSETY
+  adc #P1_COLLISION_HEIGHT
   jsr loghexit
 
   iny
   iny
   lda enemy_collided_temp
+  jsr loghexit
+
+  iny
+  iny
+  lda enemy_kills
+  jsr loghexit
+
+  iny
+  iny
+  lda player_deaths
   jsr loghexit
 
   rts
@@ -1285,7 +1310,7 @@ log_line1:
   // jsr log_screen
   // jsr log_posx
   // jsr log_posy
-  jsr log_enemies
+  // jsr log_enemies
   // jsr log_screen
   // jsr log_melody
 
@@ -1352,7 +1377,7 @@ log_line3:
 //   p1gx         - global xpos, including fractional portion
 //   p1gx_pixels  - global xpos, excluding fractional portion
 //   p1lx         - global xpos, minus fractional portion
-//   p1sx         - sprite xpos, pixel coordinates
+//   p1sx         - sprite xpos, pixel coordinates, includes border
 //   p1vvi        - vert vel,indexed
 //   p1vva        - vert vel,actual
 //   p1gy         - global ypos
@@ -2979,12 +3004,18 @@ enemy_y:
   adc #50
   sta SPRITE_YPOS_BASE, y
 enemy_enable_sprite:
+  lda enemies_flags, x
+  ora #%00000001 // mark onscreen
+  sta enemies_flags, x
   // enable the sprite
   lda enemies_sprite_slots, x
   ora SPRITE_ENABLE
   sta SPRITE_ENABLE
   jmp upd_enemies_sprites_next_enemy
 enemy_offscreen:
+  lda enemies_flags, x
+  and #%11111110 // mark offscreen
+  sta enemies_flags, x
   // disable the sprite
   lda enemies_sprite_slots, x
   eor #%11111111 // invert
@@ -3089,69 +3120,76 @@ no_shake:
 enemy_shakeoffd:
   rts
 
-
+.const current_enemy_xpos_lo = zpb5
+.const current_enemy_xpos_hi = zpb6
+.const current_enemy_ypos_lo = zpb7
+// TODO: for finding the enemy, check if it's dead.
 enemy_collisions_kill:
-  lda SPRITE_COLLISION
-  sta sprite_collisions_detected // store since reading clears the collision detect
-  beq enemy_collisions_kill_no_sprite_collision // no collisions
-  and #%00000001
-  bne enemy_collisions_kill_collision // player not in collision
-enemy_collisions_kill_no_sprite_collision:
-  jmp enemy_not_collided
-
-enemy_collisions_kill_collision:
   ldx enemies_buffer_min
 enemies_collisions_kill_loop:
-  lda enemies_sprite_slots, x
-  and sprite_collisions_detected
-  bne enemies_collisions_kill_loop_found
-  inx
-  cpx enemies_buffer_max
-  bne enemies_collisions_kill_loop
-  jmp enemy_not_collided
-enemies_collisions_kill_loop_found:
-  // first compare right side of player to left side of enemy
-  lda p1gx
-  sta zpb0
-  lda p1gx+1
+  lda enemies_flags, x
+  and #%00000001
+  bne enemy_test_collision
+  jmp enemies_collisions_kill_loop_next
+enemy_test_collision:
+  // this enemy is onscreen, let's test for a collision
+  // get the enemy sprite info
+  ldy enemies_sprite_pos_offset, x
+  lda SPRITE_XPOS_BASE, y
+  sta current_enemy_xpos_lo
+  lda SPRITE_YPOS_BASE, y
+  sta current_enemy_ypos_lo
+
+  lda SPRITE_MSB
+  and enemies_sprite_slots, x
+  bne enemy_msb_set
+  lda #0
+  sta current_enemy_xpos_hi
+  beq enemy_loaded
+enemy_msb_set:
+  lda #1
+  sta current_enemy_xpos_hi
+enemy_loaded:
+  ldy enemies_type, x
+
+  // test to see if the player's collision rect collides with enemy's
+test_left_of_enemy:
+  // first compare right side of player with left of enemy
+  lda p1sx+1
   sta zpb1
-
-  lsr zpb1
-  ror zpb0
-  lsr zpb1
-  ror zpb0
-  lsr zpb1
-  ror zpb0
-
-  lda zpb0
+  lda p1sx
+  sta zpb0
   clc
-  adc #P1_COLLISION_FEET_OFFSETX
-  adc #P1_COLLISION_FEET_WIDTH
+  adc #P1_COLLISION_OFFSETX
+  adc #P1_COLLISION_WIDTH
   sta zpb0
   lda zpb1
   adc #0
   sta zpb1
 
-  ldy enemies_type, x
-  lda enemies_posx_lo, x
+  lda current_enemy_xpos_lo
   clc
-  adc enemies_killbox_offsetx, y
+  adc enemies_collision_offsetx, y
   sta zpb2
-  lda enemies_posx_hi, x
+  lda current_enemy_xpos_hi
   adc #0
   sta zpb3
 
   lda zpb1
   cmp zpb3
-  bcc enemy_not_collided
+  bcc player_left_of_enemy
   lda zpb0
   cmp zpb2
-  bcc enemy_not_collided
+  bcc player_left_of_enemy
+  bcs test_right_of_enemy
+player_left_of_enemy:
+  jmp enemies_collisions_kill_loop_next
 
+test_right_of_enemy:
   // now compare left side of player to right side of enemy
   lda zpb0
   sec
-  sbc #P1_COLLISION_FEET_WIDTH
+  sbc #P1_COLLISION_WIDTH
   sta zpb0
   lda zpb1
   sbc #0
@@ -3159,7 +3197,7 @@ enemies_collisions_kill_loop_found:
 
   lda zpb2
   clc
-  adc enemies_killbox_width, y
+  adc enemies_collision_width, y
   sta zpb2
   lda zpb3
   adc #0
@@ -3167,71 +3205,101 @@ enemies_collisions_kill_loop_found:
 
   lda zpb3
   cmp zpb1
-  bcc enemy_not_collided
+  bcc player_right_of_enemy
   lda zpb2
   cmp zpb0
-  bcc enemy_not_collided
-
-  // TODO: we rotate for subpixels so often, do it elsewhere and store
-
-  // now compare the bottom of the player's feet to the top of the enemy
-  lda p1gy
+  bcc player_right_of_enemy
+  bcs test_above_enemy
+player_right_of_enemy:
+  jmp enemies_collisions_kill_loop_next
+test_above_enemy:
+  // now compare the bottom of the player's collision rect to the top of the enemy
+  lda p1sy
   sta zpb0
-  lda p1gy+1
-  sta zpb1
-
-  lsr zpb1
-  ror zpb0
-  lsr zpb1
-  ror zpb0
-  lsr zpb1
-  ror zpb0
-
-  lda zpb0
   clc
-  adc #P1_COLLISION_FEET_OFFSETY
-  adc #P1_COLLISION_FEET_HEIGHT
+  adc #P1_COLLISION_OFFSETY
+  adc #P1_COLLISION_HEIGHT
   sta zpb0    
 
-  lda enemies_posy, x
+  lda current_enemy_ypos_lo
   clc
-  adc enemies_killbox_offsety, y
+  adc enemies_collision_offsety, y
   sta zpb2
 
   lda zpb0
   cmp zpb2
-  bcc enemy_not_collided
+  bcc player_above_enemy
+  bcs test_below_enemy
+player_above_enemy:
+  jmp enemies_collisions_kill_loop_next
 
-  // now compare the top of the player's feet to the bottom of the enemy
-
+test_below_enemy:
+  // now compare the top of the player's collision rect to the bottom of the enemy
   lda zpb0
   sec
-  sbc #P1_COLLISION_FEET_HEIGHT
+  sbc #P1_COLLISION_HEIGHT
   sta zpb0
 
   lda zpb2
   clc
-  adc enemies_killbox_height, y
+  adc enemies_collision_height, y
   sta zpb2
 
   lda zpb2
   cmp zpb0
-  bcc enemy_not_collided
+  bcc player_below_enemy
+  bcs test_stomp_enemy
+player_below_enemy:
+  jmp enemies_collisions_kill_loop_next
 
-  lda #1
-  sta enemy_collided_temp
-  bne enemy_collisions_done
+test_stomp_enemy:
+  // if here, there's a collision with this enemy
+  inc enemy_collided_temp
 
-  // lda enemies_flags, x
-  // ora #%01000000
-  // sta enemies_flags, x
-  // stx collided_enemy_index
+  // check if we landed on the top of the enemy
+  lda p1sy_old
+  clc
+  adc #P1_COLLISION_OFFSETY
+  adc #P1_COLLISION_HEIGHT
+  sta zpb0
 
-enemies_collisions_kill_loop_die:
-enemy_not_collided:
-  lda #0
-  sta enemy_collided_temp
-enemy_collisions_done:
+  lda current_enemy_ypos_lo
+  clc
+  adc enemies_collision_offsety, y
+  sta zpb2
+  cmp zpb0
+  bcc player_killed // player was below enemy on last frame, didn't stomp  
+
+  lda p1sy
+  clc
+  adc #P1_COLLISION_OFFSETY
+  adc #P1_COLLISION_HEIGHT
+  sta zpb0
+
+  cmp zpb2
+  bcs enemy_killed // after new move, player at or below top of enemy
+player_killed:
+  inc player_deaths
+  jmp enemy_collisions_kill_done
+enemy_killed:
+  inc enemy_kills
+
+  // Disable the attacking enemy and hide it.
+  lda enemies_flags, x
+  ora #%00100000    // mark enemy as dead
+  sta enemies_flags, x
+
+  // Disable the sprite
+  lda enemies_sprite_slots, x
+  eor #%11111111 // invert
+  and SPRITE_ENABLE
+  sta SPRITE_ENABLE
+enemies_collisions_kill_loop_next:
+  inx
+  cpx enemies_buffer_max
+  beq enemy_collisions_kill_done
+  jmp enemies_collisions_kill_loop
+enemy_collisions_kill_done:
   rts
 
 enemy_collisions:
@@ -3574,7 +3642,6 @@ p1gx_pixels: .byte 0,0
 p1lx:        .byte 0,0
 p1lx_delta:  .byte 0,0
 p1lx2:       .byte 0,0
-p1sx:        .byte 0,0
 p1cx:        .byte 0,0
 p1cx2:       .byte 0
 p1vvi:       .byte 0
@@ -3583,7 +3650,6 @@ p1ly:        .byte 0,0 // 2 bytes due to a quirk in calculation
 p1ly_delta:  .byte 0,0
 p1ly_prev:   .byte 0,0
 p1ly2:       .byte 0,0
-p1sy:        .byte 0,0
 p1cy:        .byte 0,0
 p1cy2:       .byte 0,0
 p1hvt:       .byte 0
@@ -3717,6 +3783,8 @@ enemies_buffer_min_dist:  .byte 0,0
 enemies_buffer_max_dist:  .byte 0,0
 
 enemy_collided_temp:      .byte 0
+enemy_kills:              .byte 0
+player_deaths:            .byte 0
 
 sprite_collisions_detected: .byte 0
 

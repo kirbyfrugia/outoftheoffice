@@ -20,14 +20,14 @@ enemies_animations_left:
 enemies_animations_right:
   .byte 0
 
-enemies_killbox_offsetx:
+enemies_collision_offsetx:
   .byte 2
 
-enemies_killbox_width:
+enemies_collision_width:
   .byte 14
 
-enemies_killbox_offsety:
+enemies_collision_offsety:
   .byte 3
 
-enemies_killbox_height:
-  .byte 2
+enemies_collision_height:
+  .byte 5

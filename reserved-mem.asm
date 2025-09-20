@@ -24,6 +24,10 @@
 .const collision_tile_coords                 = $54 // for collision, used to determine which char of the tile is hit
 .const collision_detected_major              = $55
 .const collision_detected_minor              = $56
+.const p1sx_old                              = $57 // and $58
+.const p1sy_old                              = $59
+.const p1sx                                  = $5a // and $5b
+.const p1sy                                  = $5c
 
 .const SCR_objects_ptr                       = $60 // and $61
 .const SCR_first_visible_column_max          = $62 // and $63

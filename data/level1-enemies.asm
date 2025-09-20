@@ -108,6 +108,7 @@ enemies_height:
 //   Bit 7: direction, 0 = left, 1 = right
 //   Bit 6: collided with player, attacking
 //   Bit 5: dead, 0 = false, 1 = true
+//   Bit 0: onscreen, 0 = false, 1 = true
 enemies_flags:
   .byte %00000000
   .byte %00000000
