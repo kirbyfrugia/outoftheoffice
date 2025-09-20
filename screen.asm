@@ -444,7 +444,7 @@ ds_loop:
   sta 1825, x
   sta 2848, x
   sta 2849, x
-  lda #0
+  lda #69
   sta 1864, x
   sta 1865, x
   sta 2888, x
@@ -452,12 +452,9 @@ ds_loop:
   lda #11
   sta 56096, x
   sta 56097, x
+  lda #COLOR_HUD_BG
   sta 56136, x
   sta 56137, x
-  sta 57120, x
-  sta 57121, x
-  sta 57160, x
-  sta 57161, x
 ds_loop_end:
   dey
   bmi ds_done

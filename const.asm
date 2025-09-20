@@ -12,10 +12,11 @@
 // .const P1_STARTX       = 105
 .const P1_STARTX       = 8
 .const P1_STARTY       = 140
-.const P1_COLLISION_X0 = 0
-.const P1_COLLISION_X1 = 8
-.const P1_COLLISION_X2 = 13
-.const P1_COLLISION_Y0 = 0
+
+.const P1_COLLISION_X0 = 2
+.const P1_COLLISION_X1 = 7
+.const P1_COLLISION_X2 = 11
+.const P1_COLLISION_Y0 = 1
 .const P1_COLLISION_Y1 = 8
 .const P1_COLLISION_Y2 = 16
 .const P1_COLLISION_Y3 = 19
@@ -39,9 +40,7 @@
 // .const RASTER_COLOR_LOWER = $7c // 3rd best so far
 // .const RASTER_COLOR_LOWER = $81
 
-.const HUD_ROW_0_FG_CLR = 11
-.const HUD_ROW_1_FG_CLR = 12
-.const HUD_ROW_2_FG_CLR = 12
+
 .const HUD_ROW_0_FB     = 1904
 .const HUD_ROW_0_BB     = 2928
 .const HUD_ROW_1_FB     = 1944
@@ -86,6 +85,11 @@
 
 .const SID_BASE        = 54272
 
+.const COLOR_HUD_BG    = 6
+.const COLOR_HUD_TITLE = 13
+.const COLOR_HUD_TEXT  = 3
+.const COLOR_BG        = 12
+.const COLOR_BORDER    = 0
 .const VOICE1          = 54272
 .const VOICE1_LF       = 54272
 .const VOICE1_HF       = 54273

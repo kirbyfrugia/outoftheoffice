@@ -128,6 +128,8 @@ call_buffer_next_frame:
   sta frame_tick
   jmp irq_done
 call_hud:
+  lda #COLOR_HUD_BG
+  sta BG_COLOR0
   lda VIC_HCONTROL_REG
   and #%11010000 // set no scroll
   sta VIC_HCONTROL_REG
@@ -136,6 +138,8 @@ call_hud:
   sta VIC_RW_RASTER
   jmp irq_done
 call_hud_done:
+  lda #COLOR_BG
+  sta BG_COLOR0
   lda VIC_HCONTROL_REG
   and #%11010000
   ora SCR_scroll_register
@@ -557,10 +561,11 @@ initsys:
   ora #%00001110 // $3800-3fff
   sta VIC_MEM_CONTROL_REG
 
-  lda #15
+  // background color
+  lda #COLOR_BG
   sta BG_COLOR0
 
-  lda #0
+  lda #COLOR_BORDER
   sta BORDER_COLOR
   rts
 
@@ -880,11 +885,11 @@ loadmap:
 init_hud:
   ldx #39
 init_hud_fgclr_loop:
-  lda #HUD_ROW_0_FG_CLR
+  lda #COLOR_HUD_TITLE
   sta HUD_ROW_0_CLR, X
-  lda #HUD_ROW_1_FG_CLR
+  lda #COLOR_HUD_TEXT
   sta HUD_ROW_1_CLR, X
-  lda #HUD_ROW_2_FG_CLR
+  lda #COLOR_HUD_TEXT
   sta HUD_ROW_2_CLR, X
   dex
   bpl init_hud_fgclr_loop
@@ -1728,6 +1733,11 @@ test_collisiond:
 
   txa
   rts
+
+
+// TODO: one way to make the collision detection faster is
+//       to only test a narrower player that doesn't have 3 points
+//       to test on the x-axis. Could just do x0=4, x1=10. No x2.
 
 // tests if the player collides with any collidable tiles/characters
 // outputs:
