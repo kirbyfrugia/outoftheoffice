@@ -505,9 +505,10 @@ buffer_wait:
 
   // if here, any screen buffer updates from previous frame
   // have completed.
+  jsr upd_enemies_sprites
   jsr updp1p_sprite
   jsr upd_enemies_buffer
-  jsr upd_enemies_sprites
+
   jsr enemy_collisions_kill
   jsr updanim
   jsr hud
@@ -3352,8 +3353,9 @@ updanim_enemy_moving_right:
 updanim_enemy_sprite_selected:
   // TODO: is this right?
   adc #SPRITE_PTR_FIRST_B2
-  sta SPRITE_PTR_BASE_FB+1, x
-  sta SPRITE_PTR_BASE_BB+1, x
+  ldy enemies_sprite_base_offset, x
+  sta SPRITE_PTR_BASE_FB, y
+  sta SPRITE_PTR_BASE_BB, y
 updanim_enemy_next_enemy:
   inx
   cpx enemies_buffer_max
