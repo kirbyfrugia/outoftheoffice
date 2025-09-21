@@ -12,13 +12,13 @@
 
 // Quantities and dimensions...
 
-.const spritesbatch2_SPRITE_COUNT = 9
+.const spritesbatch2_SPRITE_COUNT = 10
 
 
 // Data block sizes (in bytes)...
 
-.const spritesbatch2_SZ_SPRITESET_DATA = 576
-.const spritesbatch2_SZ_SPRITESET_ATTRIB_DATA = 9
+.const spritesbatch2_SZ_SPRITESET_DATA = 640
+.const spritesbatch2_SZ_SPRITESET_ATTRIB_DATA = 10
 
 
 // Data block addresses (dummy values)...
@@ -35,7 +35,7 @@
 
 
 // SpriteSet Data...
-// 9 images, 64 bytes per image, total size is 576 ($240) bytes.
+// 10 images, 64 bytes per image, total size is 640 ($280) bytes.
 
 spritesbatch2_spriteset_data:
 
@@ -76,18 +76,24 @@ spritesbatch2_sprite_image_5:
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$8B
 
 spritesbatch2_sprite_image_6:
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$F6,$6F,$00,$3A,$AC,$00,$FC,$3F,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$8B
+
+spritesbatch2_sprite_image_7:
 .byte $3E,$B0,$00,$F0,$9C,$00,$80,$AC,$00,$8A,$8A,$00,$88,$F2,$00,$9B
 .byte $EA,$00,$2F,$0B,$00,$3C,$0F,$00,$AA,$9E,$00,$B0,$A8,$00,$BC,$A0
 .byte $00,$86,$80,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$82
 
-spritesbatch2_sprite_image_7:
+spritesbatch2_sprite_image_8:
 .byte $2A,$80,$00,$20,$A8,$00,$AE,$4C,$00,$BA,$CE,$00,$68,$D2,$00,$82
 .byte $B2,$00,$AA,$2A,$00,$20,$86,$00,$22,$8E,$00,$9A,$3E,$00,$BE,$96
 .byte $00,$8E,$B8,$00,$A0,$A0,$00,$28,$00,$00,$00,$00,$00,$00,$00,$00
 .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$82
 
-spritesbatch2_sprite_image_8:
+spritesbatch2_sprite_image_9:
 .byte $0A,$80,$00,$2B,$E0,$00,$23,$6F,$00,$2A,$2D,$00,$98,$3E,$00,$7F
 .byte $AA,$80,$F8,$38,$80,$A0,$F3,$40,$93,$D3,$00,$E0,$A2,$00,$6A,$82
 .byte $00,$A0,$0A,$00,$EA,$F8,$00,$08,$90,$00,$00,$00,$00,$00,$00,$00
@@ -96,12 +102,12 @@ spritesbatch2_sprite_image_8:
 
 
 // SpriteSet Attribute Data...
-// 9 attributes, 1 per image, 8 bits each, total size is 9 ($9) bytes.
+// 10 attributes, 1 per image, 8 bits each, total size is 10 ($A) bytes.
 // nb. Upper nybbles = MYXV, lower nybbles = colour (0-15).
 
 spritesbatch2_spriteset_attrib_data:
 
-.byte $8B,$8B,$8B,$8B,$8B,$8B,$82,$82,$82
+.byte $8B,$8B,$8B,$8B,$8B,$8B,$8B,$82,$82,$82
 
 
 

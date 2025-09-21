@@ -22,6 +22,7 @@
 .const MAX_VV_DOWN      = 157 // vertical velocity when moving down at full speed
 .const FALL_ACCEL       = 3   // acceleration rate when falling
 .const RISE_ACCEL       = 2   // acceleration rate when rising
+.const VV_BOUNCE        = 118 // vertical velocity when bouncing off an enemy
 
 .disk [filename="office.d64", name="OFFICE", id="O1" ] {
   [name="OFFICE", type="prg", segments="StubBasic"],
@@ -523,7 +524,6 @@ every_frame:
   and #%10000000
   cmp #%10000000
   bne no_player_enemy_collisions
-  jsr enemy_shakeoff
 no_player_enemy_collisions:
   jmp game_loop
 
@@ -1237,13 +1237,6 @@ log_posy:
 //   rts
 
 log_enemies:
-  lda player_enemy_flag
-  jsr loghexit
-  iny
-  iny
-  lda num_shake_offs
-  jsr loghexit
-
   iny
   iny
   lda enemies_buffer_min
@@ -2849,13 +2842,16 @@ upd_enemies_bufferd:
 upd_enemies_pos:
   ldx enemies_buffer_min
 upd_enemies_pos_enemy:
-  lda enemies_flags, x
-  and #%01000000
-  cmp #%01000000
-  beq upd_enemies_pos_next_enemy // enemy is attacking player, ignore its position
+  lda enemies_flags, X
+  and #ENEMY_FLAG_DEAD
+  bne upd_enemies_pos_next_enemy
+
+  lda enemies_flags, X
+  and #ENEMY_FLAG_DYING
+  bne upd_enemies_pos_next_enemy
 
   lda enemies_flags, x
-  and #%10000000
+  and #ENEMY_FLAG_HDIRECTION
   beq enemy_moving_left
   // if here, enemy moving right
   lda enemies_posx_lo, x
@@ -2878,8 +2874,10 @@ enemy_start_moving_left:
   sta enemies_posx_lo, x
   lda enemies_rangex_max_hi, x
   sta enemies_posx_hi, x
-  lda enemies_flags, x
-  and #%01111111                  // now moving left
+  
+  lda #ENEMY_FLAG_HDIRECTION
+  eor #%11111111
+  and enemies_flags, x
   sta enemies_flags, x
   jmp upd_enemies_pos_next_enemy
 enemy_moving_left:
@@ -2902,7 +2900,7 @@ enemy_start_moving_right:
   lda enemies_rangex_min_hi, x
   sta enemies_posx_hi, x
   lda enemies_flags, x
-  ora #%10000000                  // now moving right
+  ora #ENEMY_FLAG_HDIRECTION       // now moving right
   sta enemies_flags, x
 upd_enemies_pos_next_enemy:
   inx
@@ -2917,18 +2915,40 @@ upd_enemies_sprites:
 upd_enemies_sprites_enemy:
   // check if the enemy is dead
   lda enemies_flags, x
-  and #%00100000
-  beq upd_enemies_sprites_enemy_not_dead
-  jmp ignore_enemy
-upd_enemies_sprites_enemy_not_dead:
-  // check if the enemy is attacking
+  and #ENEMY_FLAG_DEAD
+  beq test_dying
+  jmp upd_enemies_sprites_next_enemy // dead
+test_dying:
   lda enemies_flags, x
-  and #%01000000
-  beq upd_enemies_sprites_enemy_not_attacking
-  jmp ignore_enemy
-upd_enemies_sprites_enemy_not_attacking:
-  // enemy is alive and not attacking, so let's update it
-  // first let's move things to local coords
+  and #ENEMY_FLAG_DYING
+  beq upd_enemies_sprites_pos // not dying
+  ldy enemies_dead_animation_frames, x
+  cpy #ENEMY_ANIMATION_FRAMES_DEATH
+  bne already_dying
+  // just started dying, swap out the sprite
+  ldy enemies_type, x
+  lda enemies_animations_death, y
+  clc
+  adc #SPRITE_PTR_FIRST_B2
+  ldy enemies_sprite_base_offset, x
+  sta SPRITE_PTR_BASE_FB, y
+  sta SPRITE_PTR_BASE_BB, y
+  dec enemies_dead_animation_frames, x
+  jmp upd_enemies_sprites_pos
+already_dying:
+  dey
+  beq enemy_died
+  tya
+  sta enemies_dead_animation_frames, x
+  jmp upd_enemies_sprites_pos
+enemy_died:
+  lda #ENEMY_FLAG_DYING
+  eor #%11111111
+  and enemies_flags, x // set dying to false
+  ora #ENEMY_FLAG_DEAD // set dead to true
+  sta enemies_flags, x
+  jmp enemy_disable_sprite
+upd_enemies_sprites_pos:
   lda enemies_posx_lo, x
   sec
   sbc SCR_first_visible_column_pixels
@@ -2951,7 +2971,8 @@ upd_enemies_sprites_enemy_not_attacking:
   bpl enemy_onscreen
 enemy_not_offscreen_left:
   // if here, the enemy is further to the right in the level than
-  // the first visible column
+  // the first visible column. Now check if it's offscreen
+  // to the right
   lda zpb1
   beq enemy_onscreen  // < 256 pixels, so onscreen
   cmp #2
@@ -3005,7 +3026,7 @@ enemy_y:
   sta SPRITE_YPOS_BASE, y
 enemy_enable_sprite:
   lda enemies_flags, x
-  ora #%00000001 // mark onscreen
+  ora #ENEMY_FLAG_ONSCREEN
   sta enemies_flags, x
   // enable the sprite
   lda enemies_sprite_slots, x
@@ -3013,111 +3034,23 @@ enemy_enable_sprite:
   sta SPRITE_ENABLE
   jmp upd_enemies_sprites_next_enemy
 enemy_offscreen:
-  lda enemies_flags, x
-  and #%11111110 // mark offscreen
+  lda #ENEMY_FLAG_ONSCREEN
+  eor #%11111111
+  and enemies_flags, x
   sta enemies_flags, x
+enemy_disable_sprite:
   // disable the sprite
   lda enemies_sprite_slots, x
   eor #%11111111 // invert
   and SPRITE_ENABLE
   sta SPRITE_ENABLE
   jmp upd_enemies_sprites_next_enemy
-ignore_enemy:
 upd_enemies_sprites_next_enemy:
   inx
   cpx enemies_buffer_max
   beq upd_enemies_spritesd
   jmp upd_enemies_sprites_enemy
 upd_enemies_spritesd:
-  rts
-
-// TODO in the morning:
-//   * Figure out how to go from the sprite that collided
-//     to the index of that sprite.
-//   * Stop the sprite from moving and colliding if it's
-//     in a collision
-//   * Implement some kind of respawn for enemies. Either offscreen
-//     or based on a timer or something
-
-enemy_shakeoff:
-  // we're going to count it as a button press if they go
-  // from 1 to 0 in the last two frames
-  lda ebp
-  and #%00000011
-  cmp #%00000010
-  bne no_shake
-
-  // if here, count this as a shake
-  sec
-  rol shake_flags
-  rol shake_flags+1
-  rol shake_flags+2
-  rol shake_flags+3
-
-  // count how many times we did a shake over the last
-  // n number of frames
-  lda #0
-  sta zpb0
-
-  ldx #3
-shake_next_byte:
-  lda shake_flags,x
-  ldy #8
-shake_next_bit:
-  lsr
-  bcc shake_no_inc
-  inc zpb0
-shake_no_inc:
-  dey
-  bne shake_next_bit
-  dex
-  bpl shake_next_byte
-
-  // TODO: make these random, maybe based off which frame we
-  // were on when the enemy attached
-  lda zpb0
-  cmp #ENEMY_NUM_SHAKEOFF_TAPS
-  bcc enemy_shakeoffd
-  // if here, we shook enough
-  inc num_shake_offs
-  lda num_shake_offs
-  cmp #ENEMY_NUM_SHAKEOFF_RELEASE
-  bcc enemy_shakeoff_keep_shaking
-  // if here, we've shaken it off enough times to free ourselves
-  lda player_enemy_flag
-  and #%01111111
-  sta player_enemy_flag
-
-  // Disable the attacking enemy and hide it.
-  ldx collided_enemy_index
-  lda enemies_flags, x
-  ora #%00100000    // mark enemy as dead
-  sta enemies_flags, x
-
-  // Disable the sprite
-  lda enemies_sprite_slots, x
-  eor #%11111111 // invert
-  and SPRITE_ENABLE
-  sta SPRITE_ENABLE
-
-  // read to clear the collision flag
-  lda SPRITE_COLLISION
-
-enemy_shakeoff_keep_shaking:
-  // reset the shake vars to start a new one
-  lda #0
-  sta shake_flags
-  sta shake_flags+1
-  sta shake_flags+2
-  sta shake_flags+3
-  beq enemy_shakeoffd 
-no_shake:
-  clc
-  rol shake_flags
-  rol shake_flags+1
-  rol shake_flags+2
-  rol shake_flags+3
-enemy_shakeoffd:
   rts
 
 .const current_enemy_xpos_lo = zpb5
@@ -3128,8 +3061,18 @@ enemy_collisions_kill:
   ldx enemies_buffer_min
 enemies_collisions_kill_loop:
   lda enemies_flags, x
-  and #%00000001
+  and #ENEMY_FLAG_DEAD
+  bne enemy_collision_skip
+
+  lda enemies_flags, x
+  and #ENEMY_FLAG_DYING
+  bne enemy_collision_skip
+
+  lda enemies_flags, x
+  and #ENEMY_FLAG_ONSCREEN
   bne enemy_test_collision
+
+enemy_collision_skip:
   jmp enemies_collisions_kill_loop_next
 enemy_test_collision:
   // this enemy is onscreen, let's test for a collision
@@ -3284,73 +3227,25 @@ player_killed:
 enemy_killed:
   inc enemy_kills
 
-  // Disable the attacking enemy and hide it.
+  // Set the enemy to dying.
   lda enemies_flags, x
-  ora #%00100000    // mark enemy as dead
+  ora #ENEMY_FLAG_DYING
   sta enemies_flags, x
 
-  // Disable the sprite
-  lda enemies_sprite_slots, x
-  eor #%11111111 // invert
-  and SPRITE_ENABLE
-  sta SPRITE_ENABLE
+  // Make the player bounce upwards
+  lda #VV_BOUNCE
+  sta p1vvi
+  // lda #VV_ZERO
+  // sec
+  // sbc p1vvi
+  // sta p1vva
+
 enemies_collisions_kill_loop_next:
   inx
   cpx enemies_buffer_max
   beq enemy_collisions_kill_done
   jmp enemies_collisions_kill_loop
 enemy_collisions_kill_done:
-  rts
-
-enemy_collisions:
-  lda player_enemy_flag
-  and #%10000000
-  beq enemy_collisions_proceed // Player not being attacked
-  jmp enemy_collisionsd // ignore collisions if enemy is already attacking
-enemy_collisions_proceed:
-  lda SPRITE_COLLISION
-  sta sprite_collisions_detected // store since reading clears the collision detect
-  beq enemy_collisionsd // no collisions
-  and #%00000001
-  beq enemy_collisionsd // player not involved in collision
-  // stop character horizontal movement
-  lda #0
-  sta p1hva+1
-  lda #0
-  sta p1hva
-  lda #HV_ZERO
-  sta p1hvi
-
-  lda #0
-  sta shake_flags
-  sta shake_flags+1
-  sta shake_flags+2
-  sta shake_flags+3
-  sta num_shake_offs
-
-  lda spritesbatch1_spriteset_attrib_data+12
-  sta SPRITE_COLOR_BASE+0
-
-  lda player_enemy_flag
-  ora #%10000000 // being attacked
-  sta player_enemy_flag
-
-  // now let's stop the enemy that hit us
-  ldx enemies_buffer_min
-enemies_collisions_loop:
-  lda enemies_sprite_slots, x
-  and sprite_collisions_detected
-  bne enemies_collisions_loop_found
-  inx
-  cpx enemies_buffer_max
-  bne enemies_collisions_loop
-  beq enemy_collisionsd // couldn't find the enemy that collided
-enemies_collisions_loop_found:
-  lda enemies_flags, x
-  ora #%01000000
-  sta enemies_flags, x
-  stx collided_enemy_index
-enemy_collisionsd:
   rts
 
 updanim_p1:
@@ -3434,26 +3329,19 @@ updanim_p1_done:
 updanim_enemy:
   ldx enemies_buffer_min
 updanim_enemy_loop:
-  ldy enemies_type, x
+  lda enemies_flags, X
+  and #ENEMY_FLAG_DEAD
+  bne updanim_enemy_next_enemy
 
   lda enemies_flags, X
-  and #%01000000
-  beq updanim_enemy_not_attacking
-  // if here, the enemy is attacking, so we use the attacking sprite
-  lda #ENEMY_ATTACKING_SMOKE
-  clc
-  adc animation_index
-  sta SPRITE_PTR_BASE_FB+1, x
-  sta SPRITE_PTR_BASE_BB+1, x
-
-  // TODO: don't hardcode this
-  lda #2 // red
-  sta SPRITE_COLOR_BASE+1, x
+  and #ENEMY_FLAG_DYING
   bne updanim_enemy_next_enemy
-updanim_enemy_not_attacking:
+
+  ldy enemies_type, x
+
   lda enemies_flags, x
-  and #%10000000
-  cmp #%10000000
+  and #ENEMY_FLAG_HDIRECTION
+  cmp #ENEMY_FLAG_HDIRECTION
   beq updanim_enemy_moving_right
   // if here, enemy is moving left
   lda enemies_animations_left, y // get index 0 of animation
@@ -3465,6 +3353,7 @@ updanim_enemy_moving_right:
   clc
   adc animation_index
 updanim_enemy_sprite_selected:
+  // TODO: is this right?
   adc #SPRITE_PTR_FIRST_B2
   sta SPRITE_PTR_BASE_FB+1, x
   sta SPRITE_PTR_BASE_BB+1, x
@@ -3765,12 +3654,6 @@ player_enemy_flag:
   .byte 0
 
 collided_enemy_index:
-  .byte 0
-
-shake_flags:
-  .byte 0,0,0,0
-
-num_shake_offs:
   .byte 0
 
 // buffer of enemies to check when updating enemy movement,

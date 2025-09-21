@@ -68,7 +68,6 @@
 .const MAX_ENEMY_BUFFER_SIZE  = 10
 
 .const SPRITE_PTR_FIRST_B2    =    128 // sprite pointer at which sprite 0 starts from batch 2
-.const ENEMY_ATTACKING_SMOKE  = SPRITE_PTR_FIRST_B2+6
 
 .const SPRITE_PTR_BASE_FB  = $07f8 // sprite pointers for the front buffer
 .const SPRITE_PTR_BASE_BB  = $0bf8 // sprite pointers for the back buffer

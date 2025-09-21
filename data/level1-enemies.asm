@@ -104,11 +104,7 @@ enemies_height:
   .byte ENEMY_MOUSE_HEIGHT
   .byte ENEMY_MOUSE_HEIGHT
 
-// flags
-//   Bit 7: direction, 0 = left, 1 = right
-//   Bit 6: collided with player, attacking
-//   Bit 5: dead, 0 = false, 1 = true
-//   Bit 0: onscreen, 0 = false, 1 = true
+// See enemies.asm for flags
 enemies_flags:
   .byte %00000000
   .byte %00000000
@@ -116,6 +112,14 @@ enemies_flags:
   .byte %00000000
   .byte %00000000
   .byte %00000000
+
+enemies_dead_animation_frames:
+  .byte ENEMY_ANIMATION_FRAMES_DEATH
+  .byte ENEMY_ANIMATION_FRAMES_DEATH
+  .byte ENEMY_ANIMATION_FRAMES_DEATH
+  .byte ENEMY_ANIMATION_FRAMES_DEATH
+  .byte ENEMY_ANIMATION_FRAMES_DEATH
+  .byte ENEMY_ANIMATION_FRAMES_DEATH
 
 // which sprite slot should be used for each enemy?
 // Let's try to keep it to 4 on screen at a time just for speed and
@@ -139,3 +143,11 @@ enemies_sprite_pos_offset:
   .byte 8
   .byte 10
   .byte 12
+
+enemies_sprite_base_offset:
+  .byte 1
+  .byte 2
+  .byte 3
+  .byte 4
+  .byte 5
+  .byte 6
