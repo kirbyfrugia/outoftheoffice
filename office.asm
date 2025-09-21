@@ -1535,10 +1535,7 @@ updp1vv:
   // bne updp1vv_no_jump
   // if here, jumping
   // Play jump sound effect
-  lda #0
-  sta sound_effect_index
-  lda #1
-  sta sound_effect_ready
+  play_sound(0)
 
   // When jumping, actual velocity is immediately set to max upwards velocity
   // And target is set to max falling velocity
@@ -2300,9 +2297,8 @@ bresenham_majorx_minor_crossed_pixel:
   and #SCR_COLLISION_MASK_BOTTOM
   beq bresenham_majorx_test_top
   // hit head on bottom of something, stop movement
-  lda #1
-  sta sound_effect_index
-  sta sound_effect_ready
+  play_sound(1)
+
   lda #VV_ZERO
   sta p1vvi
   lda #0
@@ -3227,6 +3223,7 @@ player_killed:
 enemy_killed:
   inc enemy_kills
 
+  play_sound(2)
   // Set the enemy to dying.
   lda enemies_flags, x
   ora #ENEMY_FLAG_DYING
@@ -3409,6 +3406,13 @@ clear_sound_effect:
   sta VOICE3_CONTROL
 
   rts
+
+.macro play_sound(sound_index) {
+  lda #sound_index
+  sta sound_effect_index
+  lda #1
+  sta sound_effect_ready
+}
 
 upd_sound_effects:
   lda sound_effect_ready
@@ -3595,28 +3599,30 @@ sound_effect_index:
 // sound effects table
 // indices:
 //   0 - jump
+//   1 - hitting ceiling
+//   2 - squishing enemies
 sound_effects_pulse_lo:
-  .byte $00, $00
+  .byte $00, $00, $00
 sound_effects_pulse_hi:
-  .byte $08, $05
+  .byte $08, $05, $04
 sound_effects_attack_decay:
-  .byte $15, $08
+  .byte $15, $08, $06
 sound_effects_sustain_release:
-  .byte $14, $03
+  .byte $14, $03, $03
 sound_effects_waveform:
-  .byte %01000001, %01000001
+  .byte %01000001, %01000001, %10000001
 sound_effects_freq_lo:
-  .byte $18, $00
+  .byte $18, $00, $00
 sound_effects_freq_hi:
-  .byte $0e, $07
+  .byte $0e, $07, $16
 sound_effects_num_ticks:
-  .byte $14, $14
+  .byte $14, $14, $14
 sound_effects_sweep_adder_lo:
-  .byte $a0, $f4
+  .byte $a0, $f4, $18
 sound_effects_sweep_adder_hi:
-  .byte $01, $ff
+  .byte $01, $ff, $00
 sound_effects_sweep_num_ticks:
-  .byte $0f, $0f
+  .byte $0f, $0f, $14
 
 // VICE testing:
 // Jump
