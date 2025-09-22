@@ -345,6 +345,7 @@ update_max_raster_lined:
   rts
 
 init:
+  jsr disable_irqs
   jsr initui
   jsr initsys
   jsr initsound
@@ -359,8 +360,7 @@ init:
 
   jsr startsound
 
-  jsr init_hud
-  jsr initirq
+  // jsr init_irq
 
 game_loop:
   lda frame_tick
@@ -368,6 +368,7 @@ game_loop:
   lda #0
   sta frame_tick
 
+  jsr inkbd
   jsr injs
 
   lda frame_phase
@@ -467,60 +468,7 @@ initsys:
   sta BORDER_COLOR
   rts
 
-initirq:
-  // disable interrupts
-  sei
 
-  // // switch out basic
-  // lda $01
-  // and #%11111000
-  // ora #%00000110
-  // sta $01
-  // // switch out basic and kernal
-  // lda $01
-  // and #%11111000
-  // ora #%00000100
-  // sta $01
-
-  // lda #%11000100
-  // // and #%11111110
-  // sta $0001
-
-  // switch off cia interrupts
-  lda #$7f
-  sta $dc0d
-  sta $dd0d
-
-  // clear any pending interrupts from CIA-1/2
-  lda $dc0d
-  lda $dd0d
-
-  // clear high raster bit
-  lda VIC_VCONTROL_REG
-  and #%01111111
-  sta VIC_VCONTROL_REG
-
-  // clear any pending raster interrupts
-  lda #$0f
-  sta VIC_IRQ_FLAG
-
-  // set interrupt handling routine
-  lda #<irq_dispatch
-  sta $0314
-  lda #>irq_dispatch
-  sta $0315
-
-  // raster line where interrupt will occur
-  lda #RASTER_BUFFER_SWAP
-  sta VIC_RW_RASTER
-  sta next_irq
-
-  // enable raster interrupt source
-  lda #%00000001
-  sta VIC_IRQ_MASK
-
-  cli // re-enable interrupts
-  rts
 
 initsound:
   // clear the sid chip
@@ -650,11 +598,74 @@ restart_input:
   sta ebp
   rts
 
+disable_irqs:
+  // disable interrupts
+  sei
+
+  // switch off cia interrupts
+  lda #$7f
+  sta $dc0d
+  sta $dd0d
+
+  // clear any pending interrupts from CIA-1/2
+  lda $dc0d
+  lda $dd0d
+
+  // clear high raster bit
+  lda VIC_VCONTROL_REG
+  and #%01111111
+  sta VIC_VCONTROL_REG
+
+  // clear any pending raster interrupts
+  lda #$0f
+  sta VIC_IRQ_FLAG
+  cli
+  rts
+
+enable_irqs:
+  sei
+  // set interrupt handling routine
+  lda #<irq_dispatch
+  sta $0314
+  lda #>irq_dispatch
+  sta $0315
+
+  // raster line where interrupt will occur
+  lda #RASTER_BUFFER_SWAP
+  sta VIC_RW_RASTER
+  sta next_irq
+
+  // enable raster interrupt source
+  lda #%00000001
+  sta VIC_IRQ_MASK
+
+  cli
+  rts
+
+
+init_irq:
+  jsr disable_irqs
+  jsr enable_irqs
+  rts
+
 restart_level:
+  jsr disable_irqs
+
+  sei
   lda #0
   sta pending_buffer_swap
   sta frame_phase
   sta current_buffer
+  sta SCR_buffer_flag
+
+  lda VIC_MEM_CONTROL_REG
+  and #%00001111
+  ora #%00010000 // screen location 1024, $0400
+  sta VIC_MEM_CONTROL_REG
+  cli
+
+  jsr cls
+  jsr restart_hud
 
   lda #30
   sta animation_frame
@@ -667,6 +678,8 @@ restart_level:
 
   jsr SCR_init_screen
   jsr SCR_draw_screen
+
+  jsr enable_irqs
 
   rts
 
@@ -906,9 +919,9 @@ restart_map:
   jsr loadmap
   rts
 
-init_hud:
+restart_hud:
   ldx #39
-init_hud_fgclr_loop:
+restart_hud_fgclr_loop:
   lda #COLOR_HUD_TITLE
   sta HUD_ROW_0_CLR, X
   lda #COLOR_HUD_TEXT
@@ -916,7 +929,7 @@ init_hud_fgclr_loop:
   lda #COLOR_HUD_TEXT
   sta HUD_ROW_2_CLR, X
   dex
-  bpl init_hud_fgclr_loop
+  bpl restart_hud_fgclr_loop
 
 hud_render_time_title:
   lda #20   // T
@@ -3522,6 +3535,19 @@ injs:
   rol ebr
   lsr
   rol ebp
+  rts
+
+inkbd:
+  lda #%11111110  // Write column zero of the matrix
+  sta CIA_PORTA
+
+  lda CIA_PORTB
+  and #%00010000  // Read row 4 (F1 key at column zero)
+  bne inkbd_done
+  // if here, f1 pressed
+  jsr restart_level
+
+inkbd_done:
   rts
 
 // gettime:

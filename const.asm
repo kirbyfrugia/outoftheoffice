@@ -90,6 +90,9 @@
 .const SPRITE_MC1          = $d026
 .const SPRITE_COLOR_BASE   = $d027
 
+.const CIA_PORTA           = $dc00
+.const CIA_PORTB           = $dc01
+
 .const SID_BASE        = 54272
 
 .const COLOR_HUD_BG    = 6
