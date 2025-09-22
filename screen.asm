@@ -3,73 +3,6 @@
 .const SCR_COLLISION_MASK_TOP     = %00100000
 .const SCR_COLLISION_MASK_BOTTOM  = %00010000
 
-
-// Memory map
-//   Addresses of tile rows:
-//     $0020-$0035 - indices of tile rows
-//   Front buffer:
-//     $0400-$07e7 - video matrix 40x25
-//     $07f8-$07ff - sprite data pointers
-//   Back buffer:
-//     $0800-$0be7 - video matrix 40x25
-//     $0bf8-$0bff - sprite data pointers
-//   Sprite data, Batch 1 - mostly the player sprite, max 15 sprites
-//     $0bfe-$0bff - just used to store the prg load location, ignored
-//     $0c00-$0fbf - sprite sheet
-//     $0fc0-$0fcf - sprite attrib data
-//   ROM CHARSET
-//     $1000-$1fff - unusable
-// TODO: move this to a different memory bank so we can have more sprites
-//       could also just store sprites somewhere else and copy in when needed.
-//   Sprite data, Batch 2, max 96 sprites (to use more would require different vic bank)
-//     $1ffe-$1fff - just used to store the prg load location, ignored
-//     $2000-$37ff - sprite sheet
-//     $3780-$37fe - sprite attrib data
-//   Level data
-//     $37fe-$37ff - just used to store the prg load location, ignored
-//     $3800-$3fff - character set, 2048 bytes
-//     $4000-$40ff - character set attribs, (material - collision info), 256 bytes
-//     $4100-$44ff - char tileset data (raw tiles), 1024 bytes
-//     $4500-$45ff - char tileset attrib data (1 color per tile), 256 bytes
-//     $4600-$46ff - char tileset tag data (tile collisions), 256 bytes
-//     $4700-$50ff - map, max 2560 bytes
-//   Scratch space
-//     $5100-$60ff
-//   Actual level data
-//     $6100-$7fff
-//   More level data, tile metadata
-//     note: this uses a lot of memory, but it makes accessing the tiles faster/easier
-//     $c000-c9ff  - tile metadata, left-hand of tile
-//     $ca00-d3ff  - tile metadata, right-hand of tile
-//   Game program
-//     $8000-?
-.var SCR_TILE_ROW_BASE       = $20
-.var SCR_TILE_ROW_0          = $20
-.var SCR_TILE_ROW_1          = $22
-.var SCR_TILE_ROW_2          = $24
-.var SCR_TILE_ROW_3          = $26
-.var SCR_TILE_ROW_4          = $28
-.var SCR_TILE_ROW_5          = $2a
-.var SCR_TILE_ROW_6          = $2c
-.var SCR_TILE_ROW_7          = $2e
-.var SCR_TILE_ROW_8          = $30
-.var SCR_TILE_ROW_9          = $32
-.var current_tile_row        = $34
-.var SCR_TILE_ROW            = $36 // temp var, careful
-.var SCR_TILE_COL            = $37 // temp var, careful
-.var SCR_charset_prg         = $37fe
-.var SCR_charset             = $3800
-.var SCR_char_attribs        = $4000
-.var SCR_raw_tiles           = $4100
-.var SCR_tiles_ul            = $4100
-.var SCR_tiles_ur            = $4200
-.var SCR_tiles_ll            = $4300
-.var SCR_tiles_lr            = $4400
-.var SCR_char_tileset_attrib = $4500
-.var SCR_char_tileset_tag    = $4600
-.var SCR_level_tiles         = $4700
-.var SCR_scratch             = $5100
-
 // Y holds the tile index
 // X holds the screen column
 .macro SCR_draw_tile(scr_row_upper, scr_row_lower, row_addr) {
@@ -301,9 +234,9 @@ lm_loadd:
   lda #>SCR_raw_tiles
   sta $fc
 
-  lda #<SCR_scratch
+  lda #<SCRATCH_SPACE
   sta $fd
-  lda #>SCR_scratch
+  lda #>SCRATCH_SPACE
   sta $fe
 
   lda #$00
@@ -314,61 +247,61 @@ lm_loadd:
   ldx #0
   ldy #0
 lm_copy_tile_1:
-  lda SCR_scratch, y
+  lda SCRATCH_SPACE, y
   sta SCR_tiles_ul, x
   iny
-  lda SCR_scratch, y
+  lda SCRATCH_SPACE, y
   sta SCR_tiles_ur, x
   iny
-  lda SCR_scratch, y
+  lda SCRATCH_SPACE, y
   sta SCR_tiles_ll, x
   iny
-  lda SCR_scratch, y
+  lda SCRATCH_SPACE, y
   sta SCR_tiles_lr, x
   inx
   iny
   bne lm_copy_tile_1
 lm_copy_tile_2:
-  lda SCR_scratch+$0100, y
+  lda SCRATCH_SPACE+$0100, y
   sta SCR_tiles_ul, x
   iny
-  lda SCR_scratch+$0100, y
+  lda SCRATCH_SPACE+$0100, y
   sta SCR_tiles_ur, x
   iny
-  lda SCR_scratch+$0100, y
+  lda SCRATCH_SPACE+$0100, y
   sta SCR_tiles_ll, x
   iny
-  lda SCR_scratch+$0100, y
+  lda SCRATCH_SPACE+$0100, y
   sta SCR_tiles_lr, x
   inx
   iny
   bne lm_copy_tile_2
 lm_copy_tile_3:
-  lda SCR_scratch+$0200, y
+  lda SCRATCH_SPACE+$0200, y
   sta SCR_tiles_ul, x
   iny
-  lda SCR_scratch+$0200, y
+  lda SCRATCH_SPACE+$0200, y
   sta SCR_tiles_ur, x
   iny
-  lda SCR_scratch+$0200, y
+  lda SCRATCH_SPACE+$0200, y
   sta SCR_tiles_ll, x
   iny
-  lda SCR_scratch+$0200, y
+  lda SCRATCH_SPACE+$0200, y
   sta SCR_tiles_lr, x
   inx
   iny
   bne lm_copy_tile_3
 lm_copy_tile_4:
-  lda SCR_scratch+$0300, y
+  lda SCRATCH_SPACE+$0300, y
   sta SCR_tiles_ul, x
   iny
-  lda SCR_scratch+$0300, y
+  lda SCRATCH_SPACE+$0300, y
   sta SCR_tiles_ur, x
   iny
-  lda SCR_scratch+$0300, y
+  lda SCRATCH_SPACE+$0300, y
   sta SCR_tiles_ll, x
   iny
-  lda SCR_scratch+$0300, y
+  lda SCRATCH_SPACE+$0300, y
   sta SCR_tiles_lr, x
   inx
   iny

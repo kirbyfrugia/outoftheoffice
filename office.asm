@@ -2201,7 +2201,7 @@ bresenham_majorx:
   sta collision_detected_major
   sta collision_detected_minor
   ldx collision_subpixelsx
-  stx tmp0
+  stx zpb8
 bresenham_majorx_major_loop:
   lda collision_detected_major
   bne bresenham_majorx_minor_loop // no longer checking collisions in major
@@ -2328,8 +2328,8 @@ bresenham_majorx_minor_update_position:
   lda p1gy_new+1
   sta p1gy+1
 bresenham_majorx_next:
-  dec tmp0
-  ldx tmp0
+  dec zpb8
+  ldx zpb8
   beq bresenham_majorx_done
   jmp bresenham_majorx_major_loop
 bresenham_majorx_done:
@@ -2341,7 +2341,7 @@ bresenham_majory:
   sta collision_detected_major
   sta collision_detected_minor
   ldx collision_subpixelsy
-  stx tmp0
+  stx zpb8
 bresenham_majory_major_loop:
   lda collision_detected_major
   bne bresenham_majory_minor_loop // no longer checking collisions in major
@@ -2468,8 +2468,8 @@ bresenham_majory_minor_no_collisions:
   lda p1gx_new+1
   sta p1gx+1
 bresenham_majory_next:
-  dec tmp0
-  ldx tmp0
+  dec zpb8
+  ldx zpb8
   beq bresenham_majory_done
   jmp bresenham_majory_major_loop
 bresenham_majory_done:
