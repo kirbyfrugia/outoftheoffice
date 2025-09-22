@@ -354,28 +354,8 @@ init:
   lda #level1_MAP_WID
   sta SCR_tile_level_width
   jsr SCR_loadmap
-  lda #0
-  sta SCR_first_visible_column
-  sta SCR_first_visible_column+1
-
-  lda #level1_MAP_WID
-  clc
-  rol
-  sta SCR_first_visible_column_max
-  rol SCR_first_visible_column_max+1
-
-  lda SCR_first_visible_column_max
-  sec
-  sbc #scrwidth
-  sta SCR_first_visible_column_max
-  lda SCR_first_visible_column_max+1
-  sbc #0
-  sta SCR_first_visible_column_max+1
-  jsr loadmap
 
   jsr restart_level
-
-  jsr initspr
 
   jsr SCR_init_screen
   jsr SCR_draw_screen
@@ -678,13 +658,14 @@ restart_level:
   sta frame_phase
   sta current_buffer
 
-  jsr restart_player
-
   lda #30
   sta animation_frame
 
+  jsr restart_player
   jsr restart_enemies
   jsr restart_input
+  jsr restart_map
+  jsr restart_sprites
 
   rts
 
@@ -709,7 +690,7 @@ startsound:
   sta sound_started
   rts
 
-initspr:
+restart_sprites:
   // set sprite multi colors
   lda #sprmc0
   sta SPRITE_MC0
@@ -900,6 +881,28 @@ loadmap:
   and #%11111000
   sta maxp1gy
 
+  rts
+
+restart_map:
+
+  lda #0
+  sta SCR_first_visible_column
+  sta SCR_first_visible_column+1
+
+  lda #level1_MAP_WID
+  clc
+  rol
+  sta SCR_first_visible_column_max
+  rol SCR_first_visible_column_max+1
+
+  lda SCR_first_visible_column_max
+  sec
+  sbc #scrwidth
+  sta SCR_first_visible_column_max
+  lda SCR_first_visible_column_max+1
+  sbc #0
+  sta SCR_first_visible_column_max+1
+  jsr loadmap
   rts
 
 init_hud:
