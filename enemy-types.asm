@@ -1,3 +1,5 @@
+// This is the definition of enemy types and their properties
+
 .const ENEMY_TILE_SIZE           = 16
 .const ENEMY_TILE_CHAR_SIZE      = 8
 

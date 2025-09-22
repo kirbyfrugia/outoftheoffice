@@ -1,4 +1,5 @@
-.segment EnemyData [start=$5100]
+// This is the enemy data stored in memory. Levels create
+// instances of enemies by populating this data.
 
 .const MAX_ENEMIES           = 128
 .var ASSEMBLER_ENEMIES_COUNT = 0

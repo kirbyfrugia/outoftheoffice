@@ -1,8 +1,11 @@
+#import "reserved-mem.asm"
+#import "const.asm"
 
 .segment level1 [start=$3800]
 #import "data/level1.asm"
 
-#import "enemies-data.asm"
+.segment EnemyData [start=$5100]
+#import "enemy-data.asm"
 
 .segment Sprites1 [start=$0c00]
 #import "data/spritesbatch1.asm"
@@ -95,13 +98,11 @@ start:
   jmp init
 
 #import "data.asm"
-#import "reserved-mem.asm"
-#import "const.asm"
 #import "utils.asm"
 #import "data/song-kirby.asm"
 // #import "data/song-devils-dream.asm"
 #import "screen.asm"
-#import "enemies.asm"
+#import "enemy-types.asm"
 #import "data/level1-enemies.asm"
 #import "data/level1-jobs.asm"
 
