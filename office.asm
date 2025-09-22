@@ -3254,6 +3254,7 @@ test_stomp_enemy:
   bcs enemy_killed // after new move, player at or below top of enemy
 player_killed:
   inc player_deaths
+  jsr restart_level
   jmp enemy_collisions_kill_done
 enemy_killed:
   inc enemy_kills
