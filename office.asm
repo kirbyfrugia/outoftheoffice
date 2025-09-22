@@ -345,81 +345,6 @@ update_max_raster_lined:
   rts
 
 init:
-  lda #0
-  sta pending_buffer_swap
-  sta ptime
-  sta ptime+1
-  sta ptime+2
-  sta etime
-  sta etime+1
-  sta etime+2
-  sta time
-  sta time+1
-  sta time+2
-  sta p1hva
-  sta p1hva+1
-  sta p1vva
-  sta p1vva+1
-  sta enemies_buffer_min
-  sta collided_enemy_index
-
-  lda #%01000000 // facing right, not moving or jumping
-  sta player_animation_flag
-
-  lda #$ff
-  sta ebl
-  sta ebr
-  sta ebu
-  sta ebd
-  sta ebp
-
-  lda #0
-  sta p1hva
-  lda #HV_ZERO
-  sta p1hvi
-
-  lda #0
-  sta p1vva
-  lda #VV_ZERO
-  sta p1vvi
-
-  lda #1
-  sta on_ground
-
-  lda #0
-  sta p1gx+1
-
-  // initialize player position with zero fractional
-  lda #P1_STARTX
-  rol
-  rol p1gx+1
-  rol
-  rol p1gx+1
-  rol
-  rol p1gx+1
-  and #%11111000
-  sta p1gx
-
-  lda #0
-  sta p1gy+1
-
-  lda #P1_STARTY
-  rol
-  rol p1gy+1
-  rol
-  rol p1gy+1
-  rol
-  rol p1gy+1
-  and #%11111000
-  sta p1gy
-
-  lda #0
-  sta frame_phase
-  sta current_buffer
-
-  lda #20
-  sta animation_frame
-
   jsr initui
   jsr initsys
   jsr initsound
@@ -448,15 +373,7 @@ init:
   sta SCR_first_visible_column_max+1
   jsr loadmap
 
-  jsr init_enemies
-
-  lda enemies_count
-  cmp #MAX_ENEMY_BUFFER_SIZE
-  bcc init_enemies_buffer_updd
-  // if here, there are at least as many enemies as max buffer size
-  lda #MAX_ENEMY_BUFFER_SIZE
-init_enemies_buffer_updd:
-  sta enemies_buffer_max
+  jsr restart_level
 
   jsr initspr
 
@@ -526,11 +443,6 @@ buffer_wait:
   jsr update_max_raster_line
   jsr log
 every_frame:
-  lda player_enemy_flag
-  and #%10000000
-  cmp #%10000000
-  bne no_player_enemy_collisions
-no_player_enemy_collisions:
   jmp game_loop
 
 
@@ -674,6 +586,106 @@ initsound_clearsid:
   sta sound_started
   lda #melody_tempo
   sta melody_frames_until_16th
+  rts
+
+restart_player_velocity:
+  lda #0
+  sta p1hva
+  sta p1hva+1
+  sta p1vva
+  sta p1vva+1
+
+  lda #HV_ZERO
+  sta p1hvi
+
+  lda #VV_ZERO
+  sta p1vvi
+
+  rts
+
+restart_player_position:
+  lda #0
+  sta p1gx+1
+
+  // initialize player position with zero fractional
+  lda #P1_STARTX
+  rol
+  rol p1gx+1
+  rol
+  rol p1gx+1
+  rol
+  rol p1gx+1
+  and #%11111000
+  sta p1gx
+
+  lda #0
+  sta p1gy+1
+
+  lda #P1_STARTY
+  rol
+  rol p1gy+1
+  rol
+  rol p1gy+1
+  rol
+  rol p1gy+1
+  and #%11111000
+  sta p1gy
+
+  rts
+
+restart_player:
+  lda #1
+  sta on_ground
+
+  jsr restart_player_velocity
+  jsr restart_player_position
+  jsr restart_player_animation
+  rts
+
+restart_player_animation:
+  lda #%01000000 // facing right, not moving or jumping
+  sta player_animation_flag
+  rts
+
+restart_enemies:
+  jsr init_level_enemies
+
+  lda #0
+  sta enemies_buffer_min
+
+  lda enemies_count
+  cmp #MAX_ENEMY_BUFFER_SIZE
+  bcc restart_enemies_less_than_max
+  // if here, there are at least as many enemies as max buffer size
+  lda #MAX_ENEMY_BUFFER_SIZE
+restart_enemies_less_than_max:
+  sta enemies_buffer_max
+
+  rts
+
+restart_input:
+  lda #$ff
+  sta ebl
+  sta ebr
+  sta ebu
+  sta ebd
+  sta ebp
+  rts
+
+restart_level:
+  lda #0
+  sta pending_buffer_swap
+  sta frame_phase
+  sta current_buffer
+
+  jsr restart_player
+
+  lda #30
+  sta animation_frame
+
+  jsr restart_enemies
+  jsr restart_input
+
   rts
 
 startsound:
@@ -3252,17 +3264,6 @@ enemy_collisions_kill_done:
   rts
 
 updanim_p1:
-  lda player_enemy_flag
-  and #%10000000
-  cmp #%10000000
-  bne updanim_p1_no_attached_enemies
-
-  // if here, we have an enemy attached
-  lda #P1_ENEMY_ATTACHED
-  clc
-  adc animation_index
-  jmp updanim_p1_offset_selected
-updanim_p1_no_attached_enemies:
   lda spritesbatch1_spriteset_attrib_data+0
   sta SPRITE_COLOR_BASE+0
   // sprite offsets:
@@ -3532,9 +3533,7 @@ minx:        .byte 0,0
 maxx:        .byte 0,0
 miny:        .byte 0,0
 maxy:        .byte 0,0
-ptime:       .byte 0,0,0
-etime:       .byte 0,0,0
-time:        .byte 0,0,0
+
 
 p1hvi:       .byte 0
 p1hva:       .byte 0,0
@@ -3661,13 +3660,6 @@ raster_line:
 
 max_raster_line:
   .byte 0,0
-
-// bit 7, enemy is attached
-player_enemy_flag:
-  .byte 0
-
-collided_enemy_index:
-  .byte 0
 
 // buffer of enemies to check when updating enemy movement,
 // scrolling the screen, or doing collision detection.

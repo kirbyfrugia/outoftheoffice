@@ -1,4 +1,4 @@
-init_enemies:
+init_level_enemies:
   lda #0
   sta enemies_count
 
