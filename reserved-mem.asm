@@ -29,6 +29,7 @@
 //     $4700-$50ff - tile map, max 2560 bytes (256 tiles, 10 rows)
 //   Enemy data
 //     $5100-$???? - dynamic size, could constrain if we add here
+
 //   Scratch space
 //     $7600-$7fff - 2560 bytes, used during initialization of tile map, free to use after
 //   Game program
