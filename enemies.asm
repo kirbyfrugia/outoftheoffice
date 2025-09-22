@@ -4,7 +4,8 @@
 // Enemy types
 // 0 - mouse
 
-.const ENEMY_MOUSE_WIDTH = 16
+.const ENEMY_MOUSE_TYPE   = 0
+.const ENEMY_MOUSE_WIDTH  = 16
 .const ENEMY_MOUSE_HEIGHT = 9
 
 .const ENEMY_FLAG_DEAD         = %10000000
@@ -38,39 +39,3 @@ enemies_collision_offsety:
 enemies_collision_height:
   .byte 5
 
-
-// enemies_rangex_min_lo:
-
-// enemies_rangex_min_hi:
-
-// enemies_rangex_max_lo:
-
-// enemies_rangex_max_hi:
-
-// enemies_posx_lo:
-
-// enemies_posx_hi:
-
-// enemies_posy:
-
-// enemies_width:
-
-// enemies_height:
-
-// // See enemies.asm for flags
-// enemies_flags:
-
-// enemies_dead_animation_frames:
-
-// // which sprite slot should be used for each enemy?
-// // Let's try to keep it to 4 on screen at a time just for speed and
-// //   to allow the other slots to be used
-// // Also, the sprites should be sorted in order from left
-// //   to right in the level so we won't end up in a situation
-// //   where two sprites will try to use the same slot
-// // .byte 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4
-// enemies_sprite_slots:
-
-// enemies_sprite_pos_offset:
-
-// enemies_sprite_base_offset:

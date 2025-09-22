@@ -1,4 +1,8 @@
+
+.segment level1 [start=$3800]
 #import "data/level1.asm"
+
+#import "enemies-data.asm"
 
 .segment Sprites1 [start=$0c00]
 #import "data/spritesbatch1.asm"
@@ -361,16 +365,6 @@ init:
   lda #%01000000 // facing right, not moving or jumping
   sta player_animation_flag
 
-  lda #ENEMIES_COUNT
-  sta zpb0
-  cmp #MAX_ENEMY_BUFFER_SIZE
-  bcc init_enemies_buffer_updd
-  // if here, there are at least as many enemies as max buffer size
-  lda #MAX_ENEMY_BUFFER_SIZE
-init_enemies_buffer_updd:
-  sta enemies_buffer_size
-  sta enemies_buffer_max
-
   lda #$ff
   sta ebl
   sta ebr
@@ -452,6 +446,16 @@ init_enemies_buffer_updd:
   sbc #0
   sta SCR_first_visible_column_max+1
   jsr loadmap
+
+  jsr init_enemies
+
+  lda enemies_count
+  cmp #MAX_ENEMY_BUFFER_SIZE
+  bcc init_enemies_buffer_updd
+  // if here, there are at least as many enemies as max buffer size
+  lda #MAX_ENEMY_BUFFER_SIZE
+init_enemies_buffer_updd:
+  sta enemies_buffer_max
 
   jsr initspr
 
@@ -2814,7 +2818,7 @@ upd_enemies_buffer_test_upper:
   // Check the enemy *after* the current max and compare it to our
   // min. If we're closer to the *after*, move the buffer up.
   ldx enemies_buffer_max
-  cpx #ENEMIES_COUNT
+  cpx enemies_count
   beq upd_enemies_bufferd        // end of buffer already at end of enemies
   //dex                          // get enemy one past end of current buffer
                                  // which is actually max since max is 1+ actual buffer
@@ -3327,11 +3331,11 @@ updanim_p1_done:
 updanim_enemy:
   ldx enemies_buffer_min
 updanim_enemy_loop:
-  lda enemies_flags, X
+  lda enemies_flags, x
   and #ENEMY_FLAG_DEAD
   bne updanim_enemy_next_enemy
 
-  lda enemies_flags, X
+  lda enemies_flags, x
   and #ENEMY_FLAG_DYING
   bne updanim_enemy_next_enemy
 
@@ -3668,10 +3672,6 @@ collided_enemy_index:
 // scrolling the screen, or doing collision detection.
 enemies_buffer_min:       .byte 0
 enemies_buffer_max:       .byte 0
-enemies_buffer_size:      .byte 0
-
-enemies_buffer_min_dist:  .byte 0,0
-enemies_buffer_max_dist:  .byte 0,0
 
 enemy_collided_temp:      .byte 0
 enemy_kills:              .byte 0

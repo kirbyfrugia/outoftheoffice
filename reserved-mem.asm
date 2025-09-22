@@ -28,16 +28,12 @@
 //     $4600-$46ff - char tileset tag data (tile collisions), 256 bytes
 //     $4700-$50ff - tile map, max 2560 bytes (256 tiles, 10 rows)
 //   Enemy data
-//     $5100-$???? - dynamic size, could constrain if we add here
+//     $5100-$???? - dynamic size, could constrain if needed.
 
 //   Scratch space
 //     $7600-$7fff - 2560 bytes, used during initialization of tile map, free to use after
 //   Game program
 //     $8000-????  - dynamic size
-//   More level data, tile metadata
-//     note: this uses a lot of memory, but it makes accessing the tiles faster/easier
-//     $c000-c9ff  - tile metadata, left-hand of tile
-//     $ca00-d3ff  - tile metadata, right-hand of tile
 
 .const zpb0                                  = $fb
 .const zpb1                                  = $fc
@@ -125,4 +121,5 @@
 .var SCR_char_tileset_attrib = $4500
 .var SCR_char_tileset_tag    = $4600
 .var SCR_level_tiles         = $4700
+.var ENEMY_DATA              = $5100
 .var SCRATCH_SPACE           = $7600
