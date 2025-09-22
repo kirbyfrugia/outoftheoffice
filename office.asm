@@ -357,8 +357,6 @@ init:
 
   jsr restart_level
 
-  jsr SCR_init_screen
-  jsr SCR_draw_screen
   jsr startsound
 
   jsr init_hud
@@ -666,6 +664,9 @@ restart_level:
   jsr restart_input
   jsr restart_map
   jsr restart_sprites
+
+  jsr SCR_init_screen
+  jsr SCR_draw_screen
 
   rts
 
