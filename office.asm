@@ -345,8 +345,10 @@ update_max_raster_lined:
   rts
 
 init:
+  lda #3
+  sta num_lives
+
   jsr disable_irqs
-  jsr initui
   jsr initsys
   jsr initsound
 
@@ -424,29 +426,6 @@ buffer_wait:
 every_frame:
   jmp game_loop
 
-
-
-cls:
-  ldy #0
-clsl:
-  lda #1
-  sta $d800,y
-  sta $d800+$0100,y
-  sta $d800+$0200,y
-  sta $d800+$0300,y
-//  lda #252
-  lda #0
-  sta $0400,y
-  sta $0400+$0100,y
-  sta $0400+$0200,y
-  sta $0400+$0300,y
-  sta $0800,y
-  sta $0800+$0100,y
-  sta $0800+$0200,y
-  sta $0800+$0300,y
-  iny
-  bne clsl
-  rts
 
 initsys:
   // turn on multiclr char mode
@@ -648,6 +627,65 @@ init_irq:
   jsr enable_irqs
   rts
 
+show_lives:
+
+  // // set the screen background color to black
+  // lda BG_COLOR0 // grab existing color
+  // pha
+  // lda #0
+  // sta BG_COLOR0
+
+  // display how many lives we have remaining.
+  // Show the player sprite near the center of the screen.
+  .var screen_centerx = (320 / 2)
+  .var playerx        = 31 + screen_centerx - (p1width / 2) - 16
+  .var screen_centery = (200 / 2)
+  .var playery        = 50 + screen_centery - (p1height / 2)
+
+  // player facing right sprite index
+  lda #P1_FACING_RIGHT_OFFSET
+  sta SPRITE_PTR_BASE_FB+0 // 1024 buffer
+
+  lda #playerx
+  sta SPRITE_XPOS_BASE+0
+
+  lda #%00000000
+  sta SPRITE_MSB
+
+  lda #playery
+  sta SPRITE_YPOS_BASE+0
+
+  lda #%00000001
+  sta SPRITE_ENABLE
+
+  // lda #1
+  // sta COLOR_MEM+424
+  // sta COLOR_MEM+426
+  // lda #24 // x
+  // sta SCREEN_MEM1+424
+  // lda #48 // 0
+  // clc
+  // adc num_lives
+  // sta SCREEN_MEM1+426
+
+  // wait 60 rasters
+  ldx #59
+show_lives_delay:
+  lda VIC_RW_RASTER
+  cmp #$fa
+  bne show_lives_delay
+  dex
+  bpl show_lives_delay
+
+  // hide player sprite again
+  lda #%00000000
+  sta SPRITE_ENABLE
+
+  // pla
+  // sta BG_COLOR0
+
+  rts
+
 restart_level:
   jsr disable_irqs
 
@@ -664,11 +702,19 @@ restart_level:
   sta VIC_MEM_CONTROL_REG
   cli
 
-  jsr cls
-  jsr restart_hud
-
   lda #30
   sta animation_frame
+
+  // disable all sprites
+  lda #%00000000
+  sta SPRITE_ENABLE
+
+  jsr clear_screen
+  jsr show_lives
+  jsr clear_hud
+  jsr SCR_init_screen
+  jsr SCR_draw_screen  // draw to back buffer (2048)
+  jsr SCR_swipe_screen // Swipe from 2048 to 1024
 
   jsr restart_player
   jsr restart_enemies
@@ -676,10 +722,9 @@ restart_level:
   jsr restart_map
   jsr restart_sprites
 
-  jsr SCR_init_screen
-  jsr SCR_draw_screen
-
   jsr enable_irqs
+
+  jsr restart_hud
 
   rts
 
@@ -827,10 +872,6 @@ restart_sprites:
 
   rts
 
-initui:
-  jsr cls
-  rts
-
 
 loadmap:
   lda SCR_first_visible_column_max
@@ -917,6 +958,28 @@ restart_map:
   sbc #0
   sta SCR_first_visible_column_max+1
   jsr loadmap
+  rts
+
+clear_hud:
+  ldx #39
+clear_hud_loop:
+  lda #69
+  sta SCREEN_MEM1+21*40, x
+  sta SCREEN_MEM2+21*40, x
+  lda #0
+  sta SCREEN_MEM1+22*40, x
+  sta SCREEN_MEM2+22*40, x
+  sta SCREEN_MEM1+23*40, x
+  sta SCREEN_MEM2+23*40, x
+  sta SCREEN_MEM1+24*40, x
+  sta SCREEN_MEM2+24*40, x
+  lda #COLOR_HUD_BG
+  sta COLOR_MEM+21*40, x
+  sta COLOR_MEM+22*40, x
+  sta COLOR_MEM+23*40, x
+  sta COLOR_MEM+24*40, x
+  dex
+  bpl clear_hud_loop
   rts
 
 restart_hud:
@@ -3254,6 +3317,7 @@ test_stomp_enemy:
   bcs enemy_killed // after new move, player at or below top of enemy
 player_killed:
   inc player_deaths
+  dec num_lives
   jsr restart_level
   jmp enemy_collisions_kill_done
 enemy_killed:
@@ -3707,3 +3771,5 @@ bresenham_crossed_boundary:       .byte 0
 bresenham_pixel_boundaries_count: .byte 0
 bresenham_pixel_boundariesx:      .fill 64,0
 bresenham_pixel_boundariesy:      .fill 64,0
+
+num_lives:                .byte 0

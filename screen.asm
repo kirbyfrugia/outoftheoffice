@@ -346,58 +346,81 @@ SCR_load_sprite_sheets:
   load_sprite_sheet(str_sprites2, $fe, $1f)
   rts
 
-SCR_draw_screen:
-  ldy SCR_last_visible_tile
-  ldx #38 // screen column
-ds_loop:
-  SCR_draw_tile(1024, 1064, SCR_TILE_ROW_0)
-  SCR_draw_tile(1104, 1144, SCR_TILE_ROW_1)
-  SCR_draw_tile(1184, 1224, SCR_TILE_ROW_2)
-  SCR_draw_tile(1264, 1304, SCR_TILE_ROW_3)
-  SCR_draw_tile(1344, 1384, SCR_TILE_ROW_4)
-  SCR_draw_tile(1424, 1464, SCR_TILE_ROW_5)
-  SCR_draw_tile(1504, 1544, SCR_TILE_ROW_6) 
-  SCR_draw_tile(1584, 1624, SCR_TILE_ROW_7)
-  SCR_draw_tile(1664, 1704, SCR_TILE_ROW_8)
-  SCR_draw_tile(1744, 1784, SCR_TILE_ROW_9)
-  
-  SCR_draw_color_tile(55296, 55336, SCR_TILE_ROW_0)
-  SCR_draw_color_tile(55376, 55416, SCR_TILE_ROW_1)
-  SCR_draw_color_tile(55456, 55496, SCR_TILE_ROW_2)
-  SCR_draw_color_tile(55536, 55576, SCR_TILE_ROW_3)
-  SCR_draw_color_tile(55616, 55656, SCR_TILE_ROW_4)
-  SCR_draw_color_tile(55696, 55736, SCR_TILE_ROW_5)
-  SCR_draw_color_tile(55776, 55816, SCR_TILE_ROW_6) 
-  SCR_draw_color_tile(55856, 55896, SCR_TILE_ROW_7)
-  SCR_draw_color_tile(55936, 55976, SCR_TILE_ROW_8)
-  SCR_draw_color_tile(56016, 56056, SCR_TILE_ROW_9)
-  // bottom two rows
-  lda #66
-  sta 1824, x
-  sta 1825, x
-  sta 2848, x
-  sta 2849, x
+// clear_screen:
+//   ldy #0
+// clear_screen_loop:
+//   lda #0
+//   sta $d800,y
+//   sta $d800+$0100,y
+//   sta $d800+$0200,y
+//   sta $d800+$0300,y
+
+//   lda #69
+//   sta $0400,y
+//   sta $0400+$0100,y
+//   sta $0400+$0200,y
+//   sta $0400+$0300,y
+//   lda #69
+//   sta $0800,y
+//   sta $0800+$0100,y
+//   sta $0800+$0200,y
+//   sta $0800+$0300,y
+//   iny
+//   bne clear_screen_loop
+//   rts
+
+clear_screen:
+  lda #<COLOR_MEM
+  sta zpb0
+  lda #>COLOR_MEM
+  sta zpb1
+
+  lda #<SCREEN_MEM1
+  sta zpb2
+  lda #>SCREEN_MEM1
+  sta zpb3
+
+  ldx #24
+  ldy #39
+clear_screen_loop:
+  lda #0
+  sta (zpb0), y
   lda #69
-  sta 1864, x
-  sta 1865, x
-  sta 2888, x
-  sta 2889, x
-  lda #11
-  sta 56096, x
-  sta 56097, x
-  lda #COLOR_HUD_BG
-  sta 56136, x
-  sta 56137, x
-ds_loop_end:
+  sta (zpb2), y
+
   dey
-  bmi ds_done
+  bpl clear_screen_loop
   dex
-  dex
-  jmp ds_loop
-ds_done:
+  bmi clear_screen_done
+
+  ldy #39
+
+  lda zpb0
+  clc
+  adc #40
+  sta zpb0
+  lda zpb1
+  adc #0
+  sta zpb1
+
+  lda zpb2
+  clc
+  adc #40
+  sta zpb2
+  lda zpb3
+  adc #0
+  sta zpb3
+  jmp clear_screen_loop
+clear_screen_done:
   rts
 
 SCR_init_screen:
+  // set the screen buffer to the 1024 buffer
+  lda VIC_MEM_CONTROL_REG
+  and #%00001111
+  ora #%00010000 // screen location 1024, $0400
+  sta VIC_MEM_CONTROL_REG
+
   lda #0
   sta SCR_buffer_flag
   sta SCR_buffer_ready
@@ -432,6 +455,179 @@ SCR_init_screen:
   lda #19
   sta SCR_last_visible_tile
   rts
+
+SCR_swipe_screen:
+  ldx #39
+SCR_swipe_screen_col:
+  lda SCREEN_MEM2+0, x
+  sta SCREEN_MEM1+0, x
+  lda SCREEN_MEM2+40, x
+  sta SCREEN_MEM1+40, x
+  lda SCREEN_MEM2+80, x
+  sta SCREEN_MEM1+80, x
+  lda SCREEN_MEM2+120, x
+  sta SCREEN_MEM1+120, x
+  lda SCREEN_MEM2+160, x
+  sta SCREEN_MEM1+160, x
+  lda SCREEN_MEM2+200, x
+  sta SCREEN_MEM1+200, x
+  lda SCREEN_MEM2+240, x
+  sta SCREEN_MEM1+240, x
+  lda SCREEN_MEM2+280, x
+  sta SCREEN_MEM1+280, x
+  lda SCREEN_MEM2+320, x
+  sta SCREEN_MEM1+320, x
+  lda SCREEN_MEM2+360, x
+  sta SCREEN_MEM1+360, x
+  lda SCREEN_MEM2+400, x
+  sta SCREEN_MEM1+400, x
+  lda SCREEN_MEM2+440, x
+  sta SCREEN_MEM1+440, x
+  lda SCREEN_MEM2+480, x
+  sta SCREEN_MEM1+480, x
+  lda SCREEN_MEM2+520, x
+  sta SCREEN_MEM1+520, x
+  lda SCREEN_MEM2+560, x
+  sta SCREEN_MEM1+560, x
+  lda SCREEN_MEM2+600, x
+  sta SCREEN_MEM1+600, x
+  lda SCREEN_MEM2+640, x
+  sta SCREEN_MEM1+640, x
+  lda SCREEN_MEM2+680, x
+  sta SCREEN_MEM1+680, x
+  lda SCREEN_MEM2+720, x
+  sta SCREEN_MEM1+720, x
+  lda SCREEN_MEM2+760, x
+  sta SCREEN_MEM1+760, x
+  lda SCREEN_MEM2+800, x
+  sta SCREEN_MEM1+800, x
+
+  lda SCRATCH_SPACE+0, x
+  sta COLOR_MEM+0, x
+  lda SCRATCH_SPACE+40, x
+  sta COLOR_MEM+40, x
+  lda SCRATCH_SPACE+80, x
+  sta COLOR_MEM+80, x
+  lda SCRATCH_SPACE+120, x
+  sta COLOR_MEM+120, x
+  lda SCRATCH_SPACE+160, x
+  sta COLOR_MEM+160, x
+  lda SCRATCH_SPACE+200, x
+  sta COLOR_MEM+200, x
+  lda SCRATCH_SPACE+240, x
+  sta COLOR_MEM+240, x
+  lda SCRATCH_SPACE+280, x
+  sta COLOR_MEM+280, x
+  lda SCRATCH_SPACE+320, x
+  sta COLOR_MEM+320, x
+  lda SCRATCH_SPACE+360, x
+  sta COLOR_MEM+360, x
+  lda SCRATCH_SPACE+400, x
+  sta COLOR_MEM+400, x
+  lda SCRATCH_SPACE+440, x
+  sta COLOR_MEM+440, x
+  lda SCRATCH_SPACE+480, x
+  sta COLOR_MEM+480, x
+  lda SCRATCH_SPACE+520, x
+  sta COLOR_MEM+520, x
+  lda SCRATCH_SPACE+560, x
+  sta COLOR_MEM+560, x
+  lda SCRATCH_SPACE+600, x
+  sta COLOR_MEM+600, x
+  lda SCRATCH_SPACE+640, x
+  sta COLOR_MEM+640, x
+  lda SCRATCH_SPACE+680, x
+  sta COLOR_MEM+680, x
+  lda SCRATCH_SPACE+720, x
+  sta COLOR_MEM+720, x
+  lda SCRATCH_SPACE+760, x
+  sta COLOR_MEM+760, x
+  lda SCRATCH_SPACE+800, x
+  sta COLOR_MEM+800, x
+
+  dex
+  bmi swipe_done
+delay_loop:
+  lda VIC_RW_RASTER
+  cmp #$fa
+  bne delay_loop
+
+  jmp SCR_swipe_screen_col
+swipe_done:
+  rts
+
+// TODO: instead smooth scroll the level entirely?
+// wait until we get a raster
+
+SCR_draw_screen:
+  ldy SCR_last_visible_tile
+  ldx #38 // screen column
+ds_loop:
+  SCR_draw_tile(2048, 2088, SCR_TILE_ROW_0)
+  SCR_draw_tile(2128, 2168, SCR_TILE_ROW_1)
+  SCR_draw_tile(2208, 2248, SCR_TILE_ROW_2)
+  SCR_draw_tile(2288, 2328, SCR_TILE_ROW_3)
+  SCR_draw_tile(2368, 2408, SCR_TILE_ROW_4)
+  SCR_draw_tile(2448, 2488, SCR_TILE_ROW_5)
+  SCR_draw_tile(2528, 2568, SCR_TILE_ROW_6) 
+  SCR_draw_tile(2608, 2648, SCR_TILE_ROW_7)
+  SCR_draw_tile(2688, 2728, SCR_TILE_ROW_8)
+  SCR_draw_tile(2768, 2808, SCR_TILE_ROW_9)
+
+
+  // draw color to a scratch space
+  SCR_draw_color_tile(SCRATCH_SPACE+0,   SCRATCH_SPACE+40,  SCR_TILE_ROW_0)
+  SCR_draw_color_tile(SCRATCH_SPACE+80,  SCRATCH_SPACE+120, SCR_TILE_ROW_1)
+  SCR_draw_color_tile(SCRATCH_SPACE+160, SCRATCH_SPACE+200, SCR_TILE_ROW_2)
+  SCR_draw_color_tile(SCRATCH_SPACE+240, SCRATCH_SPACE+280, SCR_TILE_ROW_3)
+  SCR_draw_color_tile(SCRATCH_SPACE+320, SCRATCH_SPACE+360, SCR_TILE_ROW_4)
+  SCR_draw_color_tile(SCRATCH_SPACE+400, SCRATCH_SPACE+440, SCR_TILE_ROW_5)
+  SCR_draw_color_tile(SCRATCH_SPACE+480, SCRATCH_SPACE+520, SCR_TILE_ROW_6)
+  SCR_draw_color_tile(SCRATCH_SPACE+560, SCRATCH_SPACE+600, SCR_TILE_ROW_7)
+  SCR_draw_color_tile(SCRATCH_SPACE+640, SCRATCH_SPACE+680, SCR_TILE_ROW_8)
+  SCR_draw_color_tile(SCRATCH_SPACE+720, SCRATCH_SPACE+760, SCR_TILE_ROW_9)
+
+  // bottom two rows
+  lda #66
+  sta SCREEN_MEM2+20*40,   x
+  sta SCREEN_MEM2+20*40+1, x
+
+  lda #69
+  sta SCREEN_MEM2+21*40,   x
+  sta SCREEN_MEM2+21*40+1, x
+
+  lda #11 // dark grey
+  sta SCRATCH_SPACE+20*40,   x
+  sta SCRATCH_SPACE+20*40+1, x
+
+  lda #COLOR_HUD_BG
+  sta SCRATCH_SPACE+21*40,   x
+  sta SCRATCH_SPACE+21*40+1, x
+
+  // // sta 1824, x
+  // // sta 1825, x
+  // // // sta 2848, x
+  // // // sta 2849, x
+  // lda #69
+  // sta 1864, x
+  // sta 1865, x
+  // sta 2888, x
+  // sta 2889, x
+  // lda #11
+  // sta 56096, x
+  // sta 56097, x
+  // lda #COLOR_HUD_BG
+  // sta 56136, x
+  // sta 56137, x
+ds_loop_end:
+  dey
+  bmi ds_done
+  dex
+  dex
+  jmp ds_loop
+ds_done:
+  rts
+
 
 // How scrolling works:
 //   You pass in the amount of pixels to scroll.

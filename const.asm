@@ -90,6 +90,10 @@
 .const SPRITE_MC1          = $d026
 .const SPRITE_COLOR_BASE   = $d027
 
+.const SCREEN_MEM1         = $0400
+.const SCREEN_MEM2         = $0800
+.const COLOR_MEM           = $d800
+
 .const CIA_PORTA           = $dc00
 .const CIA_PORTB           = $dc01
 

@@ -74,15 +74,15 @@ enemies_data_end:
 
   lda #<(ENEMY_TILE_SIZE*rangex_min+posx_offset)
   sta enemies_rangex_min_lo, x
-  sta enemies_posx_lo, x
   lda #>(ENEMY_TILE_SIZE*rangex_min+posx_offset)
   sta enemies_rangex_min_hi, x
-  sta enemies_posx_hi, x
 
   lda #<(ENEMY_TILE_SIZE*rangex_max+posx_offset-width)
   sta enemies_rangex_max_lo, x
+  sta enemies_posx_lo, x
   lda #>(ENEMY_TILE_SIZE*rangex_max+posx_offset-width)
   sta enemies_rangex_max_hi, x
+  sta enemies_posx_hi, x
 
   lda #<(ENEMY_TILE_SIZE*posy+posy_offset-height)
   sta enemies_posy, x
