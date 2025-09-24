@@ -36,7 +36,7 @@
 .const scrollmin    = 94
 .const scrollmax    = 226
 
-.const RASTER_HUD         = $e2 // 3 char rows before bottom border
+.const RASTER_HUD         = $da // 4 char rows before bottom border
 .const RASTER_HUD_DONE    = $fa
 .const RASTER_BUFFER_SWAP = $00
 // Lower half of screen memory starts at $82

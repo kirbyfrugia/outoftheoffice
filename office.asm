@@ -662,6 +662,7 @@ show_lives:
   // player facing right sprite index
   lda #P1_FACING_RIGHT_OFFSET
   sta SPRITE_PTR_BASE_FB+0 // 1024 buffer
+  sta SPRITE_PTR_BASE_BB+0 // 2048 buffer
 
   lda #playerx
   sta SPRITE_XPOS_BASE+0
@@ -734,9 +735,9 @@ restart_level:
   sta SPRITE_ENABLE
 
   jsr clear_screen
-  jsr show_lives
   jsr clear_hud
   jsr SCR_init_screen
+  jsr show_lives
   jsr SCR_draw_screen  // draw to back buffer (2048)
   jsr enable_irqs
 
@@ -1010,10 +1011,9 @@ restart_map:
 clear_hud:
   ldx #39
 clear_hud_loop:
-  lda #CHAR_FILLED
+  lda #0
   sta SCREEN_MEM1+21*40, x
   sta SCREEN_MEM2+21*40, x
-  lda #0
   sta SCREEN_MEM1+22*40, x
   sta SCREEN_MEM2+22*40, x
   sta SCREEN_MEM1+23*40, x
