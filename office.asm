@@ -65,7 +65,32 @@ stub:
   ora #%00000110      // LORAM=0 (BASIC out), HIRAM=1 (keep KERNAL), CHAREN=1 (keep I/O)
   sta $01
   cli
-  
+
+  lda #0
+  sta BG_COLOR0
+  sta BORDER_COLOR
+
+  jsr $e544                    // kernal clear screen
+
+  lda #12   // L
+  sta SCREEN_MEM1+12*40+15
+  lda #15   // O
+  sta SCREEN_MEM1+12*40+16
+  lda #1    // A
+  sta SCREEN_MEM1+12*40+17
+  lda #4    // D
+  sta SCREEN_MEM1+12*40+18
+  lda #9    // I
+  sta SCREEN_MEM1+12*40+19
+  lda #14   // N
+  sta SCREEN_MEM1+12*40+20
+  lda #7    // G
+  sta SCREEN_MEM1+12*40+21
+  lda #46   // .
+  sta SCREEN_MEM1+12*40+22
+  sta SCREEN_MEM1+12*40+23
+  sta SCREEN_MEM1+12*40+24
+
   // load the game
   lda #15                      // logical file number
   ldx #8                       // device number
@@ -84,7 +109,7 @@ stub:
   stx $fc
   sty $fd
 
-  jmp start            // jump into the game
+  jmp start                    // jump into the game
 
 // data area
 gamename:
@@ -349,7 +374,6 @@ init:
   sta num_lives
 
   jsr disable_irqs
-  jsr initsys
   jsr initsound
 
   jsr SCR_load_sprite_sheets
@@ -357,6 +381,7 @@ init:
   lda #level1_MAP_WID
   sta SCR_tile_level_width
   jsr SCR_loadmap
+  jsr init_screen_settings
 
   jsr load_sprites
   jsr restart_level
@@ -424,7 +449,7 @@ every_frame:
   jmp game_loop
 
 
-initsys:
+init_screen_settings:
   // turn on multiclr char mode
   // lda VIC_HCONTROL_REG
   // ora #%00010000
@@ -443,8 +468,6 @@ initsys:
   lda #COLOR_BORDER
   sta BORDER_COLOR
   rts
-
-
 
 initsound:
   // clear the sid chip
