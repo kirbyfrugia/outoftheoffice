@@ -623,20 +623,41 @@ enable_irqs:
   cli
   rts
 
-show_lives:
+// delays by a number of rasters
+// inputs:
+//   x - number of rasters to wait
+// modifies: x and y
+delay_rasters:
+delay_rasters_outer_loop:
+  lda VIC_RW_RASTER
+  cmp #$fa
+  beq delay_rasters_inner
+  bne delay_rasters_outer_loop
+  // do some work just to delay a bit and get past the raster line
+delay_rasters_inner:
+  ldy #12
+delay_rasters_inner_loop:
+  nop
+  nop
+  nop
+  dey
+  bpl delay_rasters_inner_loop
+  dex
+  bne delay_rasters_outer_loop
+  rts
 
-  // // set the screen background color to black
-  // lda BG_COLOR0 // grab existing color
-  // pha
-  // lda #0
-  // sta BG_COLOR0
+show_lives:
+  // set the screen background
+  lda #COLOR_SWIPE
+  sta BG_COLOR0
 
   // display how many lives we have remaining.
   // Show the player sprite near the center of the screen.
   .var screen_centerx = (320 / 2)
   .var playerx        = 31 + screen_centerx - (p1width / 2) - 16
   .var screen_centery = (200 / 2)
-  .var playery        = 50 + screen_centery - (p1height / 2)
+  .var playery        = 50 + 12*8 - (p1height / 2) + 4
+  //.var playery        = 50 + screen_centery - (p1height / 2)
 
   // player facing right sprite index
   lda #P1_FACING_RIGHT_OFFSET
@@ -654,30 +675,35 @@ show_lives:
   lda #%00000001
   sta SPRITE_ENABLE
 
+  lda #24 // letter x
+  sta SCREEN_MEM1+12*40+20
+  lda #48
+  clc
+  adc num_lives
+  sta SCREEN_MEM1+12*40+20+2
+
+  lda #1
+  sta COLOR_MEM+12*40+20
+  sta COLOR_MEM+12*40+20+2
+
   ldx #180
-show_lives_delay_outer_loop:
-  lda VIC_RW_RASTER
-  cmp #$fa
-  beq show_lives_delay_inner
-  bne show_lives_delay_outer_loop
-  // do some work just to delay a bit and get past the raster line
-show_lives_delay_inner:
-  ldy #12
-show_lives_delay_inner_loop:
-  nop
-  nop
-  nop
-  dey
-  bpl show_lives_delay_inner_loop
-  dex
-  bne show_lives_delay_outer_loop
+  jsr delay_rasters
 
   // hide player sprite again
   lda #%00000000
   sta SPRITE_ENABLE
 
-  // pla
-  // sta BG_COLOR0
+  // cover up number of lives
+  lda #CHAR_FILLED
+  sta SCREEN_MEM1+12*40+20
+  sta SCREEN_MEM1+12*40+20+2
+
+  lda #COLOR_SWIPE
+  sta COLOR_MEM+12*40+20
+  sta COLOR_MEM+12*40+20+2
+
+  lda #COLOR_BG
+  sta BG_COLOR0
 
   rts
 
@@ -984,7 +1010,7 @@ restart_map:
 clear_hud:
   ldx #39
 clear_hud_loop:
-  lda #69
+  lda #CHAR_FILLED
   sta SCREEN_MEM1+21*40, x
   sta SCREEN_MEM2+21*40, x
   lda #0

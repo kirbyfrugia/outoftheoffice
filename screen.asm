@@ -383,9 +383,9 @@ clear_screen:
   ldx #24
   ldy #39
 clear_screen_loop:
-  lda #0
+  lda #COLOR_SWIPE
   sta (zpb0), y
-  lda #69
+  lda #CHAR_FILLED
   sta (zpb2), y
 
   dey
@@ -592,11 +592,11 @@ ds_loop:
   sta SCREEN_MEM2+20*40,   x
   sta SCREEN_MEM2+20*40+1, x
 
-  lda #69
+  lda #CHAR_FILLED
   sta SCREEN_MEM2+21*40,   x
   sta SCREEN_MEM2+21*40+1, x
 
-  lda #11 // dark grey
+  lda #COLOR_SWIPE
   sta SCRATCH_SPACE+20*40,   x
   sta SCRATCH_SPACE+20*40+1, x
 

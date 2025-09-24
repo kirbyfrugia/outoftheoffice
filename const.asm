@@ -99,9 +99,11 @@
 
 .const SID_BASE        = 54272
 
+.const CHAR_FILLED     = 69
 .const COLOR_HUD_BG    = 6
 .const COLOR_HUD_TITLE = 13
 .const COLOR_HUD_TEXT  = 3
+.const COLOR_SWIPE     = 11
 .const COLOR_BG        = 12
 .const COLOR_BORDER    = 0
 .const VOICE1          = 54272
