@@ -124,6 +124,7 @@ start:
 
 #import "data.asm"
 #import "utils.asm"
+#import "sound-data.asm"
 #import "data/song-kirby.asm"
 // #import "data/song-devils-dream.asm"
 #import "screen.asm"
@@ -781,6 +782,20 @@ restart_level:
 
   jsr restart_hud
 
+  rts
+
+player_died:
+  lda #P1_DEAD
+  sta SPRITE_PTR_BASE_FB+0
+  sta SPRITE_PTR_BASE_BB+0
+
+  play_sound(3)
+
+  ldx #30
+  jsr delay_rasters
+
+  dec num_lives
+  jsr restart_level
   rts
 
 stop_sound:
@@ -1443,11 +1458,6 @@ log_enemies:
   iny
   iny
   lda enemy_kills
-  jsr loghexit
-
-  iny
-  iny
-  lda player_deaths
   jsr loghexit
 
   rts
@@ -3386,9 +3396,7 @@ test_stomp_enemy:
   cmp zpb2
   bcs enemy_killed // after new move, player at or below top of enemy
 player_killed:
-  inc player_deaths
-  dec num_lives
-  jsr restart_level
+  jsr player_died
   jmp enemy_collisions_kill_done
 enemy_killed:
   inc enemy_kills
@@ -3767,34 +3775,6 @@ sound_effect_ready:
 sound_effect_index:
   .byte 0  
 
-// sound effects table
-// indices:
-//   0 - jump
-//   1 - hitting ceiling
-//   2 - squishing enemies
-sound_effects_pulse_lo:
-  .byte $00, $00, $00
-sound_effects_pulse_hi:
-  .byte $08, $05, $04
-sound_effects_attack_decay:
-  .byte $15, $08, $06
-sound_effects_sustain_release:
-  .byte $14, $03, $03
-sound_effects_waveform:
-  .byte %01000001, %01000001, %10000001
-sound_effects_freq_lo:
-  .byte $18, $00, $00
-sound_effects_freq_hi:
-  .byte $0e, $07, $16
-sound_effects_num_ticks:
-  .byte $14, $14, $14
-sound_effects_sweep_adder_lo:
-  .byte $a0, $f4, $18
-sound_effects_sweep_adder_hi:
-  .byte $01, $ff, $00
-sound_effects_sweep_num_ticks:
-  .byte $0f, $0f, $14
-
 // VICE testing:
 // Jump
 // > .sound_effects_pulse_lo $00 $08 $15 $14 $41 $18 $0e $10 $a0 $01 $0f *
@@ -3833,7 +3813,6 @@ enemies_buffer_max:       .byte 0
 
 enemy_collided_temp:      .byte 0
 enemy_kills:              .byte 0
-player_deaths:            .byte 0
 
 sprite_collisions_detected: .byte 0
 
