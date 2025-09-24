@@ -358,11 +358,8 @@ init:
   sta SCR_tile_level_width
   jsr SCR_loadmap
 
+  jsr load_sprites
   jsr restart_level
-
-  jsr startsound
-
-  // jsr init_irq
 
 game_loop:
   lda frame_tick
@@ -590,6 +587,11 @@ disable_irqs:
   lda $dc0d
   lda $dd0d
 
+  // disable raster interrupt source
+  lda #%11111110
+  and VIC_IRQ_MASK
+  sta VIC_IRQ_MASK
+
   // clear high raster bit
   lda VIC_VCONTROL_REG
   and #%01111111
@@ -619,12 +621,6 @@ enable_irqs:
   sta VIC_IRQ_MASK
 
   cli
-  rts
-
-
-init_irq:
-  jsr disable_irqs
-  jsr enable_irqs
   rts
 
 show_lives:
@@ -658,24 +654,23 @@ show_lives:
   lda #%00000001
   sta SPRITE_ENABLE
 
-  // lda #1
-  // sta COLOR_MEM+424
-  // sta COLOR_MEM+426
-  // lda #24 // x
-  // sta SCREEN_MEM1+424
-  // lda #48 // 0
-  // clc
-  // adc num_lives
-  // sta SCREEN_MEM1+426
-
-  // wait 60 rasters
-  ldx #59
-show_lives_delay:
+  ldx #180
+show_lives_delay_outer_loop:
   lda VIC_RW_RASTER
   cmp #$fa
-  bne show_lives_delay
+  beq show_lives_delay_inner
+  bne show_lives_delay_outer_loop
+  // do some work just to delay a bit and get past the raster line
+show_lives_delay_inner:
+  ldy #12
+show_lives_delay_inner_loop:
+  nop
+  nop
+  nop
+  dey
+  bpl show_lives_delay_inner_loop
   dex
-  bpl show_lives_delay
+  bne show_lives_delay_outer_loop
 
   // hide player sprite again
   lda #%00000000
@@ -700,6 +695,9 @@ restart_level:
   and #%00001111
   ora #%00010000 // screen location 1024, $0400
   sta VIC_MEM_CONTROL_REG
+
+  jsr stop_sound
+
   cli
 
   lda #30
@@ -714,21 +712,47 @@ restart_level:
   jsr clear_hud
   jsr SCR_init_screen
   jsr SCR_draw_screen  // draw to back buffer (2048)
+  jsr enable_irqs
+
   jsr SCR_swipe_screen // Swipe from 2048 to 1024
 
   jsr restart_player
   jsr restart_enemies
   jsr restart_input
   jsr restart_map
-  jsr restart_sprites
+  
+  jsr load_sprites
 
-  jsr enable_irqs
+  // enable player
+  lda #%00000001
+  sta SPRITE_ENABLE
+
+  jsr start_sound
 
   jsr restart_hud
 
   rts
 
-startsound:
+stop_sound:
+  lda #0
+  sta sound_started
+
+  // stop any currently playing music and sound effects
+  lda VOICE1_CONTROL
+  and #%11111110
+  sta VOICE1_CONTROL
+
+  lda VOICE2_CONTROL
+  and #%11111110
+  sta VOICE2_CONTROL
+
+  lda VOICE3_CONTROL
+  and #%11111110
+  sta VOICE3_CONTROL
+  rts
+
+start_sound:
+
   // on init, move to end of song with 1 16th notes remaining
   // so that we loop back to start in the irq
 
@@ -749,7 +773,7 @@ startsound:
   sta sound_started
   rts
 
-restart_sprites:
+load_sprites:
   // set sprite multi colors
   lda #sprmc0
   sta SPRITE_MC0
@@ -778,9 +802,6 @@ restart_sprites:
 
   lda #%01111111
   sta SPRITE_MC_MODE
-
-  lda #%00000001
-  sta SPRITE_ENABLE //spr enable
 
   // TODO: don't hard-code these sprite 1 and 2 things
 
