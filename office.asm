@@ -437,14 +437,14 @@ buffer_wait:
 
   jsr enemy_collisions_kill
   jsr updanim
-  jsr hud
+  // jsr hud
 
   lda SCR_buffer_ready
   sta pending_buffer_swap
   sta pending_color_upper_swap
   sta pending_color_lower_swap
 
-  jsr update_max_raster_line
+  // jsr update_max_raster_line
   jsr log
 every_frame:
   jmp game_loop
@@ -548,21 +548,23 @@ restart_player_position:
   sta p1gy+1
 
   lda #P1_STARTY
+  clc
   rol
   rol p1gy+1
   rol
   rol p1gy+1
   rol
   rol p1gy+1
-  and #%11111000
+  sec
+  sbc #1 // subtract a subpixel so we start one subpixel above the ground
   sta p1gy
+
+  lda #1
+  sta on_ground
 
   rts
 
 restart_player:
-  lda #1
-  sta on_ground
-
   jsr restart_player_velocity
   jsr restart_player_position
   jsr restart_player_animation
@@ -1480,7 +1482,7 @@ log_line1:
   ldy #1
   // jsr log_screen
   // jsr log_posx
-  // jsr log_posy
+  jsr log_posy
   // jsr log_enemies
   // jsr log_screen
   // jsr log_melody
@@ -1719,25 +1721,27 @@ updp1vv:
   // And target is set to max falling velocity
   lda #MAX_VV_UP
   sta p1vvi
-  jmp updp1vvd
+  jmp updp1vvd_nocap
 updp1vv_on_ground_no_jump:
   // on ground, not jumping
   lda player_animation_flag
   and #%01111111 // not jumping
   sta player_animation_flag
 
-  lda #MAX_VV_DOWN
+  lda #VV_ZERO
+  sta p1vvi
   sta p1vvt
   bne updp1vtvd
 updp1vv_not_on_ground:
-  // if not on the ground, target velocity is always max falling speed
+  // if not on the ground and not starting a jump,
+  // target velocity is always max falling speed
   lda #MAX_VV_DOWN
   sta p1vvt
 updp1vtvd:
   // target velocity calculated, calculate new actual
   lda p1vvi             // current velocity
   cmp p1vvt
-  beq updp1vvd          // at target velocity already, no need to accelerate or decelerate
+  beq updp1vvd_nocap    // at target velocity already, no need to accelerate or decelerate
   cmp #VV_ZERO          // this is the peak of the jump
   bcc udp1vrising       // not yet at peak of jump, so still rising
   // if here, we're at or above the peak of the jump, so we're falling
@@ -1764,6 +1768,41 @@ updp1vvd_nocap:
   lda p1vva+1
   sbc #0
   sta p1vva+1
+  rts
+
+// TODO: is this really the best way? It's expensive...
+update_on_ground:
+  lda p1gy
+  and #%00000111
+  cmp #%00000111
+  bne is_not_on_ground
+
+  lda #SCR_COLLISION_MASK_TOP
+  sta collision_mask
+
+  lda p1gx
+  sta p1gx_coll
+  lda p1gx+1
+  sta p1gx_coll+1
+
+  lda p1gy
+  clc
+  adc #1 // move 1 subpixel down for collision detect
+  sta p1gy_coll
+  lda p1gy+1
+  adc #0
+  sta p1gy_coll+1
+
+  jsr test_player_collisions
+  bne is_on_ground
+is_not_on_ground:
+  lda #0
+  sta on_ground
+  beq update_on_groundd
+is_on_ground:
+  lda #1
+  sta on_ground
+update_on_groundd:
   rts
 
 // checks if there is a screen collision at the given pixel coordinate
@@ -2076,7 +2115,6 @@ test_moving_left_down:
   lda p1gy_coll
   cmp maxp1gy_px
   bcc test_moving_left_down_not_below
-  beq test_moving_left_down_not_below
   lda #1
   jmp test_moving_right_down_collision
 test_moving_left_down_not_below:
@@ -2238,7 +2276,6 @@ test_moving_right_down_in_bounds:
   lda p1gy_coll
   cmp maxp1gy_px
   bcc test_moving_right_down_not_below
-  beq test_moving_right_down_not_below
   lda #1
   bcs test_moving_right_down_collision
 test_moving_right_down_not_below:
@@ -2319,7 +2356,6 @@ test_moving_down:
   lda p1gy_coll
   cmp maxp1gy_px
   bcc test_moving_down_not_below
-  beq test_moving_down_not_below
   lda #1
   bcs test_moving_right_down_collision
 test_moving_down_not_below:
@@ -2468,12 +2504,13 @@ bresenham_majorx_minor_crossed_pixel:
   // test for collisions
   jsr test_player_collisions
   // A should be zero if there was a collision after the test, nonzero otherwise
-  beq bresenham_majorx_minor_no_collisions // no collisions
+  beq bresenham_majorx_minor_update_position // no collisions
   sta collision_detected_minor
 
   lda collision_mask
   and #SCR_COLLISION_MASK_BOTTOM
-  beq bresenham_majorx_test_top
+  beq bresenham_majorx_next // didn't hit head on something upwards
+
   // hit head on bottom of something, stop movement
   play_sound(1)
 
@@ -2481,23 +2518,7 @@ bresenham_majorx_minor_crossed_pixel:
   sta p1vvi
   lda #0
   sta p1vva
-  beq bresenham_majorx_minor_not_on_ground
-
-bresenham_majorx_test_top:
-  // If here, we had a collision due to a check in the y-direction.
-  // If the collision mask is TOP, that means we were checking for
-  //   collisions while moving downwards. If that's the case, we are on
-  //   a ground surface.
-  lda collision_mask
-  and #SCR_COLLISION_MASK_TOP
-  beq bresenham_majorx_minor_not_on_ground // moving up, not on ground
-  sta on_ground // already non-zero
-  bne bresenham_majorx_next
-bresenham_majorx_minor_not_on_ground:
-  sta on_ground // already zero
-  beq bresenham_majorx_next
-bresenham_majorx_minor_no_collisions:
-  sta on_ground // already zero
+  jmp bresenham_majorx_next
 bresenham_majorx_minor_update_position:
   // update the position
   lda p1gy_new
@@ -2551,36 +2572,21 @@ bresenham_majory_major_crossed_pixel:
   // test for collisions
   jsr test_player_collisions
   // A should be zero if there was a collision after the test, nonzero otherwise
-  beq bresenham_majory_major_no_collisions
+  beq bresenham_majory_major_update_position
   sta collision_detected_major
 
   lda collision_mask
   and #SCR_COLLISION_MASK_BOTTOM
-  beq bresenham_majory_test_top
+  beq bresenham_majory_minor_loop // didn't hit head since didn't collide with bottom
+
   // hit head on bottom of something, stop movement
-  lda #1
-  sta sound_effect_index
-  sta sound_effect_ready
+  play_sound(1)
+
   lda #VV_ZERO
   sta p1vvi
   lda #0
   sta p1vva
-  beq bresenham_majory_not_on_ground
-bresenham_majory_test_top:
-  // If here, we had a collision due to a check in the y-direction.
-  // If the collision mask is TOP, that means we were checking for
-  //   collisions while moving downwards. If that's the case, we are on
-  //   a ground surface.
-  lda collision_mask
-  and #SCR_COLLISION_MASK_TOP
-  beq bresenham_majory_not_on_ground // moving up, not on ground
-  sta on_ground // already non-zero
-  bne bresenham_majory_minor_loop
-bresenham_majory_not_on_ground:
-  sta on_ground // already zero
-  beq bresenham_majory_minor_loop
-bresenham_majory_major_no_collisions:
-  sta on_ground // already zero
+  jmp bresenham_majory_minor_loop
 bresenham_majory_major_update_position:
   // update the position
   lda p1gy_new
@@ -2751,6 +2757,7 @@ updp1p_moving:
 updp1p_majoraxisx:
   jsr bresenham_majorx
 updp1p_positiond:
+  jsr update_on_ground
   rts
 
 updp1p_sprite:
