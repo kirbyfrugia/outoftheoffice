@@ -399,6 +399,39 @@ game_loop:
   lda frame_phase
   bne odd_frame
 even_frame:
+  // store old position for collision detection
+  lda p1gy+1
+  sta p1gy_old+1
+  sta p1gy_old_feet_screenchars+1
+
+  lda p1gy
+  sta p1gy_old
+  sta p1gy_old_feet_screenchars
+
+  // remove subpixels
+  lsr p1gy_old_feet_screenchars+1
+  ror
+  lsr p1gy_old_feet_screenchars+1
+  ror
+  lsr p1gy_old_feet_screenchars+1
+  ror
+
+  clc
+  adc #P1_COLLISION_Y3
+  sta p1gy_old_feet_screenchars
+  lda p1gy_old_feet_screenchars+1
+  adc #0
+  sta p1gy_old_feet_screenchars+1
+
+  // convert to screen chars
+  lsr
+  ror p1gy_old_feet_screenchars
+  lsr
+  ror p1gy_old_feet_screenchars
+  lsr
+  ror p1gy_old_feet_screenchars
+  sta p1gy_old_feet_screenchars+1
+
   // collision detection is really expensive, so we do all the positioning
   // on the even frame and all the screen updates on the odd.
   jsr updp1hv
@@ -419,15 +452,12 @@ buffer_wait:
   lda pending_buffer_swap
   bne buffer_wait
 
-  // grab old player sprite position before updating to a new position
-  lda p1sx
-  sta p1sx_old
-  lda p1sx+1
-  sta p1sx_old+1
   lda p1sy
   sta p1sy_old
   lda p1sy+1
   sta p1sy_old+1
+
+  // jsr update_on_ground
 
   // if here, any screen buffer updates from previous frame
   // have completed.
@@ -1432,17 +1462,6 @@ log_enemies:
 
   iny
   iny
-  lda p1sx_old+1
-  jsr loghexit
-  iny
-  lda p1sx_old
-  clc
-  adc #P1_COLLISION_OFFSETY
-  adc #P1_COLLISION_HEIGHT
-  jsr loghexit
-
-  iny
-  iny
   lda p1sx+1
   jsr loghexit
   iny
@@ -1707,13 +1726,9 @@ updp1vv:
   ora #%10000000 // jumping
   sta player_animation_flag
 
-  // lda ebl
-  // and #%00000011
-  // cmp #%00000011
-  // bne updp1hvl
-
-  // bne updp1vv_no_jump
   // if here, jumping
+  lda #0
+  sta on_ground
   // Play jump sound effect
   play_sound(0)
 
@@ -1771,12 +1786,10 @@ updp1vvd_nocap:
   rts
 
 // TODO: is this really the best way? It's expensive...
-update_on_ground:
-  lda p1gy
-  and #%00000111
-  cmp #%00000111
-  bne is_not_on_ground
 
+
+
+update_on_ground:
   lda #SCR_COLLISION_MASK_TOP
   sta collision_mask
 
@@ -1787,22 +1800,88 @@ update_on_ground:
 
   lda p1gy
   clc
-  adc #1 // move 1 subpixel down for collision detect
+  adc #1 // check 1 subpixel down for collision detect
   sta p1gy_coll
   lda p1gy+1
   adc #0
   sta p1gy_coll+1
 
   jsr test_player_collisions
-  bne is_on_ground
-is_not_on_ground:
-  lda #0
-  sta on_ground
-  beq update_on_groundd
+  beq is_not_on_ground
+
+  lda p1gy
+  and #%00000111
+  cmp #%00000111
+  beq is_on_ground // player is directly on ground
+
+  // the normal collision handler routine won't let us get
+  // in a situation where the player is actively colliding with anything...
+  // Except for tilechars that only have collisions on the top of the tile.
+  // The player can be inside these tiles because we want them to be
+  // able to jump upwards through them and only collide if they
+  // are falling through the top.
+  //
+  // So when we're here, we have such a collision. But we juwt want to
+  // check that we got here by crossing through the top of the char.
+
+  // note: p1coll has already rotated off the subpixels,
+  //       so it can be used as the threshold
+fell_through_ground:
+  lda p1gy
+  sec
+  sbc #%00001000 // drop down one full pixel
+  ora #%00000111 // and set the subpixels to full
+  sta p1gy
+  lda p1gy+1
+  sbc #0
+  sta p1gy+1
 is_on_ground:
   lda #1
   sta on_ground
+  bne update_on_groundd
+is_not_on_ground:
+  lda #0
+  sta on_ground
 update_on_groundd:
+  rts
+
+
+// Filters collisions under the following circumstance:
+// 1. It's a top-only collision and it's not the player's feet.
+// 2. It's a top-only collision, it is the player's feet, but the
+//    player didn't cross the top of the tilechar in this exact frame
+// inputs:
+//   A - results of the collision test before
+//   p1gy_coll/+1 - assumes already in screen char coords
+// outputs:
+//   A - nonzero if no collision, zero if collision
+filter_collision:
+  pha
+
+  // check if we're doing a top only collision
+  lda collided_char_attribs
+  cmp #SCR_COLLISION_MASK_TOP
+  bne filter_collision_unfiltered // no filtering unless it's a top only tilechar
+
+  // check if we're testing the feet
+  lda p1gy_offset
+  cmp #P1_COLLISION_Y3
+  bne filter_collision_filtered // filter if not the feet
+
+  // Now check if the player crossed a character threshold while
+  // moving down.
+
+  // If the old tilechar y is < new, don't filter out this collision
+  lda p1gy_old_feet_screenchars
+  cmp p1gy_screenchar // current p1 screen char for collision point
+  bcc filter_collision_unfiltered
+filter_collision_filtered:
+  pla
+  lda #0
+  beq filter_collision_done
+filter_collision_unfiltered:
+  pla    // original collision
+filter_collision_done:
   rts
 
 // checks if there is a screen collision at the given pixel coordinate
@@ -1848,6 +1927,10 @@ test_collision:
   ror p1gy_coll
   lsr p1gy_coll+1
   ror p1gy_coll
+
+  // store the screen chars for filter test later
+  lda p1gy_coll
+  sta p1gy_screenchar
 
   // grab the final bit since it indicates if we're
   // on an odd or even row, thus top or bottom of tile 
@@ -1913,6 +1996,7 @@ tc_tile_collision:
   beq test_collisiond
   tax
   lda SCR_char_attribs, x // get the material
+  sta collided_char_attribs
   and collision_mask
   jmp test_collisiond
 tc_tile_collision_ul:
@@ -1920,6 +2004,7 @@ tc_tile_collision_ul:
   beq test_collisiond
   tax
   lda SCR_char_attribs, x // get the material
+  sta collided_char_attribs
   and collision_mask
   jmp test_collisiond
 tc_tile_collision_ur:
@@ -1927,6 +2012,7 @@ tc_tile_collision_ur:
   beq test_collisiond
   tax
   lda SCR_char_attribs, x // get the material
+  sta collided_char_attribs
   and collision_mask
   jmp test_collisiond
 tc_tile_collision_ll:
@@ -1934,12 +2020,15 @@ tc_tile_collision_ll:
   beq test_collisiond
   tax
   lda SCR_char_attribs, x // get the material
+  sta collided_char_attribs
   and collision_mask
   jmp test_collisiond
 test_collisiond:
+  beq test_collision_no_filter
   // note: A should already have a zero or nonzero for collision detected
+  jsr filter_collision
+test_collision_no_filter:
   tax
-
   pla
   sta p1gx_coll
   pla
@@ -1948,7 +2037,6 @@ test_collisiond:
   sta p1gy_coll
   pla
   sta p1gy_coll+1
-
   txa
   rts
 
@@ -2015,7 +2103,7 @@ collision_mask_test7:
 collision_mask_test8:
   // shouldn't happen
   lda #0
-  jmp test_player_collisionsd
+  jmp test_player_collisions_done
 
 test_moving_left:
   // test if to left of level
@@ -2049,7 +2137,7 @@ test_moving_left:
   sta p1gy_offset
   jsr test_collision
 test_moving_left_collision:
-  jmp test_player_collisionsd
+  jmp test_player_collisions_done
 
 test_moving_left_up:
   // test if to left of level
@@ -2103,7 +2191,7 @@ test_moving_left_up:
   sta p1gx_offset
   jsr test_collision
 test_moving_left_up_collision:
-  jmp test_player_collisionsd
+  jmp test_player_collisions_done
 
 test_moving_left_down:
   // test if to left of level
@@ -2160,7 +2248,7 @@ test_moving_left_down_not_below:
   sta p1gx_offset
   jsr test_collision
 test_moving_left_down_collision:
-  jmp test_player_collisionsd
+  jmp test_player_collisions_done
 
 test_moving_right:
   lda p1gx_coll+1
@@ -2199,7 +2287,7 @@ test_moving_right_in_bounds:
   sta p1gy_offset
   jsr test_collision
 test_moving_right_collision:
-  jmp test_player_collisionsd
+  jmp test_player_collisions_done
 
 test_moving_right_up:
   lda p1gx_coll+1
@@ -2259,7 +2347,7 @@ test_moving_right_up_in_bounds:
   sta p1gx_offset
   jsr test_collision
 test_moving_right_up_collision:
-  jmp test_player_collisionsd
+  jmp test_player_collisions_done
 
 test_moving_right_down:
   lda p1gx_coll+1
@@ -2321,7 +2409,7 @@ test_moving_right_down_not_below:
   sta p1gx_offset
   jsr test_collision
 test_moving_right_down_collision:
-  jmp test_player_collisionsd
+  jmp test_player_collisions_done
 
 test_moving_up:
   // test if above of level
@@ -2349,7 +2437,7 @@ test_moving_up:
   sta p1gx_offset
   jsr test_collision
 test_moving_up_collision:
-  jmp test_player_collisionsd
+  jmp test_player_collisions_done
 
 test_moving_down:
   // let's make sure they aren't below the bottom of the level
@@ -2380,7 +2468,7 @@ test_moving_down_not_below:
   sta p1gx_offset
   jsr test_collision
 test_moving_down_collision:
-test_player_collisionsd:
+test_player_collisions_done:
   rts
 
 // How collision detection works.
@@ -2509,8 +2597,11 @@ bresenham_majorx_minor_crossed_pixel:
 
   lda collision_mask
   and #SCR_COLLISION_MASK_BOTTOM
-  beq bresenham_majorx_next // didn't hit head on something upwards
-
+  bne bresenham_majorx_minor_hit_head
+  lda #1
+  sta on_ground
+  jmp bresenham_majorx_next
+bresenham_majorx_minor_hit_head:
   // hit head on bottom of something, stop movement
   play_sound(1)
 
@@ -2577,8 +2668,11 @@ bresenham_majory_major_crossed_pixel:
 
   lda collision_mask
   and #SCR_COLLISION_MASK_BOTTOM
-  beq bresenham_majory_minor_loop // didn't hit head since didn't collide with bottom
-
+  bne bresenham_majory_hit_head
+  lda #1
+  sta on_ground
+  jmp bresenham_majory_minor_loop
+bresenham_majory_hit_head:
   // hit head on bottom of something, stop movement
   play_sound(1)
 
@@ -2757,7 +2851,6 @@ updp1p_moving:
 updp1p_majoraxisx:
   jsr bresenham_majorx
 updp1p_positiond:
-  jsr update_on_ground
   rts
 
 updp1p_sprite:
@@ -3337,6 +3430,7 @@ test_right_of_enemy:
 player_right_of_enemy:
   jmp enemies_collisions_kill_loop_next
 test_above_enemy:
+
   // now compare the bottom of the player's collision rect to the top of the enemy
   lda p1sy
   sta zpb0

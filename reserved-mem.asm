@@ -78,10 +78,12 @@
 .const collision_tile_coords                 = $54 // for collision, used to determine which char of the tile is hit
 .const collision_detected_major              = $55
 .const collision_detected_minor              = $56
-.const p1sx_old                              = $57 // and $58
+.const p1gy_old                              = $57 // and $58
 .const p1sy_old                              = $59
 .const p1sx                                  = $5a // and $5b
-.const p1sy                                  = $5c
+.const p1sy                                  = $5c // and $5d just in case
+.const collided_char_attribs                 = $5e
+.const p1gy_screenchar                       = $5f
 
 .const SCR_objects_ptr                       = $60 // and $61
 .const SCR_first_visible_column_max          = $62 // and $63
@@ -108,6 +110,7 @@
 .const SCR_direction                         = $8a // which direction to move screen or scroll after a scroll
 .const SCR_color_flag                        = $8b
 .const SCR_tile_level_width                  = $8c
+.const p1gy_old_feet_screenchars             = $8d // and $8e
 
 
 .var SCR_charset_prg         = $37fe
