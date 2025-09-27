@@ -437,6 +437,7 @@ even_frame:
   jsr updp1hv
   jsr updp1vv
   jsr updp1p
+  jsr update_on_ground
   jsr upd_enemies_pos
   jmp every_frame
 
@@ -1785,10 +1786,6 @@ updp1vvd_nocap:
   sta p1vva+1
   rts
 
-// TODO: is this really the best way? It's expensive...
-
-
-
 update_on_ground:
   lda #SCR_COLLISION_MASK_TOP
   sta collision_mask
@@ -1809,32 +1806,6 @@ update_on_ground:
   jsr test_player_collisions
   beq is_not_on_ground
 
-  lda p1gy
-  and #%00000111
-  cmp #%00000111
-  beq is_on_ground // player is directly on ground
-
-  // the normal collision handler routine won't let us get
-  // in a situation where the player is actively colliding with anything...
-  // Except for tilechars that only have collisions on the top of the tile.
-  // The player can be inside these tiles because we want them to be
-  // able to jump upwards through them and only collide if they
-  // are falling through the top.
-  //
-  // So when we're here, we have such a collision. But we juwt want to
-  // check that we got here by crossing through the top of the char.
-
-  // note: p1coll has already rotated off the subpixels,
-  //       so it can be used as the threshold
-fell_through_ground:
-  lda p1gy
-  sec
-  sbc #%00001000 // drop down one full pixel
-  ora #%00000111 // and set the subpixels to full
-  sta p1gy
-  lda p1gy+1
-  sbc #0
-  sta p1gy+1
 is_on_ground:
   lda #1
   sta on_ground
@@ -2472,7 +2443,7 @@ test_player_collisions_done:
   rts
 
 // How collision detection works.
-//   We use a modified version of Breseham's line drawing algorithm. As we iterate
+//   We use a modified version of Bresenham's line drawing algorithm. As we iterate
 //   over the major and minor axis, any time we cross over a subpixel to pixel
 //   boundary, we check for collisions. If there's a collision, we stop
 //   the character movement at that point.
@@ -2486,12 +2457,6 @@ test_player_collisions_done:
 .const collision_deltax        = zpb0 // absval of number of subpixels to move in x direction (velocity)
 .const collision_deltay        = zpb1 // absval of number of subpixels to move in y direction (velocity)
 .const collision_error_counter = zpb2 // used to keep track of errors for Bresenham's line algo
-// direction bits:
-//   7 - moving horizontally
-//   6 - left = 0, right = 1
-//   5 - moving vertically
-//   4 - up = 0, down = 1
-//   3 - temporarily stores first pixel of new position
 .const collision_flags         = zpb3
 .const collision_subpixelsx    = zpb4 // copy of collision_deltax, used as counter
 .const collision_subpixelsy    = zpb5 // copy of collision_deltay, used as counter
@@ -2598,8 +2563,6 @@ bresenham_majorx_minor_crossed_pixel:
   lda collision_mask
   and #SCR_COLLISION_MASK_BOTTOM
   bne bresenham_majorx_minor_hit_head
-  lda #1
-  sta on_ground
   jmp bresenham_majorx_next
 bresenham_majorx_minor_hit_head:
   // hit head on bottom of something, stop movement
@@ -2669,8 +2632,6 @@ bresenham_majory_major_crossed_pixel:
   lda collision_mask
   and #SCR_COLLISION_MASK_BOTTOM
   bne bresenham_majory_hit_head
-  lda #1
-  sta on_ground
   jmp bresenham_majory_minor_loop
 bresenham_majory_hit_head:
   // hit head on bottom of something, stop movement
