@@ -1039,7 +1039,7 @@ loadmap:
   and #%11000000
   sta maxp1gx
 
-  lda #(200-p1height-40)
+  lda #(200-p1height-40+1)
   sta maxp1gy
   sta maxp1gy_px
   lda #0
