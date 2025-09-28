@@ -3175,7 +3175,8 @@ test_onscreen_way_off:
   jmp enemy_offscreen // >= 512, so definitely not on screen
 test_onscreen_msb:
   // if here, enemy is further right than 256 pixels,
-  // but less than 512
+  // but less than 512, so test the low byte and compare
+  // to the low byte of the screen width
   lda zpb0
   cmp #<(scrwidth*8)
   bcc enemy_onscreen
@@ -3222,6 +3223,12 @@ enemy_y:
   adc #50
   sta SPRITE_YPOS_BASE, y
 enemy_enable_sprite:
+  lda SPRITE_ENABLE
+  and enemies_sprite_slots, x
+  beq sprite_not_already_enabled
+debug1:
+  jmp upd_enemies_sprites_next_enemy
+sprite_not_already_enabled:
   lda enemies_flags, x
   ora #ENEMY_FLAG_ONSCREEN
   sta enemies_flags, x
