@@ -3073,35 +3073,42 @@ upd_enemies_buffer_test_upper:
 upd_enemies_bufferd:
   rts
 
+
 // update enemy positions
 upd_enemies_pos:
   ldx enemies_buffer_min
 upd_enemies_pos_enemy:
   lda enemies_flags, X
   and #ENEMY_FLAG_DEAD
-  bne upd_enemies_pos_next_enemy
-
+  beq upd_enemies_test_dying
+  jmp upd_enemies_pos_next_enemy
+upd_enemies_test_dying:
   lda enemies_flags, X
   and #ENEMY_FLAG_DYING
-  bne upd_enemies_pos_next_enemy
-
+  beq upd_enemies_pos_alive
+  jmp upd_enemies_pos_next_enemy
+upd_enemies_pos_alive:
+  ldy enemies_type, x
+  lda enemies_hspeed, y
+  beq upd_enemies_pos_vertical
+upd_enemies_pos_horizontal:
   lda enemies_flags, x
   and #ENEMY_FLAG_HDIRECTION
   beq enemy_moving_left
   // if here, enemy moving right
   lda enemies_posx_lo, x
   clc
-  adc #1
+  adc enemies_hspeed, y
   sta enemies_posx_lo, x
   lda enemies_posx_hi, x
   adc #0
   sta enemies_posx_hi, x
   cmp enemies_rangex_max_hi, x
-  bcc upd_enemies_pos_next_enemy  // not ready to turn back left
+  bcc upd_enemies_pos_vertical  // not ready to turn back left
   bne enemy_start_moving_left
   lda enemies_posx_lo, x
   cmp enemies_rangex_max_lo, x
-  bcc upd_enemies_pos_next_enemy  // not ready to turn back left
+  bcc upd_enemies_pos_vertical  // not ready to turn back left
 enemy_start_moving_left:
   lda enemies_rangex_max_lo, x
   sta enemies_posx_lo, x
@@ -3112,22 +3119,22 @@ enemy_start_moving_left:
   eor #%11111111
   and enemies_flags, x
   sta enemies_flags, x
-  jmp upd_enemies_pos_next_enemy
+  jmp upd_enemies_pos_vertical
 enemy_moving_left:
   lda enemies_posx_lo, x
   sec
-  sbc #1
+  sbc enemies_hspeed, y
   sta enemies_posx_lo, x
   lda enemies_posx_hi, x
   sbc #0
   sta enemies_posx_hi, x
   cmp enemies_rangex_min_hi, x
   bcc enemy_start_moving_right    // ready to turn back right
-  bne upd_enemies_pos_next_enemy
+  bne upd_enemies_pos_vertical
   lda enemies_posx_lo, x
   cmp enemies_rangex_min_lo, x
   bcc enemy_start_moving_right    // ready to turn back right
-  bcs upd_enemies_pos_next_enemy  // keep moving left
+  bcs upd_enemies_pos_vertical  // keep moving left
 enemy_start_moving_right:
   lda enemies_rangex_min_lo, x
   sta enemies_posx_lo, x
@@ -3135,6 +3142,44 @@ enemy_start_moving_right:
   sta enemies_posx_hi, x
   lda enemies_flags, x
   ora #ENEMY_FLAG_HDIRECTION       // now moving right
+  sta enemies_flags, x
+
+upd_enemies_pos_vertical:
+  lda enemies_vspeed, y
+  beq upd_enemies_pos_next_enemy
+
+  lda enemies_flags, x
+  and #ENEMY_FLAG_VDIRECTION
+  beq enemy_moving_up
+  // if here, enemy moving down
+  lda enemies_posy, x
+  clc
+  adc enemies_vspeed, y
+  sta enemies_posy, x
+  cmp enemies_rangey_max, x
+  bcc upd_enemies_pos_next_enemy  // not ready to start back up
+enemy_start_moving_up:
+  lda enemies_rangey_max, x
+  sta enemies_posy, x
+  
+  lda #ENEMY_FLAG_VDIRECTION
+  eor #%11111111
+  and enemies_flags, x
+  sta enemies_flags, x
+  jmp upd_enemies_pos_next_enemy
+enemy_moving_up:
+  lda enemies_posy, x
+  sec
+  sbc enemies_vspeed, y
+  sta enemies_posy, x
+  cmp enemies_rangey_min, x
+  bcc enemy_start_moving_down    // ready to start going down
+  bne upd_enemies_pos_next_enemy
+enemy_start_moving_down:
+  lda enemies_rangey_min, x
+  sta enemies_posy, x
+  lda enemies_flags, x
+  ora #ENEMY_FLAG_VDIRECTION       // now moving down
   sta enemies_flags, x
 upd_enemies_pos_next_enemy:
   inx
@@ -3564,17 +3609,29 @@ updanim_enemy_loop:
 
   ldy enemies_type, x
 
+  // default to the vertical animations as long as the enemy
+  // moves up and down
+  lda enemies_vspeed, y
+  beq use_horizontal_animations
+  lda enemies_flags, x
+  and #ENEMY_FLAG_VDIRECTION
+  cmp #ENEMY_FLAG_VDIRECTION
+  beq updanim_enemy_moving_positive
+  bne updanim_enemy_moving_negative
+use_horizontal_animations:
   lda enemies_flags, x
   and #ENEMY_FLAG_HDIRECTION
   cmp #ENEMY_FLAG_HDIRECTION
-  beq updanim_enemy_moving_right
-  // if here, enemy is moving left
-  lda enemies_animations_left, y // get index 0 of animation
+  beq updanim_enemy_moving_positive
+  bne updanim_enemy_moving_negative
+updanim_enemy_moving_negative:
+  // if here, enemy is moving in the negative direction (left or up)
+  lda enemies_animations_negative, y // get index 0 of animation
   clc
   adc animation_index
-  bne updanim_enemy_sprite_selected
-updanim_enemy_moving_right:
-  lda enemies_animations_right, y // get index 0 of animation
+  jmp updanim_enemy_sprite_selected
+updanim_enemy_moving_positive:
+  lda enemies_animations_positive, y // get index 0 of animation
   clc
   adc animation_index
 updanim_enemy_sprite_selected:

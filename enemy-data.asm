@@ -27,6 +27,12 @@ enemies_posx_lo:
 enemies_posx_hi:
   .fill MAX_ENEMIES, 0
 
+enemies_rangey_min:
+  .fill MAX_ENEMIES, 0
+
+enemies_rangey_max:
+  .fill MAX_ENEMIES, 0
+
 enemies_posy:
   .fill MAX_ENEMIES, 0
 
@@ -36,7 +42,7 @@ enemies_width:
 enemies_height:
   .fill MAX_ENEMIES, 0
 
-// See enemies.asm for flags
+// See enemy-types for flags
 enemies_flags:
   .fill MAX_ENEMIES, 0
 
@@ -61,30 +67,29 @@ enemies_sprite_base_offset:
 
 enemies_data_end:
 
-.macro add_init_enemy(enemy_type, width, height, rangex_min, rangex_max, posx_offset,posy, posy_offset) {
+.macro add_init_enemy(enemy_type, width, height, rangex_min, posx_offset_min, rangex_max, posx_offset_max, rangey_min, posy_offset_min, rangey_max, posy_offset_max) {
   ldx enemies_count
 
   lda #enemy_type
   sta enemies_type, x
 
-// .const enemy0_minx = ENEMY_TILE_SIZE*5   + ENEMY_TILE_CHAR_SIZE*0
-// .const enemy0_maxx = ENEMY_TILE_SIZE*16  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_WIDTH
-// .const enemy0_posy = ENEMY_TILE_SIZE*10  + ENEMY_TILE_CHAR_SIZE*0 - ENEMY_MOUSE_HEIGHT
-
-
-  lda #<(ENEMY_TILE_SIZE*rangex_min+posx_offset)
+  lda #<(ENEMY_TILE_SIZE*rangex_min+posx_offset_min)
   sta enemies_rangex_min_lo, x
-  lda #>(ENEMY_TILE_SIZE*rangex_min+posx_offset)
+  lda #>(ENEMY_TILE_SIZE*rangex_min+posx_offset_min)
   sta enemies_rangex_min_hi, x
 
-  lda #<(ENEMY_TILE_SIZE*rangex_max+posx_offset-width)
+  lda #<(ENEMY_TILE_SIZE*rangex_max+posx_offset_max-width)
   sta enemies_rangex_max_lo, x
   sta enemies_posx_lo, x
-  lda #>(ENEMY_TILE_SIZE*rangex_max+posx_offset-width)
+  lda #>(ENEMY_TILE_SIZE*rangex_max+posx_offset_max-width)
   sta enemies_rangex_max_hi, x
   sta enemies_posx_hi, x
 
-  lda #<(ENEMY_TILE_SIZE*posy+posy_offset-height)
+  lda #(ENEMY_TILE_SIZE*rangey_min+posy_offset_min)
+  sta enemies_rangey_min, x
+
+  lda #(ENEMY_TILE_SIZE*rangey_max+posy_offset_max-height)
+  sta enemies_rangey_max, x
   sta enemies_posy, x
 
   lda #width
