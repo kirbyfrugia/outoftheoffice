@@ -3246,22 +3246,26 @@ upd_enemies_sprites_pos:
   adc enemies_width, x
   lda zpb1
   adc #0
-  bmi enemy_offscreen // enemy offscreen
   bpl enemy_onscreen
+  jmp enemy_offscreen
 enemy_not_offscreen_left:
   // if here, the enemy is further to the right in the level than
   // the first visible column. Now check if it's offscreen
   // to the right
   lda zpb1
-  beq enemy_onscreen  // < 256 pixels, so onscreen
+  bne test_onscreen_way_off
+  jmp enemy_onscreen  // < 256 pixels, so onscreen
+test_onscreen_way_off:
   cmp #2
-  bcs enemy_offscreen // >= 512, so definitely not on screen
-
+  bcc test_onscreen_msb
+  jmp enemy_offscreen // >= 512, so definitely not on screen
+test_onscreen_msb:
   // if here, enemy is further right than 256 pixels,
   // but less than 512
   lda zpb0
   cmp #<(scrwidth*8)
-  bcs enemy_offscreen // off screen to the right
+  bcc enemy_onscreen
+  jmp enemy_offscreen // off screen to the right
 enemy_onscreen:
   // if here, enemy on screen, so we will want to draw it
   // now let's add the border offset
@@ -3307,7 +3311,32 @@ enemy_enable_sprite:
   lda enemies_flags, x
   ora #ENEMY_FLAG_ONSCREEN
   sta enemies_flags, x
-  // enable the sprite
+
+  ldy enemies_type, x
+  lda enemies_animations_positive, y  // get the first animation frame
+  tay
+  lda spritesbatch2_spriteset_attrib_data, y // get the color data
+  pha
+  and #%10000000
+  beq enemy_enable_sprite_single_color
+
+  // set multicolor flag
+  lda enemies_sprite_slots, x
+  ora SPRITE_MC_MODE
+  sta SPRITE_MC_MODE
+  bne enemy_enable_sprite_color
+enemy_enable_sprite_single_color:
+  lda enemies_sprite_slots, x
+  eor #%11111111
+  and SPRITE_MC_MODE
+  sta SPRITE_MC_MODE
+enemy_enable_sprite_color:
+  pla
+  and #%00001111 // get just color part
+
+  ldy enemies_sprite_base_offset, x
+  sta SPRITE_COLOR_BASE, y
+
   lda enemies_sprite_slots, x
   ora SPRITE_ENABLE
   sta SPRITE_ENABLE
