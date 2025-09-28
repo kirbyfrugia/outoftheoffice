@@ -16,9 +16,9 @@
 //   of movement per frame. Which would be a velocity of 71 (subpixels are included)
 //   e.g. HV_ZERO-MAX_HV_LEFT must be less than 71. Should make it a lot less.
 // Note also: the faster we move, the more expensive collision detection will be.
-.const MAX_HV_LEFT      = 103  // max velocity going left
+.const MAX_HV_LEFT      = 100  // max velocity going left
 .const HV_ZERO          = 127 // horizontal velocity when not moving
-.const MAX_HV_RIGHT     = 151 // max velocity going right
+.const MAX_HV_RIGHT     = 154 // max velocity going right
 .const HORIZ_ACCEL_FAST = 3   // faster acceleration when switching directions
 .const HORIZ_ACCEL_SLOW = 2   // slower acceleration, normal
 .const HV_ZERO_LOWER    = HV_ZERO-HORIZ_ACCEL_FAST-1 // anything between this and HV_ZERO is considered stopped
