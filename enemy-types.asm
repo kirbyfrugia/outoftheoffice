@@ -5,10 +5,17 @@
 
 // Enemy types
 // 0 - mouse
+// 1 - big spider
+// 2 - small spider
+// 3 - alternate mouse
 
 .const ENEMY_MOUSE_TYPE          = 0
 .const ENEMY_MOUSE_WIDTH         = 16
 .const ENEMY_MOUSE_HEIGHT        = 9
+
+.const ENEMY_MOUSE2_TYPE         = 3
+.const ENEMY_MOUSE2_WIDTH        = 15
+.const ENEMY_MOUSE2_HEIGHT       = 12
 
 .const ENEMY_BIG_SPIDER_TYPE     = 1
 .const ENEMY_BIG_SPIDER_WIDTH    = 22
@@ -31,45 +38,54 @@ enemies_animations_negative:
   .byte 3
   .byte 10
   .byte 17
+  .byte 24
 
 // stores the offset of the first animation frame
 enemies_animations_positive:
   .byte 0
   .byte 7
   .byte 14
+  .byte 21
 
 enemies_animations_death:
   .byte 6
   .byte 13
   .byte 20
+  .byte 27
 
 enemies_collision_offsetx:
   .byte 2
   .byte 4
+  .byte 1
   .byte 1
 
 enemies_collision_width:
   .byte 14
   .byte 14
   .byte 11
+  .byte 13
 
 enemies_collision_offsety:
   .byte 3
   .byte 2
   .byte 0
+  .byte 5
 
 enemies_collision_height:
   .byte 5
   .byte 10
   .byte 9
+  .byte 7
 
 enemies_hspeed:
   .byte 1
   .byte 0
   .byte 0
+  .byte 1
 
 enemies_vspeed:
   .byte 0
   .byte 1
   .byte 1
+  .byte 0
 
