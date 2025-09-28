@@ -878,77 +878,22 @@ load_sprites:
   lda #sprmc1
   sta SPRITE_MC1
 
-  // sprite pointers
-  // location = (bank * 16384)+(sprptr*64)
+  // player sprite pointer
   ldx #(SPRITE_PTR_FIRST_B1+0)
   stx SPRITE_PTR_BASE_FB // front buffer
   stx SPRITE_PTR_BASE_BB // back buffer
 
-  ldx #(SPRITE_PTR_FIRST_B2+0)
-  stx SPRITE_PTR_BASE_FB+1
-  stx SPRITE_PTR_BASE_BB+1
-  stx SPRITE_PTR_BASE_FB+2
-  stx SPRITE_PTR_BASE_BB+2
-  stx SPRITE_PTR_BASE_FB+3
-  stx SPRITE_PTR_BASE_BB+3
-  stx SPRITE_PTR_BASE_FB+4
-  stx SPRITE_PTR_BASE_BB+4
-  stx SPRITE_PTR_BASE_FB+5
-  stx SPRITE_PTR_BASE_BB+5
-  stx SPRITE_PTR_BASE_FB+6
-  stx SPRITE_PTR_BASE_BB+6
-
-  lda #%01111111
+  lda #%00000001
   sta SPRITE_MC_MODE
-
-  // TODO: don't hard-code these sprite 1 and 2 things
 
   ldx #0
   lda spritesbatch1_spriteset_attrib_data, x
   sta SPRITE_COLOR_BASE+0
-  ldx #0
-  lda spritesbatch2_spriteset_attrib_data, x
-  sta SPRITE_COLOR_BASE+1
-  sta SPRITE_COLOR_BASE+2
-  sta SPRITE_COLOR_BASE+3
-  sta SPRITE_COLOR_BASE+4
-  sta SPRITE_COLOR_BASE+5
-  sta SPRITE_COLOR_BASE+6
 
   lda #P1_STARTX
   clc
   adc #31
   sta SPRITE_XPOS_BASE+0
-  ldx #0
-  lda enemies_posx_lo, x
-  clc
-  adc #31
-  sta SPRITE_XPOS_BASE+2
-  ldx #1
-  lda enemies_posx_lo, x
-  clc
-  adc #31
-  sta SPRITE_XPOS_BASE+4
-  ldx #2
-  lda enemies_posx_lo, x
-  clc
-  adc #31
-  sta SPRITE_XPOS_BASE+6
-  ldx #2
-  lda enemies_posx_lo, x
-  clc
-  adc #31
-  sta SPRITE_XPOS_BASE+8
-  ldx #2
-  lda enemies_posx_lo, x
-  clc
-  adc #31
-  sta SPRITE_XPOS_BASE+10
-  ldx #2
-  lda enemies_posx_lo, x
-  clc
-  adc #31
-  sta SPRITE_XPOS_BASE+12
 
   lda #%00000000
   sta SPRITE_MSB
@@ -957,37 +902,6 @@ load_sprites:
   clc
   adc #50
   sta SPRITE_YPOS_BASE+0
-
-  ldx #0
-  lda enemies_posy, x
-  clc
-  adc #50
-  sta SPRITE_YPOS_BASE+2
-  ldx #1
-  lda enemies_posy, x
-  clc
-  adc #50
-  sta SPRITE_YPOS_BASE+4
-  ldx #2
-  lda enemies_posy, x
-  clc
-  adc #50
-  sta SPRITE_YPOS_BASE+6
-  ldx #2
-  lda enemies_posy, x
-  clc
-  adc #50
-  sta SPRITE_YPOS_BASE+8
-  ldx #2
-  lda enemies_posy, x
-  clc
-  adc #50
-  sta SPRITE_YPOS_BASE+10
-  ldx #2
-  lda enemies_posy, x
-  clc
-  adc #50
-  sta SPRITE_YPOS_BASE+12
 
   rts
 

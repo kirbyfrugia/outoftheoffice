@@ -60,6 +60,7 @@
 .const HUD_ROW_1_CLR    = 56216
 .const HUD_ROW_2_CLR    = 56256
 
+// location = (bank * 16384)+(sprptr*64)
 .const SPRITE_PTR_FIRST_B1    =    48  // sprite pointer at which sprite 0 starts from batch 1
 .const P1_FACING_RIGHT_OFFSET = SPRITE_PTR_FIRST_B1+0
 .const P1_FACING_LEFT_OFFSET  = SPRITE_PTR_FIRST_B1+6
