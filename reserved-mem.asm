@@ -112,7 +112,6 @@
 .const SCR_tile_level_width                  = $8c
 .const p1gy_old_feet_screenchars             = $8d // and $8e
 
-
 .var SCR_charset_prg         = $37fe
 .var SCR_charset             = $3800
 .var SCR_char_attribs        = $4000

@@ -150,6 +150,7 @@ call_buffer:
   sta frame_phase
   beq call_buffer_next_frame
   jsr irq_buffer_swap
+  jsr irq_sprites
   jsr irq_color_upper_shift
   jsr irq_color_lower_shift
 call_buffer_next_frame:
@@ -346,6 +347,77 @@ irq_color_lower_shiftd:
   sta pending_color_lower_swap
   rts
 
+irq_sprites:
+  lda cache_sprite_ptr_base+0
+  sta SPRITE_PTR_BASE_FB+0
+  sta SPRITE_PTR_BASE_BB+0
+  lda cache_sprite_ptr_base+1
+  sta SPRITE_PTR_BASE_FB+1
+  sta SPRITE_PTR_BASE_BB+1
+  lda cache_sprite_ptr_base+2
+  sta SPRITE_PTR_BASE_FB+2
+  sta SPRITE_PTR_BASE_BB+2
+  lda cache_sprite_ptr_base+3
+  sta SPRITE_PTR_BASE_FB+3
+  sta SPRITE_PTR_BASE_BB+3
+  lda cache_sprite_ptr_base+4
+  sta SPRITE_PTR_BASE_FB+4
+  sta SPRITE_PTR_BASE_BB+4
+  lda cache_sprite_ptr_base+5
+  sta SPRITE_PTR_BASE_FB+5
+  sta SPRITE_PTR_BASE_BB+5
+  lda cache_sprite_ptr_base+6
+  sta SPRITE_PTR_BASE_FB+6
+  sta SPRITE_PTR_BASE_BB+6
+  lda cache_sprite_ptr_base+7
+  sta SPRITE_PTR_BASE_FB+7
+  sta SPRITE_PTR_BASE_BB+7
+
+  lda cache_sprite_xpos_base+0
+  sta SPRITE_XPOS_BASE+0
+  lda cache_sprite_xpos_base+1
+  sta SPRITE_XPOS_BASE+2
+  lda cache_sprite_xpos_base+2
+  sta SPRITE_XPOS_BASE+4
+  lda cache_sprite_xpos_base+3
+  sta SPRITE_XPOS_BASE+6
+  lda cache_sprite_xpos_base+4
+  sta SPRITE_XPOS_BASE+8
+  lda cache_sprite_xpos_base+5
+  sta SPRITE_XPOS_BASE+10
+  lda cache_sprite_xpos_base+6
+  sta SPRITE_XPOS_BASE+12
+  lda cache_sprite_xpos_base+7
+  sta SPRITE_XPOS_BASE+14
+
+  lda cache_sprite_ypos_base+0
+  sta SPRITE_YPOS_BASE+0
+  lda cache_sprite_ypos_base+1
+  sta SPRITE_YPOS_BASE+2
+  lda cache_sprite_ypos_base+2
+  sta SPRITE_YPOS_BASE+4
+  lda cache_sprite_ypos_base+3
+  sta SPRITE_YPOS_BASE+6
+  lda cache_sprite_ypos_base+4
+  sta SPRITE_YPOS_BASE+8
+  lda cache_sprite_ypos_base+5
+  sta SPRITE_YPOS_BASE+10
+  lda cache_sprite_ypos_base+6
+  sta SPRITE_YPOS_BASE+12
+  lda cache_sprite_ypos_base+7
+  sta SPRITE_YPOS_BASE+14
+
+  lda cache_sprite_msb
+  sta SPRITE_MSB
+
+  lda cache_sprite_enable
+  sta SPRITE_ENABLE
+
+  lda cache_sprite_mc_mode
+  sta SPRITE_MC_MODE
+
+  rts
+
 // TODO: remove for production build, only used during test
 update_max_raster_line:
   lda VIC_VCONTROL_REG
@@ -462,13 +534,13 @@ buffer_wait:
 
   // if here, any screen buffer updates from previous frame
   // have completed.
-  jsr upd_enemies_sprites
   jsr updp1p_sprite
+  jsr upd_enemies_sprites
   jsr upd_enemies_buffer
 
   jsr enemy_collisions_kill
   jsr updanim
-  // jsr hud
+  jsr hud
 
   lda SCR_buffer_ready
   sta pending_buffer_swap
@@ -476,7 +548,7 @@ buffer_wait:
   sta pending_color_lower_swap
 
   // jsr update_max_raster_line
-  jsr log
+  // jsr log
 every_frame:
   jmp game_loop
 
@@ -720,18 +792,22 @@ show_lives:
   lda #P1_FACING_RIGHT_OFFSET
   sta SPRITE_PTR_BASE_FB+0 // 1024 buffer
   sta SPRITE_PTR_BASE_BB+0 // 2048 buffer
+  sta cache_sprite_ptr_base+0
 
   lda #playerx
   sta SPRITE_XPOS_BASE+0
 
   lda #%00000000
   sta SPRITE_MSB
+  sta cache_sprite_msb
 
   lda #playery
   sta SPRITE_YPOS_BASE+0
+  sta cache_sprite_ypos_base+0
 
   lda #%00000001
   sta SPRITE_ENABLE
+  sta cache_sprite_enable
 
   lda #24 // letter x
   sta SCREEN_MEM1+12*40+20
@@ -750,6 +826,7 @@ show_lives:
   // hide player sprite again
   lda #%00000000
   sta SPRITE_ENABLE
+  sta cache_sprite_enable
 
   // cover up number of lives
   lda #CHAR_FILLED
@@ -790,6 +867,7 @@ restart_level:
   // disable all sprites
   lda #%00000000
   sta SPRITE_ENABLE
+  sta cache_sprite_enable
 
   jsr clear_screen
   jsr clear_hud
@@ -810,6 +888,7 @@ restart_level:
   // enable player
   lda #%00000001
   sta SPRITE_ENABLE
+  sta cache_sprite_enable
 
   jsr start_sound
 
@@ -821,6 +900,7 @@ player_died:
   lda #P1_DEAD
   sta SPRITE_PTR_BASE_FB+0
   sta SPRITE_PTR_BASE_BB+0
+  sta cache_sprite_ptr_base+0
 
   play_sound(3)
 
@@ -882,9 +962,11 @@ load_sprites:
   ldx #(SPRITE_PTR_FIRST_B1+0)
   stx SPRITE_PTR_BASE_FB // front buffer
   stx SPRITE_PTR_BASE_BB // back buffer
+  stx cache_sprite_ptr_base
 
   lda #%00000001
   sta SPRITE_MC_MODE
+  sta cache_sprite_mc_mode
 
   ldx #0
   lda spritesbatch1_spriteset_attrib_data, x
@@ -894,14 +976,17 @@ load_sprites:
   clc
   adc #31
   sta SPRITE_XPOS_BASE+0
+  sta cache_sprite_xpos_base
 
   lda #%00000000
   sta SPRITE_MSB
+  sta cache_sprite_msb
 
   lda #P1_STARTY
   clc
   adc #50
   sta SPRITE_YPOS_BASE+0
+  sta cache_sprite_ypos_base+0
 
   rts
 
@@ -1015,6 +1100,15 @@ clear_hud_loop:
   rts
 
 restart_hud:
+  lda #1
+  sta counter_ones
+  lda #0
+  sta counter_tens
+  lda #3
+  sta counter_hundreds
+
+  jsr counter
+
   ldx #39
 restart_hud_fgclr_loop:
   lda #COLOR_HUD_TITLE
@@ -1107,7 +1201,52 @@ hud_show_job_loop:
   bne hud_show_job_loop
   rts
 
+counter:
+  dec counter_ones
+  bpl counter_done
+
+  lda #9
+  sta counter_ones
+
+  dec counter_tens
+  bpl counter_done
+
+  lda #9
+  sta counter_tens
+
+  dec counter_hundreds
+  bpl counter_done
+
+  lda #0
+  sta counter_ones
+  sta counter_tens
+  sta counter_hundreds
+
+counter_done:
+  clc
+
+  lda counter_hundreds
+  adc #48
+  sta HUD_ROW_1_FB+1
+  sta HUD_ROW_1_BB+1
+
+  lda counter_tens
+  adc #48
+  sta HUD_ROW_1_FB+2
+  sta HUD_ROW_1_BB+2
+
+  lda counter_ones
+  adc #48
+  sta HUD_ROW_1_FB+3
+  sta HUD_ROW_1_BB+3
+
+  rts
+
 hud:
+  lda animation_frame
+  bne hud_no_counter
+  jsr counter
+hud_no_counter:
   // jobs area
   lda #7 // yellow
   sta HUD_ROW_1_CLR+6
@@ -2847,19 +2986,19 @@ updp1hpsr:
   sta p1sx+1
 updp1psprite:
   lda p1sy
-  sta SPRITE_YPOS_BASE+0
+  sta cache_sprite_ypos_base+0
   lda p1sx
-  sta SPRITE_XPOS_BASE+0
+  sta cache_sprite_xpos_base+0
   lda p1sx+1
   bne updp1pmsb
-  lda SPRITE_MSB
+  lda cache_sprite_msb
   and #%11111110
-  sta SPRITE_MSB
+  sta cache_sprite_msb
   jmp updp1pd
 updp1pmsb:
-  lda SPRITE_MSB
+  lda cache_sprite_msb
   ora #%00000001
-  sta SPRITE_MSB
+  sta cache_sprite_msb
 updp1pd:
   lda p1gx
   sta p1gx_pixels
@@ -3124,8 +3263,7 @@ test_dying:
   clc
   adc #SPRITE_PTR_FIRST_B2
   ldy enemies_sprite_base_offset, x
-  sta SPRITE_PTR_BASE_FB, y
-  sta SPRITE_PTR_BASE_BB, y
+  sta cache_sprite_ptr_base, y
   dec enemies_dead_animation_frames, x
   jmp upd_enemies_sprites_pos
 already_dying:
@@ -3203,30 +3341,29 @@ enemy_onscreen:
   beq enemy_nomsb
 
   // set sprite msb
-  lda SPRITE_MSB
+  lda cache_sprite_msb
   ora enemies_sprite_slots, x
-  sta SPRITE_MSB
+  sta cache_sprite_msb
   jmp enemy_lsb
 enemy_nomsb:
   // disable msb for this sprite
   lda enemies_sprite_slots, x
   eor #%11111111 // invert
-  and SPRITE_MSB
-  sta SPRITE_MSB
+  and cache_sprite_msb
+  sta cache_sprite_msb
 enemy_lsb:
   ldy enemies_sprite_pos_offset, x
   lda zpb0
-  sta SPRITE_XPOS_BASE, y
+  sta cache_sprite_xpos_base, y
 enemy_y:
   lda enemies_posy, x
   clc
   adc #50
-  sta SPRITE_YPOS_BASE, y
+  sta cache_sprite_ypos_base, y
 enemy_enable_sprite:
-  lda SPRITE_ENABLE
+  lda cache_sprite_enable
   and enemies_sprite_slots, x
   beq sprite_not_already_enabled
-debug1:
   jmp upd_enemies_sprites_next_enemy
 sprite_not_already_enabled:
   lda enemies_flags, x
@@ -3243,14 +3380,14 @@ sprite_not_already_enabled:
 
   // set multicolor flag
   lda enemies_sprite_slots, x
-  ora SPRITE_MC_MODE
-  sta SPRITE_MC_MODE
+  ora cache_sprite_mc_mode
+  sta cache_sprite_mc_mode
   bne enemy_enable_sprite_color
 enemy_enable_sprite_single_color:
   lda enemies_sprite_slots, x
   eor #%11111111
-  and SPRITE_MC_MODE
-  sta SPRITE_MC_MODE
+  and cache_sprite_mc_mode
+  sta cache_sprite_mc_mode
 enemy_enable_sprite_color:
   pla
   and #%00001111 // get just color part
@@ -3259,8 +3396,8 @@ enemy_enable_sprite_color:
   sta SPRITE_COLOR_BASE, y
 
   lda enemies_sprite_slots, x
-  ora SPRITE_ENABLE
-  sta SPRITE_ENABLE
+  ora cache_sprite_enable
+  sta cache_sprite_enable
   jmp upd_enemies_sprites_next_enemy
 enemy_offscreen:
   lda #ENEMY_FLAG_ONSCREEN
@@ -3271,8 +3408,8 @@ enemy_disable_sprite:
   // disable the sprite
   lda enemies_sprite_slots, x
   eor #%11111111 // invert
-  and SPRITE_ENABLE
-  sta SPRITE_ENABLE
+  and cache_sprite_enable
+  sta cache_sprite_enable
   jmp upd_enemies_sprites_next_enemy
 upd_enemies_sprites_next_enemy:
   inx
@@ -3307,12 +3444,12 @@ enemy_test_collision:
   // this enemy is onscreen, let's test for a collision
   // get the enemy sprite info
   ldy enemies_sprite_pos_offset, x
-  lda SPRITE_XPOS_BASE, y
+  lda cache_sprite_xpos_base, y
   sta current_enemy_xpos_lo
-  lda SPRITE_YPOS_BASE, y
+  lda cache_sprite_ypos_base, y
   sta current_enemy_ypos_lo
 
-  lda SPRITE_MSB
+  lda cache_sprite_msb
   and enemies_sprite_slots, x
   bne enemy_msb_set
   lda #0
@@ -3541,8 +3678,7 @@ updanim_p1_standing_left:
 updanim_p1_standing_right:
   lda #(P1_FACING_RIGHT_OFFSET+0)
 updanim_p1_offset_selected:
-  sta SPRITE_PTR_BASE_FB
-  sta SPRITE_PTR_BASE_BB
+  sta cache_sprite_ptr_base
 updanim_p1_done:
   rts
 
@@ -3588,8 +3724,7 @@ updanim_enemy_sprite_selected:
   // TODO: is this right?
   adc #SPRITE_PTR_FIRST_B2
   ldy enemies_sprite_base_offset, x
-  sta SPRITE_PTR_BASE_FB, y
-  sta SPRITE_PTR_BASE_BB, y
+  sta cache_sprite_ptr_base, y
 updanim_enemy_next_enemy:
   inx
   cpx enemies_buffer_max
@@ -3890,3 +4025,16 @@ bresenham_pixel_boundariesx:      .fill 64,0
 bresenham_pixel_boundariesy:      .fill 64,0
 
 num_lives:                .byte 0
+
+counter_ones:     .byte 0
+counter_tens:     .byte 0
+counter_hundreds: .byte 0
+
+
+
+cache_sprite_ptr_base:     .fill 8,0
+cache_sprite_xpos_base:    .fill 8,0
+cache_sprite_ypos_base:    .fill 8,0
+cache_sprite_msb:          .byte 0
+cache_sprite_enable:       .byte 0
+cache_sprite_mc_mode:      .byte 0

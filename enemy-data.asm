@@ -107,7 +107,7 @@ enemies_data_end:
   .var enemy_index = ASSEMBLER_ENEMIES_COUNT
 
   .var sprite_base = mod(enemy_index, 7)+1
-  .var sprite_pos_offset = sprite_base * 2
+  .var sprite_pos_offset = sprite_base * 1
   .var sprite_slot = pow(2, sprite_base)
 
   lda #sprite_base
