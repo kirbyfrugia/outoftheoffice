@@ -16,17 +16,17 @@
 //   of movement per frame. Which would be a velocity of 71 (subpixels are included)
 //   e.g. HV_ZERO-MAX_HV_LEFT must be less than 71. Should make it a lot less.
 // Note also: the faster we move, the more expensive collision detection will be.
-.const MAX_HV_LEFT      = 97  // max velocity going left
+.const MAX_HV_LEFT      = 103  // max velocity going left
 .const HV_ZERO          = 127 // horizontal velocity when not moving
-.const MAX_HV_RIGHT     = 157 // max velocity going right
+.const MAX_HV_RIGHT     = 151 // max velocity going right
 .const HORIZ_ACCEL_FAST = 3   // faster acceleration when switching directions
 .const HORIZ_ACCEL_SLOW = 2   // slower acceleration, normal
 .const HV_ZERO_LOWER    = HV_ZERO-HORIZ_ACCEL_FAST-1 // anything between this and HV_ZERO is considered stopped
 .const HV_ZERO_UPPER    = HV_ZERO+HORIZ_ACCEL_FAST+1 // anything between HV_ZERO and this considered stopped
 
-.const MAX_VV_UP        = 97  // vertical velocity when moving up at full speed
+.const MAX_VV_UP        = 103  // vertical velocity when moving up at full speed
 .const VV_ZERO          = 127 // vertical velocity when not moving
-.const MAX_VV_DOWN      = 157 // vertical velocity when moving down at full speed
+.const MAX_VV_DOWN      = 151 // vertical velocity when moving down at full speed
 .const FALL_ACCEL       = 3   // acceleration rate when falling
 .const RISE_ACCEL       = 2   // acceleration rate when rising
 .const VV_BOUNCE        = 118 // vertical velocity when bouncing off an enemy
@@ -3098,9 +3098,7 @@ upd_enemies_pos_enemy:
   sta enemies_posx_hi, x
   cmp enemies_rangex_max_hi, x
   bcc upd_enemies_pos_next_enemy  // not ready to turn back left
-  beq enemy_moving_right_check_lo // same hi byte, so check low
-  bcs enemy_start_moving_left     // hi byte of pos > hi byte of range
-enemy_moving_right_check_lo:
+  bne enemy_start_moving_left
   lda enemies_posx_lo, x
   cmp enemies_rangex_max_lo, x
   bcc upd_enemies_pos_next_enemy  // not ready to turn back left
@@ -3125,6 +3123,7 @@ enemy_moving_left:
   sta enemies_posx_hi, x
   cmp enemies_rangex_min_hi, x
   bcc enemy_start_moving_right    // ready to turn back right
+  bne upd_enemies_pos_next_enemy
   lda enemies_posx_lo, x
   cmp enemies_rangex_min_lo, x
   bcc enemy_start_moving_right    // ready to turn back right
