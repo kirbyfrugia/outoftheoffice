@@ -538,7 +538,7 @@ buffer_wait:
   jsr upd_enemies_sprites
   jsr upd_enemies_buffer
 
-  jsr enemy_collisions_kill
+  jsr enemy_collisions
   jsr updanim
   jsr hud
 
@@ -3423,7 +3423,7 @@ upd_enemies_spritesd:
 .const current_enemy_xpos_hi = zpb6
 .const current_enemy_ypos_lo = zpb7
 // TODO: for finding the enemy, check if it's dead.
-enemy_collisions_kill:
+enemy_collisions:
   ldx enemies_buffer_min
 enemies_collisions_kill_loop:
   lda enemies_flags, x
@@ -3558,10 +3558,15 @@ test_below_enemy:
   lda zpb2
   cmp zpb0
   bcc player_below_enemy
-  bcs test_stomp_enemy
+  bcs player_collided_with_enemy
 player_below_enemy:
   jmp enemies_collisions_kill_loop_next
 
+player_collided_with_enemy:
+  lda enemies_class, y
+  and #ENEMY_CLASS_SIMPLE
+  bne test_stomp_enemy
+  jmp enemies_collisions_kill_loop_next
 test_stomp_enemy:
   // if here, there's a collision with this enemy
   inc enemy_collided_temp
@@ -3590,7 +3595,7 @@ test_stomp_enemy:
   bcs enemy_killed // after new move, player at or below top of enemy
 player_killed:
   jsr player_died
-  jmp enemy_collisions_kill_done
+  jmp enemy_collisions_done
 enemy_killed:
   inc enemy_kills
 
@@ -3611,9 +3616,9 @@ enemy_killed:
 enemies_collisions_kill_loop_next:
   inx
   cpx enemies_buffer_max
-  beq enemy_collisions_kill_done
+  beq enemy_collisions_done
   jmp enemies_collisions_kill_loop
-enemy_collisions_kill_done:
+enemy_collisions_done:
   rts
 
 updanim_p1:
